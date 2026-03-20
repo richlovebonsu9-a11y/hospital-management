@@ -24,6 +24,10 @@
       "dest": "/api/$1.php"
     },
     {
+      "src": "/specialists",
+      "dest": "/www/specialists.php"
+    },
+    {
       "src": "/login",
       "dest": "/www/login.php"
     },
