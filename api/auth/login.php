@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $role = $tokenData['user']['user_metadata']['role'] ?? 'patient';
         header('Location: /dashboard?role=' . $role);
     } else {
-        $error = $result['data']['error_description'] ?? 'Login failed';
+        $error = $result['data']['error_description'] ?? $result['data']['msg'] ?? $result['data']['message'] ?? 'Login failed';
         header('Location: /login?error=' . urlencode($error));
     }
 }
