@@ -1,14 +1,38 @@
-<?php
-// Patient Electronic Medical Record (EMR) - GGHMS
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+
 if (!isset($_SESSION['user'])) {
     header('Location: /login');
     exit;
 }
 
-$user = $_SESSION['user'];
-$name = $user['user_metadata']['name'] ?? 'Patient';
-?>
+$sb = new Supabase();
+$currentUser = $_SESSION['user'];
+$targetPatientId = $_GET['patient_id'] ?? $currentUser['id'];
+
+// Fetch Patient Profile
+$profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . urlencode($targetPatientId) . '&select=*');
+$patient = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : null;
+
+if (!$patient) {
+    die("Patient record not found.");
+}
+
+// Fetch Clinical Data (Vitals, Lab Results, Prescriptions)
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&order=recorded_at.desc');
+$vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
+
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc');
+$labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
+
+// Combine into a timeline
+$timeline = array_merge($vitals, $labs);
+usort($timeline, function($a, $b) {
+    return strtotime($b['recorded_at'] ?? $b['created_at']) - strtotime($a['recorded_at'] ?? $a['created_at']);
+});
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -36,15 +60,19 @@ $name = $user['user_metadata']['name'] ?? 'Patient';
                     <h6 class="fw-bold mb-4">Patient Metadata</h6>
                     <div class="mb-3">
                         <small class="text-muted d-block">Full Name</small>
-                        <span class="fw-bold"><?php echo htmlspecialchars($name); ?></span>
+                        <span class="fw-bold"><?php echo htmlspecialchars($patient['name']); ?></span>
                     </div>
                     <div class="mb-3">
                         <small class="text-muted d-block">Ghana Card</small>
-                        <span class="fw-bold"><?php echo htmlspecialchars($user['user_metadata']['ghana_card'] ?? 'Not Linked'); ?></span>
+                        <span class="fw-bold"><?php echo htmlspecialchars($patient['ghana_card'] ?? 'Not Linked'); ?></span>
                     </div>
                      <div class="mb-3">
                         <small class="text-muted d-block">NHIS #</small>
-                        <span class="fw-bold text-primary"><?php echo htmlspecialchars($user['user_metadata']['nhis_membership_number'] ?? 'Not Linked'); ?></span>
+                        <span class="fw-bold text-primary"><?php echo htmlspecialchars($patient['nhis_membership_number'] ?? 'Not Linked'); ?></span>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">Blood Group</small>
+                        <span class="fw-bold text-danger"><?php echo htmlspecialchars($patient['blood_group'] ?? 'Unknown'); ?></span>
                     </div>
                     <hr>
                     <small class="text-muted small">Data protected under Data Protection Act 2012.</small>
@@ -54,33 +82,61 @@ $name = $user['user_metadata']['name'] ?? 'Patient';
                 <div class="card border-0 shadow-sm rounded-5 p-4 mb-4">
                     <h5 class="fw-bold mb-4">Visit History</h5>
                     <div class="timeline">
-                        <!-- Visit 1 -->
-                        <div class="d-flex mb-5">
-                            <div class="text-center me-4" style="min-width: 80px;">
-                                <h4 class="fw-bold mb-0">15</h4>
-                                <small class="text-muted uppercase">MAR '26</small>
+                        <?php if (empty($timeline)): ?>
+                            <div class="text-center py-5">
+                                <i class="bi bi-folder2-open display-1 text-light mb-3"></i>
+                                <p class="text-muted">No medical records found for this patient.</p>
                             </div>
-                            <div class="flex-grow-1 border-start ps-4">
-                                <h6 class="fw-bold mb-1">General OPD Consultation</h6>
-                                <p class="text-muted small mb-3">Diagnostic: Upper Respiratory Tract Infection (URTI)</p>
-                                <div class="card p-3 bg-light border-0 rounded-4">
-                                    <h6 class="fw-bold small mb-2 text-primary">Doctor Notes</h6>
-                                    <p class="small mb-0">Patient presented with mild fever and sore throat. Pulse stable. Prescribed Amoxicillin and Paracetamol.</p>
+                        <?php else: foreach ($timeline as $entry): 
+                            $date = strtotime($entry['recorded_at'] ?? $entry['created_at']);
+                        ?>
+                            <div class="d-flex mb-5">
+                                <div class="text-center me-4" style="min-width: 80px;">
+                                    <h4 class="fw-bold mb-0"><?php echo date('d', $date); ?></h4>
+                                    <small class="text-muted text-uppercase"><?php echo date('M \'y', $date); ?></small>
+                                </div>
+                                <div class="flex-grow-1 border-start ps-4">
+                                    <?php if (isset($entry['temperature'])): // It's a Vitals entry ?>
+                                        <h6 class="fw-bold mb-1 text-primary">Vitals Recorded</h6>
+                                        <div class="row g-2 mt-2">
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-2 bg-light rounded-3 small">
+                                                    <span class="d-block text-muted">Temp</span>
+                                                    <span class="fw-bold"><?php echo $entry['temperature']; ?>°C</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-2 bg-light rounded-3 small">
+                                                    <span class="d-block text-muted">BP</span>
+                                                    <span class="fw-bold"><?php echo $entry['blood_pressure']; ?></span>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-2 bg-light rounded-3 small">
+                                                    <span class="d-block text-muted">Pulse</span>
+                                                    <span class="fw-bold"><?php echo $entry['pulse']; ?> bpm</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-6 col-md-3">
+                                                <div class="p-2 bg-light rounded-3 small">
+                                                    <span class="d-block text-muted">Weight</span>
+                                                    <span class="fw-bold"><?php echo $entry['weight']; ?> kg</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php else: // It's a Lab Request ?>
+                                        <h6 class="fw-bold mb-1 text-info"><?php echo htmlspecialchars($entry['test_name']); ?> (<?php echo htmlspecialchars($entry['test_type']); ?>)</h6>
+                                        <p class="text-muted small mb-2">Status: <span class="text-capitalize"><?php echo htmlspecialchars($entry['status']); ?></span></p>
+                                        <?php if ($entry['result_text']): ?>
+                                            <div class="card p-3 bg-light border-0 rounded-4">
+                                                <h6 class="fw-bold small mb-2 text-danger">Result Notes</h6>
+                                                <p class="small mb-0"><?php echo nl2br(htmlspecialchars($entry['result_text'])); ?></p>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
                                 </div>
                             </div>
-                        </div>
-                        <!-- Visit 2 -->
-                        <div class="d-flex mb-5">
-                            <div class="text-center me-4" style="min-width: 80px;">
-                                <h4 class="fw-bold mb-0">12</h4>
-                                <small class="text-muted uppercase">MAR '26</small>
-                            </div>
-                            <div class="flex-grow-1 border-start ps-4">
-                                <h6 class="fw-bold mb-1">Laboratory Unit</h6>
-                                <p class="text-muted small mb-3">Service: Malaria Parasite (mRDT)</p>
-                                <div class="badge bg-danger-soft text-danger rounded-pill px-3">Result: POSITIVE (+)</div>
-                            </div>
-                        </div>
+                        <?php endforeach; endif; ?>
                     </div>
                 </div>
             </div>

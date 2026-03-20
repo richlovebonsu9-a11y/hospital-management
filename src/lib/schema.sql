@@ -39,8 +39,14 @@ CREATE TABLE IF NOT EXISTS guardians (
     guardian_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     relationship TEXT,
     is_primary BOOLEAN DEFAULT true,
+    status TEXT DEFAULT 'pending', -- pending, approved, rejected
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- RLS for Guardians
+ALTER TABLE guardians ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Admins can manage all guardian links" ON guardians FOR ALL TO authenticated USING (auth.jwt() -> 'user_metadata' ->> 'role' = 'admin');
+CREATE POLICY "Users can view their own guardian links" ON guardians FOR SELECT TO authenticated USING (auth.uid() = patient_id OR auth.uid() = guardian_id);
 
 -- 3. Appointments
 CREATE TABLE IF NOT EXISTS appointments (

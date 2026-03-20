@@ -53,6 +53,25 @@ $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [
 $auditRes = $sb->request('GET', '/rest/v1/audit_log?order=created_at.desc&limit=20');
 $auditLogs = ($auditRes['status'] === 200) ? $auditRes['data'] : [];
 
+// 3. Fetch Guardian Links
+$guardianLinksRes = $sb->request('GET', '/rest/v1/guardians?select=*,patient:patient_id(name),guardian:guardian_id(name)');
+$guardianLinks = ($guardianLinksRes['status'] === 200) ? $guardianLinksRes['data'] : [];
+
+// Map patient_id -> guardian info for easy lookup in table
+$patientGuardians = [];
+foreach($guardianLinks as $link) {
+    $patientGuardians[$link['patient_id']][] = [
+        'id' => $link['guardian_id'],
+        'name' => $link['guardian']['name'] ?? 'Unknown',
+        'relationship' => $link['relationship'],
+        'status' => $link['status'] ?? 'pending'
+    ];
+}
+
+// 4. Fetch All Guardians for the Select Dropdown
+$guardiansRes = $sb->request('GET', '/rest/v1/profiles?role=eq.guardian&select=id,name');
+$allGuardians = ($guardiansRes['status'] === 200) ? $guardiansRes['data'] : [];
+
 // Emergency Status Calc
 $highSeverityCount = 0;
 foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'] ?? '') !== 'resolved') $highSeverityCount++;
@@ -208,17 +227,23 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
         <!-- PATIENT DIRECTORY SECTION -->
         <div id="section-patients" class="dashboard-section d-none">
             <div class="card p-4 border-0 shadow-sm">
-                <h5 class="fw-bold mb-4">Registered Patients</h5>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light"><tr><th>Name</th><th>Email</th><th>Patient ID</th><th>Joined</th><th>Actions</th></tr></thead>
+                        <thead class="table-light"><tr><th>Name</th><th>Email</th><th>Guardian</th><th>Patient ID</th><th>Joined</th><th>Actions</th></tr></thead>
                         <tbody>
                             <?php if (empty($patientList)): ?>
-                                <tr><td colspan="5" class="text-center py-4 text-muted">No patients registered.</td></tr>
+                                <tr><td colspan="6" class="text-center py-4 text-muted">No patients registered.</td></tr>
                             <?php else: foreach ($patientList as $p): ?>
                                 <tr>
                                     <td class="fw-bold"><?php echo htmlspecialchars($p['name']); ?></td>
                                     <td><?php echo htmlspecialchars($p['email']); ?></td>
+                                    <td>
+                                        <?php if (isset($patientGuardians[$p['id']])): foreach($patientGuardians[$p['id']] as $g): ?>
+                                            <span class="badge <?php echo ($g['status'] === 'approved' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'); ?> rounded-pill px-2 mb-1" title="<?php echo htmlspecialchars($g['relationship']); ?>">
+                                                <i class="bi bi-shield-check me-1"></i><?php echo htmlspecialchars($g['name']); ?> (<?php echo $g['status']; ?>)
+                                            </span>
+                                        <?php endforeach; else: ?>
+                                            <button class="btn btn-sm btn-link text-muted p-0" onclick="openLinkModal('<?php echo $p['id']; ?>', '<?php echo htmlspecialchars($p['name']); ?>')">+ Link</button>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><small class="text-muted"><?php echo $p['id']; ?></small></td>
                                     <td><?php echo date('M d, Y', strtotime($p['joined'])); ?></td>
                                     <td><a href="/emr.php?patient_id=<?php echo $p['id']; ?>" class="btn btn-sm btn-light rounded-pill px-3">View EMR</a></td>
@@ -374,6 +399,42 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 </div>
             </div>
         </div>
+
+    <!-- Link Guardian Modal -->
+    <div class="modal fade" id="linkGuardianModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Link Guardian to Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <form action="/api/admin/link_guardian" method="POST">
+                        <input type="hidden" name="patient_id" id="link_patient_id">
+                        <div class="mb-3">
+                            <label class="small text-muted">Patient Name</label>
+                            <input type="text" id="link_patient_name" class="form-control rounded-pill px-3" readonly disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted">Select Guardian</label>
+                            <select name="guardian_id" class="form-select rounded-pill px-3" required>
+                                <option value="">-- Choose Guardian --</option>
+                                <?php foreach($allGuardians as $g): ?>
+                                    <option value="<?php echo $g['id']; ?>"><?php echo htmlspecialchars($g['name']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted">Relationship (e.g. Father, Mother, Spouse)</label>
+                            <input type="text" name="relationship" class="form-control rounded-pill px-3" required placeholder="Mother">
+                        </div>
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" name="is_primary" value="1" id="linkPrimary" checked>
+                            <label class="form-check-label small" for="linkPrimary">Set as Primary Guardian</label>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">Create Relationship</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -406,6 +467,13 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 console.error("Error parsing staff data:", e);
                 alert("Could not load staff details. Please try again.");
             }
+        }
+
+        function openLinkModal(patientId, patientName) {
+            document.getElementById('link_patient_id').value = patientId;
+            document.getElementById('link_patient_name').value = patientName;
+            const linkModal = new bootstrap.Modal(document.getElementById('linkGuardianModal'));
+            linkModal.show();
         }
     </script>
 </body>
