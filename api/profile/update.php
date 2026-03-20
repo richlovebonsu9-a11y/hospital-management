@@ -20,14 +20,15 @@ if ($action === 'link_patient') {
         header('Location: /dashboard_guardian.php?error=missing_fields'); exit;
     }
     
-    // 1. Find the patient profile by Name and Email
-    $pRes = $sb->request('GET', '/rest/v1/profiles?name=eq.' . urlencode($patientName) . '&email=eq.' . urlencode($patientEmail) . '&select=id');
+    // 1. Find the patient profile by Email (more robust than exact name match)
+    $pRes = $sb->request('GET', '/rest/v1/profiles?email=eq.' . urlencode($patientEmail) . '&select=id,name');
     
     if ($pRes['status'] !== 200 || empty($pRes['data'])) {
         header('Location: /dashboard_guardian.php?error=patient_not_found'); exit;
     }
     
-    $patientId = $pRes['data'][0]['id'];
+    $patient = $pRes['data'][0];
+    $patientId = $patient['id'];
     
     // 2. Create the guardian link in the table (standardizing with admin view)
     $linkData = [

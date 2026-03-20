@@ -65,16 +65,33 @@ foreach ($guardianLinks as $link) {
     </div>
 
     <div class="main-content">
-        <header class="d-flex justify-content-between align-items-center mb-5">
-            <div>
-                <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($name); ?>! 👋</h2>
-                <p class="text-muted mb-0">You are managing healthcare for a linked patient.</p>
-            </div>
-            <div class="d-flex align-items-center">
-                <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
-                    <?php echo strtoupper(substr($name, 0, 1)); ?>
+        <header class="mb-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($name); ?>! 👋</h2>
+                    <p class="text-muted mb-0">You are managing healthcare for a linked patient.</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
+                        <?php echo strtoupper(substr($name, 0, 1)); ?>
+                    </div>
                 </div>
             </div>
+
+            <?php if (isset($_GET['error'])): ?>
+                <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4">
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    <?php 
+                        echo ($_GET['error'] === 'patient_not_found') ? 'The patient record was not found. Please check the email and name.' : 
+                             (($_GET['error'] === 'link_exists_or_failed') ? 'This link already exists or an error occurred.' : 'An error occurred. Please try again.');
+                    ?>
+                </div>
+            <?php endif; ?>
+            <?php if (isset($_GET['linked'])): ?>
+                <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4">
+                    <i class="bi bi-check-circle me-2"></i> Patient link requested successfully!
+                </div>
+            <?php endif; ?>
         </header>
 
         <!-- OVERVIEW SECTION -->
