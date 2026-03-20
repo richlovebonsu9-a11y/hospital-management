@@ -1,13 +1,7 @@
 {
   "version": 2,
   "functions": {
-    "www/index.php": {
-      "runtime": "vercel-php"
-    },
-    "www/login.php": {
-      "runtime": "vercel-php"
-    },
-    "www/signup.php": {
+    "www/**/*.php": {
       "runtime": "vercel-php"
     },
     "api/**/*.php": {
@@ -16,12 +10,12 @@
   },
   "routes": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1.php"
-    },
-    {
       "src": "/assets/(.*)",
       "dest": "/www/assets/$1"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1.php"
     },
     {
       "src": "/login",
