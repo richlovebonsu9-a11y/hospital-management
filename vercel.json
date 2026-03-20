@@ -2,10 +2,10 @@
   "version": 2,
   "functions": {
     "www/**/*.php": {
-      "runtime": "vercel-php"
+      "runtime": "vercel-php@0.6.0"
     },
     "api/**/*.php": {
-      "runtime": "vercel-php"
+      "runtime": "vercel-php@0.6.0"
     }
   },
   "routes": [
