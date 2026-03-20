@@ -12,17 +12,18 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 
 
 $user = $_SESSION['user'];
 $userId = $user['id'];
-$metadata = $user['user_metadata'] ?? [];
-$name = $metadata['name'] ?? 'Guardian';
-$linkedPatients = $metadata['linked_patients'] ?? []; // Array of patient IDs
+// 1. Fetch linked patients from the 'guardians' table
+$linkedRes = $sb->request('GET', '/rest/v1/guardians?guardian_id=eq.' . $userId . '&select=*,patient:patient_id(*)');
+$guardianLinks = ($linkedRes['status'] === 200) ? $linkedRes['data'] : [];
 
-$sb = new Supabase();
-// 1. Fetch appointments for linked patients (where guardian_id = this user)
-$apptRes = $sb->request('GET', '/rest/v1/appointments?guardian_id=eq.' . $userId . '&order=date.asc');
-$appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
-
-// 2. Fetch recent activity (lab requests, prescriptions) for linked patients
-// Note: This is simpler if we just loop through linkedPatients or filter the tables by patient_id in linkedPatients
+// 2. Fetch appointments for all linked patients
+$appointments = [];
+foreach ($guardianLinks as $link) {
+    if (($link['status'] ?? '') === 'approved') {
+        $aRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $link['patient_id'] . '&order=appointment_date.asc');
+        if ($aRes['status'] === 200) $appointments = array_merge($appointments, $aRes['data']);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -123,10 +124,10 @@ $appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
                         </thead>
                         <tbody>
                             <?php if (empty($appointments)): ?>
-                                <tr><td class="text-muted" colspan="4">No recent activity found for linked patients.</td></tr>
+                                <tr><td class="text-muted" colspan="4">No recent activity found for approved linked patients.</td></tr>
                             <?php endif; foreach ($appointments as $appt): ?>
                             <tr>
-                                <td><?php echo date('M d, Y', strtotime($appt['date'])); ?></td>
+                                <td><?php echo date('M d, Y', strtotime($appt['appointment_date'])); ?></td>
                                 <td><span class="fw-bold">Patient <?php echo substr($appt['patient_id'], 0, 8); ?></span></td>
                                 <td><?php echo htmlspecialchars($appt['department']); ?></td>
                                 <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($appt['status']); ?></span></td>
@@ -145,28 +146,39 @@ $appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
                 <button class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#linkPatientModal">+ Link New Patient</button>
             </div>
             
-            <?php if (empty($linkedPatients)): ?>
+            <?php if (empty($guardianLinks)): ?>
             <div class="card border-0 shadow-sm p-5 text-center text-muted">
                 <i class="bi bi-person-plus display-4 mb-3"></i>
                 <h5 class="fw-bold">No patients linked yet</h5>
-                <p>Link your children or elderly relatives to manage their records and appointments.</p>
+                <p>Link your children or elderly relatives using their Name and Email.</p>
             </div>
             <?php else: ?>
             <div class="row g-4">
-                <?php foreach ($linkedPatients as $pid): ?>
+                <?php foreach ($guardianLinks as $link): 
+                    $p = $link['patient'];
+                ?>
                 <div class="col-md-4">
                     <div class="card border-0 shadow-sm p-4">
                         <div class="d-flex align-items-center mb-3">
-                            <div class="bg-primary-soft text-primary rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 48px; height: 48px;">P</div>
+                            <div class="bg-primary-soft text-primary rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 48px; height: 48px;"><?php echo strtoupper(substr($p['name'], 0, 1)); ?></div>
                             <div>
-                                <h6 class="fw-bold mb-0">Patient <?php echo substr($pid, 0, 8); ?></h6>
-                                <small class="text-muted">ID: <?php echo $pid; ?></small>
+                                <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($p['name']); ?></h6>
+                                <small class="text-muted h6 mb-0"><?php echo htmlspecialchars($link['relationship']); ?></small>
+                                <div class="mt-1">
+                                    <span class="badge <?php echo ($link['status'] === 'approved' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'); ?> rounded-pill small px-2">
+                                        <?php echo ucfirst($link['status']); ?>
+                                    </span>
+                                </div>
                             </div>
                         </div>
+                        <?php if ($link['status'] === 'approved'): ?>
                         <div class="d-grid gap-2">
-                            <a href="/emr.php?patient_id=<?php echo $pid; ?>" class="btn btn-light btn-sm rounded-pill">View Full EMR</a>
-                            <button class="btn btn-primary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#bookApptModal" onclick="document.getElementById('appt_patient_id').value='<?php echo $pid; ?>'">Book Appt</button>
+                            <a href="/emr.php?patient_id=<?php echo $p['id']; ?>" class="btn btn-light btn-sm rounded-pill">View Full EMR</a>
+                            <button class="btn btn-primary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#bookApptModal" onclick="document.getElementById('appt_patient_id').value='<?php echo $p['id']; ?>'">Book Appt</button>
                         </div>
+                        <?php else: ?>
+                            <p class="small text-muted mb-0"><i class="bi bi-info-circle me-1"></i> Waiting for patient or admin approval to view records.</p>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <?php endforeach; ?>
@@ -187,8 +199,8 @@ $appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
                             <tbody>
                                 <?php foreach ($appointments as $a): ?>
                                 <tr>
-                                    <td><?php echo date('M d, Y', strtotime($a['date'])); ?></td>
-                                    <td><?php echo $a['patient_id']; ?></td>
+                                    <td><?php echo date('M d, Y', strtotime($a['appointment_date'])); ?></td>
+                                    <td><?php echo substr($a['patient_id'], 0, 8); ?></td>
                                     <td><?php echo htmlspecialchars($a['department']); ?></td>
                                     <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>
                                 </tr>
@@ -211,9 +223,9 @@ $appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
                     <div class="mb-3">
                         <label class="form-label text-muted small">Select Affected Dependant</label>
                         <select name="patient_id" class="form-select rounded-pill px-3" required>
-                            <?php foreach ($linkedPatients as $pid): ?>
-                                <option value="<?php echo $pid; ?>">Patient <?php echo substr($pid, 0, 8); ?></option>
-                            <?php endforeach; ?>
+                            <?php foreach ($guardianLinks as $link): if($link['status'] === 'approved'): ?>
+                                <option value="<?php echo $link['patient_id']; ?>"><?php echo htmlspecialchars($link['patient']['name']); ?></option>
+                            <?php endif; endforeach; ?>
                         </select>
                     </div>
                     <div class="mb-3">
@@ -243,12 +255,23 @@ $appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
     <div class="modal fade" id="linkPatientModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <form action="/api/profile/update.php" method="POST" class="modal-content border-0 shadow">
-                <div class="modal-header border-0"><h5 class="fw-bold">Link New Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-header border-0 pb-0"><h5 class="fw-bold">Link New Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
-                    <p class="text-muted small">Enter the unique Patient ID of the person you wish to manage.</p>
-                    <input type="text" name="new_patient_id" class="form-control rounded-pill px-3 mb-3" placeholder="e.g. uuid-1234-..." required>
+                    <p class="text-muted small">Enter the patient's full name and email address as registered in the system.</p>
+                    <div class="mb-3">
+                        <label class="small text-muted">Full Name</label>
+                        <input type="text" name="patient_name" class="form-control rounded-pill px-3" placeholder="e.g. John Doe" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Email Address</label>
+                        <input type="email" name="patient_email" class="form-control rounded-pill px-3" placeholder="e.g. john@example.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Relationship (e.g. Son, Daughter, Mother, Spouse)</label>
+                        <input type="text" name="relationship" class="form-control rounded-pill px-3" placeholder="Child" required>
+                    </div>
                     <input type="hidden" name="action" value="link_patient">
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill">Link Patient</button>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill mt-2">Link Patient</button>
                 </div>
             </form>
         </div>
