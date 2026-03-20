@@ -1,0 +1,14 @@
+{
+    "name": "hospital/gghms",
+    "description": "Ghanaian General Hospital Management System",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "guzzlehttp/guzzle": "^7.8"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    }
+}
