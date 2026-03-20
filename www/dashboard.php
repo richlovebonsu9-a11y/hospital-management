@@ -22,6 +22,9 @@ switch ($role) {
     case 'technician':
         header('Location: /dashboard_staff.php');
         break;
+    case 'guardian':
+        header('Location: /dashboard_guardian.php');
+        break;
     default:
         header('Location: /dashboard_patient.php');
         break;
