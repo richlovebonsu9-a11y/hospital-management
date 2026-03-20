@@ -14,8 +14,8 @@ $user = $_SESSION['user'];
 $userId = $user['id'];
 $name = $user['user_metadata']['name'] ?? 'Guardian';
 $sb = new Supabase();
-// 1. Fetch linked patients from the 'guardians' table
-$linkedRes = $sb->request('GET', '/rest/v1/guardians?guardian_id=eq.' . $userId . '&select=*,patient:patient_id(*)');
+// 1. Fetch linked patients from the 'guardians' table (use service key to ensure visibility)
+$linkedRes = $sb->request('GET', '/rest/v1/guardians?guardian_id=eq.' . $userId . '&select=*,patient:patient_id(*)', null, true);
 $guardianLinks = ($linkedRes['status'] === 200) ? $linkedRes['data'] : [];
 
 // 2. Fetch appointments for all linked patients
@@ -80,11 +80,21 @@ foreach ($guardianLinks as $link) {
 
             <?php if (isset($_GET['error'])): ?>
                 <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4">
-                    <i class="bi bi-exclamation-circle me-2"></i>
-                    <?php 
-                        echo ($_GET['error'] === 'patient_not_found') ? 'The patient record was not found. Please check the email and name.' : 
-                             (($_GET['error'] === 'link_exists_or_failed') ? 'This link already exists or an error occurred.' : 'An error occurred. Please try again.');
-                    ?>
+                    <div class="d-flex">
+                        <i class="bi bi-exclamation-circle me-3 fs-4"></i>
+                        <div>
+                            <h6 class="fw-bold mb-1">Linking Failed</h6>
+                            <p class="small mb-0">
+                                <?php 
+                                    if ($_GET['error'] === 'patient_not_found') {
+                                        echo 'The patient record was not found. Please check if the email is correct.';
+                                    } else {
+                                        echo htmlspecialchars($_GET['msg'] ?? 'An error occurred while linking the patient. Please try again or contact support.');
+                                    }
+                                ?>
+                            </p>
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
             <?php if (isset($_GET['linked'])): ?>

@@ -40,12 +40,19 @@ if ($action === 'link_patient') {
         header('Location: /dashboard_guardian.php?error=patient_not_found'); exit;
     }
     
-    // Optional: Verify name roughly matches (case insensitive fuzzy)
-    if ($patientName && strpos(strtolower($patientActualName), strtolower($patientName)) === false) {
-        // We still link, but maybe log it? For now, just link if email is correct.
+    // 2. Ensure patient has a profile record (required for foreign key in guardians table)
+    $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=id', null, true);
+    if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
+        // Create minimal profile
+        $sb->request('POST', '/rest/v1/profiles', [
+            'id' => $patientId,
+            'name' => $patientActualName,
+            'role' => 'patient',
+            'ghana_post_gps' => 'Unknown' // REQUIRED field in schema
+        ], true);
     }
     
-    // 2. Create the guardian link in the table (standardizing with admin view)
+    // 3. Create the guardian link in the table
     $linkData = [
         'guardian_id' => $userId,
         'patient_id' => $patientId,
@@ -53,12 +60,13 @@ if ($action === 'link_patient') {
         'status' => 'pending'
     ];
     
-    $res = $sb->request('POST', '/rest/v1/guardians', $linkData);
+    $res = $sb->request('POST', '/rest/v1/guardians', $linkData, true);
 
     if ($res['status'] >= 200 && $res['status'] < 300) {
         header('Location: /dashboard_guardian.php?linked=1');
     } else {
-        header('Location: /dashboard_guardian.php?error=link_exists_or_failed');
+        $errorMsg = urlencode($res['data']['message'] ?? 'Insertion failed - possible duplicate or constraint error');
+        header('Location: /dashboard_guardian.php?error=link_failed&msg=' . $errorMsg);
     }
     exit;
 }
