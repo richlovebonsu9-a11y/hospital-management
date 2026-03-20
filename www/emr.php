@@ -19,7 +19,29 @@ $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . urlencode($target
 $patient = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : null;
 
 if (!$patient) {
-    die("Patient record not found.");
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Not Found - GGHMS</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="/assets/css/style.css">
+    </head>
+    <body class="bg-light d-flex align-items-center justify-content-center" style="min-height: 100vh;">
+        <div class="text-center p-5 card border-0 shadow-sm rounded-5" style="max-width: 500px;">
+            <div class="bg-danger-soft text-danger rounded-circle d-inline-flex align-items-center justify-content-center mb-4" style="width: 80px; height: 80px;">
+                <i class="bi bi-person-x fs-1"></i>
+            </div>
+            <h2 class="fw-bold mb-3">Record Not Found</h2>
+            <p class="text-muted mb-4">We couldn't find a medical record for the requested patient ID. Please verify the link or contact administration.</p>
+            <a href="/dashboard_admin" class="btn btn-primary rounded-pill px-5">Back to Dashboard</a>
+        </div>
+    </body>
+    </html>
+    <?php
+    exit;
 }
 
 // Fetch Clinical Data (Vitals, Lab Results, Prescriptions)
