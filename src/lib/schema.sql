@@ -1,7 +1,7 @@
 -- GGHMS Database Schema (Supabase / PostgreSQL)
 
 -- 1. Profiles (Extends Supabase Auth users)
-CREATE TABLE profiles (
+CREATE TABLE IF NOT EXISTS profiles (
     id UUID REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
     name TEXT NOT NULL,
     role TEXT NOT NULL CHECK (role IN ('patient', 'guardian', 'doctor', 'nurse', 'pharmacist', 'technician', 'admin')),
@@ -20,11 +20,20 @@ CREATE TABLE profiles (
 
 -- RLS for profiles
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public profiles can be viewed by authenticated users." ON profiles FOR SELECT USING (auth.role() = 'authenticated');
-CREATE POLICY "Users can edit their own profile." ON profiles FOR UPDATE USING (auth.uid() = id);
+
+DO $$ 
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Public profiles can be viewed by authenticated users.' AND tablename = 'profiles') THEN
+        CREATE POLICY "Public profiles can be viewed by authenticated users." ON profiles FOR SELECT USING (auth.role() = 'authenticated');
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname = 'Users can edit their own profile.' AND tablename = 'profiles') THEN
+        CREATE POLICY "Users can edit their own profile." ON profiles FOR UPDATE USING (auth.uid() = id);
+    END IF;
+END $$;
 
 -- 2. Guardians relationship
-CREATE TABLE guardians (
+CREATE TABLE IF NOT EXISTS guardians (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     guardian_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
@@ -34,7 +43,7 @@ CREATE TABLE guardians (
 );
 
 -- 3. Appointments
-CREATE TABLE appointments (
+CREATE TABLE IF NOT EXISTS appointments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES profiles(id),
     doctor_id UUID REFERENCES profiles(id),
@@ -45,7 +54,7 @@ CREATE TABLE appointments (
 );
 
 -- 4. Emergencies
-CREATE TABLE emergencies (
+CREATE TABLE IF NOT EXISTS emergencies (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     reporter_id UUID REFERENCES profiles(id),
     symptoms TEXT,
@@ -56,7 +65,7 @@ CREATE TABLE emergencies (
 );
 
 -- 5. Admissions
-CREATE TABLE admissions (
+CREATE TABLE IF NOT EXISTS admissions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES profiles(id),
     ward TEXT NOT NULL,
@@ -68,7 +77,7 @@ CREATE TABLE admissions (
 );
 
 -- 6. Consultations & Prescriptions
-CREATE TABLE consultations (
+CREATE TABLE IF NOT EXISTS consultations (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES profiles(id),
     doctor_id UUID REFERENCES profiles(id),
@@ -77,7 +86,7 @@ CREATE TABLE consultations (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE prescriptions (
+CREATE TABLE IF NOT EXISTS prescriptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     consultation_id UUID REFERENCES consultations(id),
     medication_name TEXT NOT NULL,
@@ -89,7 +98,7 @@ CREATE TABLE prescriptions (
 );
 
 -- 7. Pharmacy Inventory
-CREATE TABLE pharmacy_inventory (
+CREATE TABLE IF NOT EXISTS pharmacy_inventory (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     item_name TEXT NOT NULL,
     stock_quantity INTEGER DEFAULT 0,
@@ -99,7 +108,7 @@ CREATE TABLE pharmacy_inventory (
 );
 
 -- 8. Invoices & Payments
-CREATE TABLE invoices (
+CREATE TABLE IF NOT EXISTS invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     patient_id UUID REFERENCES profiles(id),
     total_amount DECIMAL(10, 2) NOT NULL,
@@ -108,7 +117,7 @@ CREATE TABLE invoices (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE invoice_items (
+CREATE TABLE IF NOT EXISTS invoice_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     invoice_id UUID REFERENCES invoices(id) ON DELETE CASCADE,
     description TEXT NOT NULL,
@@ -116,3 +125,61 @@ CREATE TABLE invoice_items (
     unit_price DECIMAL(10, 2) NOT NULL,
     amount DECIMAL(10, 2) NOT NULL
 );
+
+-- 9. Vitals (Observed by Nurses/Doctors)
+CREATE TABLE IF NOT EXISTS vitals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    recorded_by UUID REFERENCES profiles(id),
+    temperature NUMERIC,
+    blood_pressure TEXT,
+    weight NUMERIC,
+    pulse INTEGER,
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. Lab & Radiology Requests
+CREATE TABLE IF NOT EXISTS lab_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    patient_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    doctor_id UUID REFERENCES profiles(id),
+    test_type TEXT NOT NULL,
+    test_name TEXT NOT NULL,
+    result_text TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'completed')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. System Notifications
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 12. Security Audit Log
+CREATE TABLE IF NOT EXISTS audit_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES profiles(id),
+    action TEXT NOT NULL,
+    details TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 13. Drug Inventory (Detailed)
+CREATE TABLE IF NOT EXISTS drug_inventory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    drug_name TEXT NOT NULL,
+    stock_count INTEGER DEFAULT 0,
+    expiry_date DATE,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for all new tables
+ALTER TABLE vitals ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lab_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
+ALTER TABLE drug_inventory ENABLE ROW LEVEL SECURITY;

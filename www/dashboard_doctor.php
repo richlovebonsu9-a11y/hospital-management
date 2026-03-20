@@ -1,6 +1,9 @@
 <?php
 // Doctor Dashboard - GGHMS
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 'doctor') {
     header('Location: /login');
@@ -8,7 +11,33 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 
 }
 
 $user = $_SESSION['user'];
+$userId = $user['id'];
 $name = $user['user_metadata']['name'] ?? 'Doctor';
+
+$sb = new Supabase();
+
+// 1. Fetch Today's Queue (Scheduled appointments for today, ideally assigned to this doctor or general)
+$today = date('Y-m-d');
+$queueRes = $sb->request('GET', '/rest/v1/appointments?date=eq.' . $today . '&status=neq.completed&order=created_at.asc');
+$queue = ($queueRes['status'] === 200) ? $queueRes['data'] : [];
+
+// 2. Fetch My Schedule (All appointments assigned to this doctor)
+// Note: In a real system we'd filter by doctor_id. For now, we show all for the department if doctor_id is null or matches.
+$scheduleRes = $sb->request('GET', '/rest/v1/appointments?doctor_id=eq.' . $userId . '&order=date.asc');
+$mySchedule = ($scheduleRes['status'] === 200) ? $scheduleRes['data'] : [];
+
+// 3. Fetch Lab Results (Ordered by this doctor)
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?doctor_id=eq.' . $userId . '&order=created_at.desc');
+$labResults = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
+
+// 4. Fetch Prescriptions (Created by this doctor)
+$rxRes = $sb->request('GET', '/rest/v1/prescriptions?doctor_id=eq.' . $userId . '&order=created_at.desc');
+$prescriptions = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
+
+// Stats
+$waitingCount = 0;
+foreach($queue as $q) if($q['status'] === 'scheduled') $waitingCount++;
+$seenToday = count($mySchedule); // Simplification
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -51,11 +80,11 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
         <header class="d-flex justify-content-between align-items-center mb-5">
             <div>
                 <h2 class="fw-bold mb-1">Dr. <?php echo htmlspecialchars($name); ?> 👩‍⚕️</h2>
-                <p class="text-muted mb-0">You have 8 patients in your queue today.</p>
+                <p class="text-muted mb-0">You have <?php echo count($queue); ?> patients in the queue today.</p>
             </div>
             <div class="d-flex align-items-center">
                 <div class="me-4 text-end">
-                    <p class="mb-0 fw-bold">OPD Shift</p>
+                    <p class="mb-0 fw-bold"><?php echo htmlspecialchars($user['user_metadata']['department'] ?? 'OPD'); ?> Shift</p>
                     <span class="badge bg-success-soft text-success rounded-pill px-3">Active Now</span>
                 </div>
                 <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
@@ -69,26 +98,26 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
             <div class="row g-4 mb-5">
                 <div class="col-md-3">
                     <div class="card p-3 border-0 shadow-sm text-center">
-                        <h6 class="text-muted mb-2">Patients Waiting</h6>
-                        <h2 class="fw-bold mb-0 text-primary">05</h2>
+                        <h6 class="text-muted mb-2">Waitlisted</h6>
+                        <h2 class="fw-bold mb-0 text-primary"><?php echo sprintf('%02d', $waitingCount); ?></h2>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card p-3 border-0 shadow-sm text-center">
-                        <h6 class="text-muted mb-2">Seen Today</h6>
-                        <h2 class="fw-bold mb-0 text-success">12</h2>
+                        <h6 class="text-muted mb-2">My Appointments</h6>
+                        <h2 class="fw-bold mb-0 text-success"><?php echo sprintf('%02d', count($mySchedule)); ?></h2>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card p-3 border-0 shadow-sm text-center">
-                        <h6 class="text-muted mb-2">Lab Requests</h6>
-                        <h2 class="fw-bold mb-0 text-warning">03</h2>
+                        <h6 class="text-muted mb-2">Lab Orders</h6>
+                        <h2 class="fw-bold mb-0 text-warning"><?php echo sprintf('%02d', count($labResults)); ?></h2>
                     </div>
                 </div>
                 <div class="col-md-3">
                     <div class="card p-3 border-0 shadow-sm text-center">
-                        <h6 class="text-muted mb-2">Emergency Calls</h6>
-                        <h2 class="fw-bold mb-0 text-danger">01</h2>
+                        <h6 class="text-muted mb-2">My Prescriptions</h6>
+                        <h2 class="fw-bold mb-0 text-danger"><?php echo sprintf('%02d', count($prescriptions)); ?></h2>
                     </div>
                 </div>
             </div>
@@ -113,42 +142,27 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($queue)): ?>
+                                <tr><td colspan="5" class="text-center py-4 text-muted">Queue is empty.</td></tr>
+                            <?php endif; foreach ($queue as $index => $q): ?>
                             <tr>
-                                <td class="fw-bold">#001</td>
+                                <td class="fw-bold">#<?php echo sprintf('%03d', $index + 1); ?></td>
                                 <td>
                                     <div class="d-flex align-items-center">
-                                        <div class="bg-light rounded-circle me-2" style="width: 32px; height: 32px;"></div>
+                                        <div class="bg-primary-soft text-primary rounded-circle me-2 d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px;">P</div>
                                         <div>
-                                            <div class="fw-bold">Kwame Mensah</div>
-                                            <small class="text-muted">M, 42 yrs</small>
+                                            <div class="fw-bold">Patient <?php echo substr($q['patient_id'], 0, 8); ?></div>
+                                            <small class="text-muted"><?php echo htmlspecialchars($q['reason']); ?></small>
                                         </div>
                                     </div>
                                 </td>
-                                <td><small>BP: 120/80 | Temp: 37°C</small></td>
-                                <td><span class="badge bg-warning-soft text-warning rounded-pill px-3">Waiting</span></td>
+                                <td><small>Waiting for Vitals...</small></td>
+                                <td><span class="badge bg-warning-soft text-warning rounded-pill px-3"><?php echo htmlspecialchars($q['status']); ?></span></td>
                                 <td>
-                                    <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="navigateTo('section-consults')">Start Call</button>
-                                    <button class="btn btn-light btn-sm rounded-circle shadow-sm ms-1"><i class="bi bi-three-dots-vertical"></i></button>
+                                    <a href="/consultation.php?patient_id=<?php echo $q['patient_id']; ?>" class="btn btn-primary btn-sm rounded-pill px-3">Start Call</a>
                                 </td>
                             </tr>
-                            <tr>
-                                <td class="fw-bold">#002</td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-light rounded-circle me-2" style="width: 32px; height: 32px;"></div>
-                                        <div>
-                                            <div class="fw-bold">Abena Osei</div>
-                                            <small class="text-muted">F, 28 yrs</small>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td><small>BP: 110/70 | Temp: 38.5°C</small></td>
-                                <td><span class="badge bg-danger-soft text-danger rounded-pill px-3">High Fever</span></td>
-                                <td>
-                                    <button class="btn btn-primary btn-sm rounded-pill px-3">Start Call</button>
-                                    <button class="btn btn-light btn-sm rounded-circle shadow-sm ms-1"><i class="bi bi-three-dots-vertical"></i></button>
-                                </td>
-                            </tr>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -156,8 +170,32 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
         </div>
         
         <!-- PLACEHOLDERS FOR OTHER SECTIONS -->
+        <!-- SCHEDULE SECTION -->
         <div id="section-schedule" class="dashboard-section d-none">
-            <div class="alert alert-info border-0 rounded-4"><i class="bi bi-info-circle me-2"></i> Your schedule for this week is clear. You are currently assigned to General OPD.</div>
+            <h5 class="fw-bold mb-4">My Appointments</h5>
+            <div class="card border-0 shadow-sm p-4">
+                <?php if (empty($mySchedule)): ?>
+                    <p class="text-muted">No appointments assigned directly to you yet.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr><th>Date</th><th>Patient ID</th><th>Reason</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($mySchedule as $s): ?>
+                                    <tr>
+                                        <td><?php echo date('M d, Y', strtotime($s['date'])); ?></td>
+                                        <td><?php echo substr($s['patient_id'], 0, 8); ?></td>
+                                        <td><?php echo htmlspecialchars($s['reason']); ?></td>
+                                        <td><span class="badge bg-success-soft text-success rounded-pill px-3"><?php echo $s['status']; ?></span></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
         <div id="section-consults" class="dashboard-section d-none">
             <h5 class="fw-bold mb-4">Past Consultations</h5>
@@ -166,22 +204,59 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
                 <p>Select a patient from the queue to start a consultation.</p>
             </div>
         </div>
+        <!-- PRESCRIPTIONS SECTION -->
         <div id="section-prescripts" class="dashboard-section d-none">
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card border-0 shadow-sm p-4">
-                        <h6 class="fw-bold mb-3">Create E-Prescription</h6>
-                        <input type="text" class="form-control mb-3" placeholder="Patient Name or ID">
-                        <textarea class="form-control mb-3" rows="3" placeholder="Medication Details..."></textarea>
-                        <button class="btn btn-primary rounded-pill" onclick="navigateTo('section-labs')">View Lab Results</button>
+            <h5 class="fw-bold mb-4">Electronic Prescriptions</h5>
+            <div class="card border-0 shadow-sm p-4">
+                <?php if (empty($prescriptions)): ?>
+                    <p class="text-muted text-center py-4">You haven't created any prescriptions yet.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr><th>Created At</th><th>Patient ID</th><th>Medication</th><th>Status</th></tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($prescriptions as $p): ?>
+                                    <tr>
+                                        <td><?php echo date('M d, Y H:i', strtotime($p['created_at'])); ?></td>
+                                        <td><?php echo substr($p['patient_id'], 0, 8); ?></td>
+                                        <td><?php echo htmlspecialchars($p['medication_details']); ?></td>
+                                        <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo $p['status']; ?></span></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
                     </div>
-                </div>
+                <?php endif; ?>
             </div>
         </div>
+        <!-- LABS SECTION -->
         <div id="section-labs" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-4 text-center">
-                <i class="bi bi-clipboard-pulse display-4 text-muted mb-3"></i>
-                <p class="text-muted">No pending lab results to review.</p>
+            <h5 class="fw-bold mb-4">Diagnostic Lab Results</h5>
+            <div class="card border-0 shadow-sm p-4">
+                <?php if (empty($labResults)): ?>
+                    <p class="text-muted text-center py-4">No lab results found for your requests.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead>
+                                <tr><th>Requested At</th><th>Patient ID</th><th>Test</th><th>Status</th><th>Result</th></tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($labResults as $lr): ?>
+                                    <tr>
+                                        <td><?php echo date('M d, Y', strtotime($lr['created_at'])); ?></td>
+                                        <td><?php echo substr($lr['patient_id'], 0, 8); ?></td>
+                                        <td><?php echo htmlspecialchars($lr['test_name']); ?></td>
+                                        <td><span class="badge <?php echo ($lr['status'] === 'completed') ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'; ?> rounded-pill px-3"><?php echo $lr['status']; ?></span></td>
+                                        <td><?php echo $lr['result_text'] ? '<span class="text-truncate d-inline-block" style="max-width: 150px;">'.htmlspecialchars($lr['result_text']).'</span>' : '<i class="text-muted small">Pending...</i>'; ?></td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
         

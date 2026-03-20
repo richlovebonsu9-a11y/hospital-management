@@ -1,13 +1,23 @@
 <?php
 // Consultation Interface - GGHMS
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
 if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? '') !== 'doctor') {
     header('Location: /login');
     exit;
 }
 
-$patient_id = $_GET['patient_id'] ?? 'P-1002';
-$patient_name = $_GET['name'] ?? 'Kwame Mensah';
+$patient_id = $_GET['patient_id'] ?? '';
+if (!$patient_id) { header('Location: /dashboard_doctor.php'); exit; }
+
+$sb = new Supabase();
+// Fetch existing lab requests for this patient to show in the table
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $patient_id . '&order=created_at.desc');
+$labRequests = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
+
+$patient_name = "Patient " . substr($patient_id, 0, 8);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -31,59 +41,75 @@ $patient_name = $_GET['name'] ?? 'Kwame Mensah';
                 </div>
             </div>
             <div class="d-flex gap-2">
-                <button class="btn btn-outline-danger rounded-pill px-4"><i class="bi bi-heart-fill me-2"></i> View EMR</button>
-                <button class="btn btn-primary rounded-pill px-4">Finish Visit</button>
+                <a href="/emr.php?patient_id=<?php echo $patient_id; ?>" class="btn btn-outline-danger rounded-pill px-4"><i class="bi bi-heart-fill me-2"></i> View EMR</a>
+                <button type="submit" form="consultationForm" class="btn btn-primary rounded-pill px-4">Finish Visit</button>
             </div>
         </header>
 
         <div class="row g-4">
             <div class="col-lg-8">
                 <!-- Vitals & Notes -->
-                <div class="card border-0 shadow-sm rounded-5 p-4 mb-4">
+                <form id="consultationForm" action="/api/consultation/save" method="POST" class="card border-0 shadow-sm rounded-5 p-4 mb-4">
+                    <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
                     <h5 class="fw-bold mb-4">Patient Vitals & Examination</h5>
                     <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Temp (°C)</label>
-                            <input type="text" class="form-control rounded-pill border-light bg-light" value="37.2">
+                            <input type="number" step="0.1" name="temperature" class="form-control rounded-pill border-light bg-light">
                         </div>
                         <div class="col-md-3">
                             <label class="form-label small text-muted">BP (mmHg)</label>
-                            <input type="text" class="form-control rounded-pill border-light bg-light" value="120/80">
+                            <input type="text" name="blood_pressure" class="form-control rounded-pill border-light bg-light" placeholder="120/80">
                         </div>
                         <div class="col-md-3">
                              <label class="form-label small text-muted">Weight (kg)</label>
-                            <input type="text" class="form-control rounded-pill border-light bg-light" value="75">
+                            <input type="number" step="0.1" name="weight" class="form-control rounded-pill border-light bg-light">
                         </div>
                         <div class="col-md-3">
                              <label class="form-label small text-muted">Pulse (bpm)</label>
-                            <input type="text" class="form-control rounded-pill border-light bg-light" value="72">
+                            <input type="number" name="pulse" class="form-control rounded-pill border-light bg-light">
                         </div>
                     </div>
                     <label class="form-label fw-bold">Clinical Notes</label>
-                    <textarea class="form-control rounded-4 p-4 border-light bg-light" rows="10" placeholder="Type patient symptoms, history, and examination findings here..."></textarea>
-                </div>
+                    <textarea name="notes" class="form-control rounded-4 p-4 border-light bg-light" rows="6" placeholder="Type patient symptoms, history, and examination findings here..."></textarea>
+                    
+                    <div class="mt-4">
+                        <h5 class="fw-bold mb-3">Diagnosis</h5>
+                        <input type="text" name="diagnosis" class="form-control rounded-pill border-light bg-light mb-3" placeholder="e.g. Malaria, URTI">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="recommend_admission" id="admissionCheck">
+                            <label class="form-check-label" for="admissionCheck">Recommend Admission</label>
+                        </div>
+                    </div>
+                </form>
 
                 <!-- Orders (Lab & Radiology) -->
                 <div class="card border-0 shadow-sm rounded-5 p-4">
                      <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="fw-bold mb-0">Diagnostic Orders</h5>
-                        <button class="btn btn-outline-primary btn-sm rounded-pill px-3">+ Add Request</button>
+                        <button class="btn btn-outline-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#addLabModal">+ Add Request</button>
                     </div>
                     <div class="table-responsive">
                         <table class="table align-middle">
                             <thead class="small text-muted">
                                 <tr>
+                                    <th>Date</th>
                                     <th>Service Type</th>
                                     <th>Specific Test</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
                             <tbody>
+                                <?php if (empty($labRequests)): ?>
+                                    <tr><td colspan="4" class="text-center text-muted small py-3">No orders placed yet.</td></tr>
+                                <?php endif; foreach ($labRequests as $lr): ?>
                                 <tr>
-                                    <td>Laboratory</td>
-                                    <td>Full Blood Count (FBC)</td>
-                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3">Ordered</span></td>
+                                    <td><?php echo date('M d', strtotime($lr['created_at'])); ?></td>
+                                    <td><?php echo htmlspecialchars($lr['test_type']); ?></td>
+                                    <td><?php echo htmlspecialchars($lr['test_name']); ?></td>
+                                    <td><span class="badge <?php echo ($lr['status'] === 'completed') ? 'bg-success' : 'bg-primary'; ?>-soft text-<?php echo ($lr['status'] === 'completed') ? 'success' : 'primary'; ?> rounded-pill px-3"><?php echo htmlspecialchars($lr['status']); ?></span></td>
                                 </tr>
+                                <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>
@@ -97,37 +123,46 @@ $patient_name = $_GET['name'] ?? 'Kwame Mensah';
                         <h5 class="fw-bold mb-0 text-primary">Electronic Prescription</h5>
                         <i class="bi bi-capsule h4 text-primary mb-0"></i>
                     </div>
-                    <form>
+                    <form action="/api/prescriptions/create" method="POST">
+                        <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
                         <div class="mb-3">
-                            <input type="text" class="form-control rounded-pill px-3 py-2 border-light bg-light small" placeholder="Search medication...">
+                            <textarea name="medication_details" class="form-control rounded-4 p-3 border-light bg-light small" rows="5" placeholder="Enter medication, dosage, and frequency... e.g. Amoxicillin 500mg, 1x3 daily for 5 days"></textarea>
                         </div>
-                        <div class="prescription-list mb-4">
-                            <div class="p-3 bg-light rounded-4 mb-2 d-flex justify-content-between align-items-center">
-                                <div>
-                                    <div class="fw-bold small">Amoxicillin 500mg</div>
-                                    <small class="text-muted">1x3 daily | 5 Days</small>
-                                </div>
-                                <button class="btn btn-sm text-danger"><i class="bi bi-x-lg"></i></button>
-                            </div>
-                        </div>
-                        <button class="btn btn-primary w-100 py-3 fw-bold rounded-pill">Send to Pharmacy &rarr;</button>
+                        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill">Send to Pharmacy &rarr;</button>
                     </form>
                 </div>
 
-                <!-- Diagnosis -->
-                <div class="card border-0 shadow-sm rounded-5 p-4">
-                    <h5 class="fw-bold mb-4">Diagnosis</h5>
-                    <div class="mb-3">
-                         <label class="form-label small text-muted">ICD-10 / Common Name</label>
-                         <input type="text" class="form-control rounded-pill border-light bg-light" placeholder="e.g. Malaria, URTI">
-                    </div>
-                    <div class="form-check form-switch mb-3">
-                      <input class="form-check-input" type="checkbox" id="admissionCheck">
-                      <label class="form-check-label" for="admissionCheck">Recommend Admission</label>
-                    </div>
+    <!-- Add Lab Request Modal -->
+    <div class="modal fade" id="addLabModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Order Lab Test</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
+                <form action="/api/lab/create" method="POST">
+                    <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Service Type</label>
+                            <select name="test_type" class="form-select rounded-pill px-3">
+                                <option>Laboratory</option>
+                                <option>Radiology (X-Ray/Scan)</option>
+                                <option>Cardiology Test</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Test Name</label>
+                            <input type="text" name="test_name" class="form-control rounded-pill px-3" placeholder="e.g. Malaria RDT, Full Blood Count" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">Place Order</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
+
+    <!-- Bootstrap 5 JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,30 +1,43 @@
 <?php
-// Emergency reporting handler
 session_start();
 require_once __DIR__ . '/../../src/lib/Supabase.php';
-
 use App\Lib\Supabase;
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $symptoms = $_POST['symptoms'] ?? '';
-    $severity = $_POST['severity'] ?? 'medium';
-    $ghana_post_gps = $_POST['ghana_post_gps'] ?? '';
-    $reporter_id = $_SESSION['user']['id'] ?? null;
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: /emergency'); exit; }
 
-    $supabase = new Supabase();
-    $result = $supabase->from('emergencies')->insert([
-        'reporter_id' => $reporter_id,
-        'symptoms' => $symptoms,
-        'severity' => $severity,
-        'ghana_post_gps' => $ghana_post_gps,
-        'status' => 'pending'
-    ]);
-
-    if ($result['status'] >= 200 && $result['status'] < 300) {
-        // Success - redirect to tracking page
-        header('Location: /emergency_tracking.php?id=' . ($result['data'][0]['id'] ?? ''));
-    } else {
-        $error = $result['data']['message'] ?? 'Failed to report emergency';
-        header('Location: /emergency.php?error=' . urlencode($error));
-    }
+$sb = new Supabase();
+$userId = null;
+if (isset($_COOKIE['sb_user'])) {
+    $u = json_decode($_COOKIE['sb_user'], true);
+    $userId = $u['id'] ?? null;
 }
+
+$severity      = trim($_POST['severity'] ?? '');
+$symptoms      = trim($_POST['symptoms'] ?? '');
+$ghanaPostGps  = trim($_POST['ghana_post_gps'] ?? '');
+
+if (!$severity || !$ghanaPostGps) {
+    header('Location: /emergency?error=missing_fields'); exit;
+}
+
+$body = [
+    'reporter_id'    => $userId,
+    'ghana_post_gps' => $ghanaPostGps,
+    'severity'       => $severity,
+    'symptoms'       => $symptoms,
+    'status'         => 'active',
+];
+$res = $sb->request('POST', '/rest/v1/emergencies', $body);
+$emergencyId = $res['data'][0]['id'] ?? null;
+
+// Notify admins (best-effort — insert notification row)
+if ($emergencyId) {
+    $sb->request('POST', '/rest/v1/notifications', [
+        'user_id' => null, // broadcast — admin queries unread
+        'message' => "🚨 New emergency ({$severity}) reported at {$ghanaPostGps}. ID: {$emergencyId}",
+    ]);
+}
+
+$redirect = $emergencyId ? "/emergency_tracking?id={$emergencyId}" : '/emergency?error=failed';
+header('Location: ' . $redirect);
+exit;

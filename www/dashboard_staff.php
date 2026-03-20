@@ -1,14 +1,41 @@
 <?php
 // Staff Dashboard - GGHMS (Nurse/Pharmacist/Technician)
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['user_metadata']['role'] ?? '', ['nurse', 'pharmacist', 'technician'])) {
+    header('Location: /login');
     exit;
 }
 
 $user = $_SESSION['user'];
 $role = $user['user_metadata']['role'] ?? 'staff';
 $name = $user['user_metadata']['name'] ?? 'Staff Member';
+
+$sb = new Supabase();
+$tasks = [];
+$roleData = [];
+
+// 1. Fetch Task Queue (Cross-role tasks)
+if ($role === 'nurse') {
+    // Nurses see the patient queue for vitals
+    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&order=date.asc');
+    $tasks = ($res['status'] === 200) ? $res['data'] : [];
+} elseif ($role === 'pharmacist') {
+    // Pharmacists see pending prescriptions
+    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&order=created_at.asc');
+    $tasks = ($res['status'] === 200) ? $res['data'] : [];
+    
+    // Also fetch inventory
+    $invRes = $sb->request('GET', '/rest/v1/drug_inventory?order=drug_name.asc');
+    $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
+} elseif ($role === 'technician') {
+    // Technicians see pending lab requests
+    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&order=created_at.asc');
+    $tasks = ($res['status'] === 200) ? $res['data'] : [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -77,20 +104,30 @@ $name = $user['user_metadata']['name'] ?? 'Staff Member';
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($tasks)): ?>
+                                <tr><td colspan="4" class="text-center py-4 text-muted">No pending tasks in your queue.</td></tr>
+                            <?php endif; foreach ($tasks as $t): ?>
                             <tr>
-                                <td>#T102</td>
-                                <td>Verify vitals for Patient #001 (Kwame Mensah)</td>
-                                <td><span class="badge bg-danger-soft text-danger rounded-pill px-3">Urgent</span></td>
-                                <td><button class="btn btn-sm btn-primary rounded-pill px-3">Update</button></td>
+                                <td>#<?php echo substr($t['id'], 0, 5); ?></td>
+                                <td>
+                                    <?php 
+                                    if ($role === 'nurse') echo "Record vitals for Patient " . substr($t['patient_id'], 0, 8);
+                                    elseif ($role === 'pharmacist') echo "Dispense: " . htmlspecialchars($t['medication_details']);
+                                    elseif ($role === 'technician') echo "Test: " . htmlspecialchars($t['test_name']);
+                                    ?>
+                                </td>
+                                <td><span class="badge bg-primary-soft text-primary rounded-pill px-3">Standard</span></td>
+                                <td>
+                                    <?php if ($role === 'nurse'): ?>
+                                        <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Vitals</button>
+                                    <?php elseif ($role === 'pharmacist'): ?>
+                                        <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
+                                    <?php elseif ($role === 'technician'): ?>
+                                        <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>')">Result</button>
+                                    <?php endif; ?>
+                                </td>
                             </tr>
-                            <?php if ($role === 'pharmacist'): ?>
-                                <tr>
-                                    <td>#P405</td>
-                                    <td>Dispense Prescription #RD-993</td>
-                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3">Normal</span></td>
-                                    <td><button class="btn btn-sm btn-primary rounded-pill px-3">Dispense</button></td>
-                                </tr>
-                            <?php endif; ?>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -98,10 +135,51 @@ $name = $user['user_metadata']['name'] ?? 'Staff Member';
         </div>
 
         <div id="section-role" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-5 text-center text-muted">
-                <i class="bi bi-person-workspace display-4 mb-3"></i>
-                <h5 class="fw-bold">Role-Specific Workspace</h5>
-                <p>Features for your specific department will appear here.</p>
+            <div class="row g-4">
+                <?php if ($role === 'nurse'): ?>
+                    <div class="col-md-12">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h5 class="fw-bold mb-4">Inpatient Ward Management</h5>
+                            <div class="alert alert-info border-0 rounded-4">No patients currently admitted to General Ward.</div>
+                        </div>
+                    </div>
+                <?php elseif ($role === 'pharmacist'): ?>
+                    <div class="col-md-12">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h5 class="fw-bold mb-4">Drug Inventory</h5>
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead><tr><th>Drug Name</th><th>Stock</th><th>Expiry</th><th>Status</th></tr></thead>
+                                    <tbody>
+                                        <?php if (empty($roleData['inventory'])): ?>
+                                            <tr><td colspan="4" class="text-center py-3">No inventory data available.</td></tr>
+                                        <?php endif; foreach ($roleData['inventory'] as $inv): ?>
+                                            <tr>
+                                                <td class="fw-bold"><?php echo htmlspecialchars($inv['drug_name']); ?></td>
+                                                <td><?php echo $inv['stock_count']; ?> units</td>
+                                                <td><?php echo date('M d, Y', strtotime($inv['expiry_date'])); ?></td>
+                                                <td>
+                                                    <?php if ($inv['stock_count'] < 10): ?>
+                                                        <span class="badge bg-danger">Low Stock</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success">In Stock</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                <?php elseif ($role === 'technician'): ?>
+                    <div class="col-md-12">
+                        <div class="card border-0 shadow-sm p-4">
+                            <h5 class="fw-bold mb-4">Lab Workload Overview</h5>
+                            <p class="text-muted">Currently processing <?php echo count($tasks); ?> pending lab requests.</p>
+                        </div>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
@@ -113,6 +191,53 @@ $name = $user['user_metadata']['name'] ?? 'Staff Member';
                 </div>
             </div>
         </div>
+
+        <!-- MODALS -->
+        <?php if ($role === 'nurse'): ?>
+        <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form action="/api/consultation/save" method="POST" class="modal-content border-0 shadow">
+                    <input type="hidden" name="patient_id" id="patient_id_field">
+                    <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                    <div class="modal-body p-4">
+                        <div class="row g-3">
+                            <div class="col-6"><label class="small text-muted">Temp (°C)</label><input type="number" step="0.1" name="temperature" class="form-control rounded-pill px-3"></div>
+                            <div class="col-6"><label class="small text-muted">BP (mmHg)</label><input type="text" name="blood_pressure" class="form-control rounded-pill px-3" placeholder="120/80"></div>
+                            <div class="col-6"><label class="small text-muted">Weight (kg)</label><input type="number" step="0.1" name="weight" class="form-control rounded-pill px-3"></div>
+                            <div class="col-6"><label class="small text-muted">Pulse (bpm)</label><input type="number" name="pulse" class="form-control rounded-pill px-3"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-4">Save Vitals</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <?php elseif ($role === 'pharmacist'): ?>
+        <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form action="/api/prescriptions/dispense" method="POST" class="modal-content border-0 shadow">
+                    <input type="hidden" name="prescription_id" id="prescription_id_field">
+                    <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3"><label class="small text-muted">Batch Number</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" required></div>
+                        <button type="submit" class="btn btn-success w-100 rounded-pill">Confirm Dispense</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <?php elseif ($role === 'technician'): ?>
+        <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <form action="/api/lab/submit" method="POST" class="modal-content border-0 shadow">
+                    <input type="hidden" name="request_id" id="request_id_field">
+                    <div class="modal-header border-0"><h5 class="fw-bold">Submit Lab Result</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3"><label class="small text-muted">Test Result Details</label><textarea name="result_text" class="form-control rounded-4" rows="4" required placeholder="Enter diagnostic findings..."></textarea></div>
+                        <button type="submit" class="btn btn-info text-white w-100 rounded-pill">Submit Result</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
     </div>
 
     <!-- Bootstrap 5 JS Bundle -->
@@ -139,6 +264,10 @@ $name = $user['user_metadata']['name'] ?? 'Staff Member';
                 l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
             });
         }
+
+        function setPatientId(id) { document.getElementById('patient_id_field').value = id; }
+        function setPrescriptionId(id) { document.getElementById('prescription_id_field').value = id; }
+        function setRequestId(id) { document.getElementById('request_id_field').value = id; }
     </script>
 </body>
 </html>

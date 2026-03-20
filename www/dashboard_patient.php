@@ -1,6 +1,9 @@
 <?php
 // Patient Dashboard - GGHMS
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 'patient') {
     header('Location: /login');
@@ -8,8 +11,36 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 
 }
 
 $user = $_SESSION['user'];
+$userId = $user['id'];
 $metadata = $user['user_metadata'] ?? [];
 $name = $metadata['name'] ?? 'Patient';
+
+$sb = new Supabase();
+
+// 1. Fetch Appointments
+$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&order=date.asc');
+$appointments = ($apptsRes['status'] === 200) ? $apptsRes['data'] : [];
+
+// 2. Fetch Vitals (Health Summary)
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $userId . '&order=recorded_at.desc&limit=1');
+$latestVitals = ($vitalsRes['status'] === 200 && !empty($vitalsRes['data'])) ? $vitalsRes['data'][0] : null;
+
+// 3. Fetch Lab Results
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $userId . '&order=created_at.desc');
+$labResults = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
+
+// 4. Fetch Prescriptions
+$rxRes = $sb->request('GET', '/rest/v1/prescriptions?patient_id=eq.' . $userId . '&order=created_at.desc');
+$prescriptions = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
+
+// Find next appointment for the overview card
+$nextAppt = null;
+foreach ($appointments as $a) {
+    if ($a['status'] === 'scheduled' && strtotime($a['date']) >= strtotime('today')) {
+        $nextAppt = $a;
+        break;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -88,7 +119,7 @@ $name = $metadata['name'] ?? 'Patient';
                 <p class="text-muted mb-0">Welcome back to your health portal.</p>
             </div>
             <div class="d-flex align-items-center">
-                <button class="btn btn-danger rounded-pill px-4 me-3"><i class="bi bi-exclamation-triangle-fill me-2"></i> EMERGENCY</button>
+                <a href="/emergency" class="btn btn-danger rounded-pill px-4 me-3"><i class="bi bi-exclamation-triangle-fill me-2"></i> EMERGENCY</a>
                 <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
                     <?php echo strtoupper(substr($name, 0, 1)); ?>
                 </div>
@@ -103,7 +134,13 @@ $name = $metadata['name'] ?? 'Patient';
                             <i class="bi bi-calendar2-plus"></i>
                         </div>
                         <h5 class="fw-bold">Next Appointment</h5>
-                        <p class="text-muted">You have no upcoming appointments scheduled.</p>
+                        <?php if ($nextAppt): ?>
+                            <h6 class="fw-bold text-primary mb-1"><?php echo date('M d, Y', strtotime($nextAppt['date'])); ?></h6>
+                            <p class="text-muted small mb-0"><?php echo htmlspecialchars($nextAppt['department']); ?></p>
+                            <p class="text-muted extra-small">Status: <span class="text-capitalize"><?php echo $nextAppt['status']; ?></span></p>
+                        <?php else: ?>
+                            <p class="text-muted">You have no upcoming appointments scheduled.</p>
+                        <?php endif; ?>
                         <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-appointments')">Book Now</button>
                     </div>
                 </div>
@@ -118,8 +155,8 @@ $name = $metadata['name'] ?? 'Patient';
                             <span class="fw-bold">O+</span>
                         </div>
                         <div class="d-flex justify-content-between">
-                            <span class="text-muted">Last Checkup</span>
-                            <span class="fw-bold">Mar 12, 2026</span>
+                            <span class="text-muted">Last Vitals</span>
+                            <span class="fw-bold"><?php echo $latestVitals ? date('M d, Y', strtotime($latestVitals['recorded_at'])) : 'N/A'; ?></span>
                         </div>
                         <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-records')">Full Record</button>
                     </div>
@@ -151,22 +188,31 @@ $name = $metadata['name'] ?? 'Patient';
                                         <th class="border-0">Date</th>
                                         <th class="border-0">Service</th>
                                         <th class="border-0">Status</th>
-                                        <th class="border-0">Details</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    <?php 
+                                    $combined = array_merge($labResults, $appointments);
+                                    usort($combined, function($a, $b) { 
+                                        $da = $a['created_at'] ?? $a['date'];
+                                        $db = $b['created_at'] ?? $b['date'];
+                                        return strtotime($db) - strtotime($da); 
+                                    });
+                                    $recent = array_slice($combined, 0, 5);
+                                    foreach ($recent as $item): 
+                                        $date = isset($item['created_at']) ? $item['created_at'] : $item['date'];
+                                        $type = isset($item['test_name']) ? 'Lab: '.$item['test_name'] : 'Appt: '.$item['department'];
+                                        $status = $item['status'];
+                                        $badgeClass = ($status === 'completed' || $status === 'dispensed') ? 'bg-success-soft text-success' : 'bg-primary-soft text-primary';
+                                    ?>
                                     <tr>
-                                        <td>Mar 15, 2026</td>
-                                        <td>General Consultation</td>
-                                        <td><span class="badge bg-success-soft text-success rounded-pill px-3">Completed</span></td>
-                                        <td><a href="#" class="btn btn-sm btn-light rounded-pill"><i class="bi bi-eye"></i></a></td>
+                                        <td><?php echo date('M d, Y', strtotime($date)); ?></td>
+                                        <td><?php echo htmlspecialchars($type); ?></td>
+                                        <td><span class="badge <?php echo $badgeClass; ?> rounded-pill px-3"><?php echo htmlspecialchars($status); ?></span></td>
                                     </tr>
-                                    <tr>
-                                        <td>Mar 12, 2026</td>
-                                        <td>Lab Test (Malaria)</td>
-                                        <td><span class="badge bg-success-soft text-success rounded-pill px-3">Completed</span></td>
-                                        <td><a href="#" class="btn btn-sm btn-light rounded-pill"><i class="bi bi-eye"></i></a></td>
-                                    </tr>
+                                    <?php endforeach; if (empty($recent)): ?>
+                                        <tr><td colspan="3" class="text-center text-muted py-4">No recent activity found.</td></tr>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -193,18 +239,91 @@ $name = $metadata['name'] ?? 'Patient';
         </div>
 
         <div id="section-appointments" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-5 text-center text-muted">
-                <i class="bi bi-calendar2-x display-4 mb-3"></i>
-                <h5 class="fw-bold">No Upcoming Appointments</h5>
-                <p>You can book a new consultation to see a specialist.</p>
-                <button class="btn btn-primary rounded-pill px-4 mt-3 mx-auto" style="width: fit-content;" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">Book Appointment</button>
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                 <h5 class="fw-bold">My Appointments</h5>
+                 <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">Book New Appointment</button>
+            </div>
+            <div class="card border-0 shadow-sm p-4 text-center">
+                <?php if (empty($appointments)): ?>
+                    <i class="bi bi-calendar2-x display-4 mb-3 text-muted"></i>
+                    <h5 class="fw-bold">No Appointments Found</h5>
+                    <p class="text-muted">You have no upcoming or past appointments.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle text-start">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Department</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($appointments as $a): ?>
+                                <tr>
+                                    <td><?php echo date('M d, Y', strtotime($a['date'])); ?></td>
+                                    <td><?php echo htmlspecialchars($a['department']); ?></td>
+                                    <td><?php echo htmlspecialchars($a['reason']); ?></td>
+                                    <td><span class="badge <?php echo ($a['status'] === 'completed') ? 'bg-success' : 'bg-primary'; ?> rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
         <div id="section-records" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold mb-4">Your Medical Records</h5>
-                <p class="text-muted">You have no uploaded records.</p>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-clipboard2-pulse me-2"></i> Lab Results</h6>
+                        <?php if (empty($labResults)): ?>
+                            <p class="text-muted small">No lab results found.</p>
+                        <?php else: ?>
+                            <div class="list-group list-group-flush">
+                                <?php foreach ($labResults as $lr): ?>
+                                    <div class="list-group-item bg-transparent px-0">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold small"><?php echo htmlspecialchars($lr['test_name']); ?></div>
+                                                <small class="text-muted"><?php echo date('M d, Y', strtotime($lr['created_at'])); ?></small>
+                                            </div>
+                                            <span class="badge <?php echo ($lr['status'] === 'completed') ? 'bg-success' : 'bg-warning'; ?> rounded-pill px-2"><?php echo $lr['status']; ?></span>
+                                        </div>
+                                        <?php if ($lr['result_text']): ?>
+                                            <div class="bg-light p-2 rounded mt-2 small"><?php echo htmlspecialchars($lr['result_text']); ?></div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card border-0 shadow-sm p-4">
+                        <h6 class="fw-bold mb-3"><i class="bi bi-capsule me-2"></i> Prescriptions</h6>
+                        <?php if (empty($prescriptions)): ?>
+                            <p class="text-muted small">No prescriptions found.</p>
+                        <?php else: ?>
+                            <div class="list-group list-group-flush">
+                                <?php foreach ($prescriptions as $p): ?>
+                                    <div class="list-group-item bg-transparent px-0">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold small"><?php echo htmlspecialchars($p['medication_details']); ?></div>
+                                                <small class="text-muted"><?php echo date('M d, Y', strtotime($p['created_at'])); ?></small>
+                                            </div>
+                                            <span class="badge bg-primary rounded-pill px-2"><?php echo $p['status']; ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -219,20 +338,35 @@ $name = $metadata['name'] ?? 'Patient';
         <div id="section-profile" class="dashboard-section d-none">
             <div class="card border-0 shadow-sm p-4">
                 <h5 class="fw-bold mb-4">Patient Profile</h5>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="text-muted small">Full Name</label>
-                        <p class="fw-bold"><?php echo htmlspecialchars($name); ?></p>
+                <form action="/api/profile/update" method="POST">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Full Name</label>
+                            <input type="text" name="name" class="form-control rounded-pill px-4" value="<?php echo htmlspecialchars($name); ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">GhanaPostGPS Address</label>
+                            <input type="text" name="ghana_post_gps" class="form-control rounded-pill px-4" value="<?php echo htmlspecialchars($metadata['ghana_post_gps'] ?? ''); ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Contact Phone</label>
+                            <input type="text" name="phone" class="form-control rounded-pill px-4" value="<?php echo htmlspecialchars($metadata['phone'] ?? ''); ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Date of Birth</label>
+                            <input type="date" name="dob" class="form-control rounded-pill px-4" value="<?php echo htmlspecialchars($metadata['dob'] ?? ''); ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">Ghana Card</label>
+                            <input type="text" name="ghana_card" class="form-control rounded-pill px-4" value="<?php echo htmlspecialchars($metadata['ghana_card'] ?? ''); ?>">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label text-muted small">NHIS Number</label>
+                            <input type="text" name="nhis_membership_number" class="form-control rounded-pill px-4" value="<?php echo htmlspecialchars($metadata['nhis_membership_number'] ?? ''); ?>">
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="text-muted small">GhanaPostGPS Address</label>
-                        <p class="fw-bold"><?php echo htmlspecialchars($metadata['ghana_post_gps'] ?? 'Not set'); ?></p>
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="text-muted small">Contact Phone</label>
-                        <p class="fw-bold"><?php echo htmlspecialchars($metadata['phone'] ?? 'Not set'); ?></p>
-                    </div>
-                </div>
+                    <button type="submit" class="btn btn-primary rounded-pill px-5 mt-3">Update Profile</button>
+                </form>
             </div>
         </div>
 
@@ -246,28 +380,31 @@ $name = $metadata['name'] ?? 'Patient';
                     <h5 class="modal-title fw-bold">Book an Appointment</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Select Department</label>
-                        <select class="form-select rounded-pill px-3">
-                            <option>General OPD</option>
-                            <option>Cardiology</option>
-                            <option>Pediatrics</option>
-                            <option>Maternity</option>
-                            <option>Dental</option>
-                        </select>
+                <form action="/api/appointments/book" method="POST">
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Select Department</label>
+                            <select name="department" class="form-select rounded-pill px-3">
+                                <option>General OPD</option>
+                                <option>Cardiology</option>
+                                <option>Pediatrics</option>
+                                <option>Maternity</option>
+                                <option>Dental</option>
+                                <option>Neurology</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Preferred Date</label>
+                            <input type="date" name="date" class="form-control rounded-pill px-3" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label text-muted small">Reason for Visit</label>
+                            <textarea name="reason" class="form-control" rows="3" placeholder="Briefly describe your symptoms or reason..."></textarea>
+                        </div>
+                        <div class="alert alert-info border-0 rounded-4 small"><i class="bi bi-info-circle me-1"></i> A doctor will confirm your appointment and may call you.</div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill">Submit Request</button>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Preferred Date</label>
-                        <input type="date" class="form-control rounded-pill px-3">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Reason for Visit</label>
-                        <textarea class="form-control" rows="3" placeholder="Briefly describe your symptoms or reason..."></textarea>
-                    </div>
-                    <div class="alert alert-info border-0 rounded-4 small"><i class="bi bi-info-circle me-1"></i> A doctor will confirm your appointment and may call you.</div>
-                    <button class="btn btn-primary w-100 rounded-pill">Submit Request</button>
-                </div>
+                </form>
             </div>
         </div>
     </div>

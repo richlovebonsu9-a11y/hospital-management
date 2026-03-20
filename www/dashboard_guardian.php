@@ -1,6 +1,9 @@
 <?php
 // Guardian Dashboard - GGHMS
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 'guardian') {
     header('Location: /login');
@@ -8,8 +11,18 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 
 }
 
 $user = $_SESSION['user'];
+$userId = $user['id'];
 $metadata = $user['user_metadata'] ?? [];
 $name = $metadata['name'] ?? 'Guardian';
+$linkedPatients = $metadata['linked_patients'] ?? []; // Array of patient IDs
+
+$sb = new Supabase();
+// 1. Fetch appointments for linked patients (where guardian_id = this user)
+$apptRes = $sb->request('GET', '/rest/v1/appointments?guardian_id=eq.' . $userId . '&order=date.asc');
+$appointments = ($apptRes['status'] === 200) ? $apptRes['data'] : [];
+
+// 2. Fetch recent activity (lab requests, prescriptions) for linked patients
+// Note: This is simpler if we just loop through linkedPatients or filter the tables by patient_id in linkedPatients
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -80,7 +93,7 @@ $name = $metadata['name'] ?? 'Guardian';
                             <i class="bi bi-calendar-check"></i>
                         </div>
                         <h5 class="fw-bold">Upcoming Appointments</h5>
-                        <p class="text-muted">No upcoming appointments scheduled for linked patients.</p>
+                        <p class="text-muted">You have <?php echo count($appointments); ?> appointments scheduled for your linked patients.</p>
                         <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-appointments')">View Appointments</button>
                     </div>
                 </div>
@@ -109,9 +122,16 @@ $name = $metadata['name'] ?? 'Guardian';
                             </tr>
                         </thead>
                         <tbody>
+                            <?php if (empty($appointments)): ?>
+                                <tr><td class="text-muted" colspan="4">No recent activity found for linked patients.</td></tr>
+                            <?php endif; foreach ($appointments as $appt): ?>
                             <tr>
-                                <td class="text-muted" colspan="4">No activity found for linked patients.</td>
+                                <td><?php echo date('M d, Y', strtotime($appt['date'])); ?></td>
+                                <td><span class="fw-bold">Patient <?php echo substr($appt['patient_id'], 0, 8); ?></span></td>
+                                <td><?php echo htmlspecialchars($appt['department']); ?></td>
+                                <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($appt['status']); ?></span></td>
                             </tr>
+                            <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
@@ -121,51 +141,132 @@ $name = $metadata['name'] ?? 'Guardian';
         <!-- LINKED PATIENTS SECTION -->
         <div id="section-linked" class="dashboard-section d-none">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h5 class="fw-bold">Linked Patients</h5>
+                <h5 class="fw-bold">Linked Patients Management</h5>
+                <button class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#linkPatientModal">+ Link New Patient</button>
             </div>
+            
+            <?php if (empty($linkedPatients)): ?>
             <div class="card border-0 shadow-sm p-5 text-center text-muted">
                 <i class="bi bi-person-plus display-4 mb-3"></i>
                 <h5 class="fw-bold">No patients linked yet</h5>
-                <p>Ask a patient to add you as their guardian from their dashboard, or contact your hospital administrator.</p>
+                <p>Link your children or elderly relatives to manage their records and appointments.</p>
             </div>
+            <?php else: ?>
+            <div class="row g-4">
+                <?php foreach ($linkedPatients as $pid): ?>
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm p-4">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-primary-soft text-primary rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 48px; height: 48px;">P</div>
+                            <div>
+                                <h6 class="fw-bold mb-0">Patient <?php echo substr($pid, 0, 8); ?></h6>
+                                <small class="text-muted">ID: <?php echo $pid; ?></small>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <a href="/emr.php?patient_id=<?php echo $pid; ?>" class="btn btn-light btn-sm rounded-pill">View Full EMR</a>
+                            <button class="btn btn-primary btn-sm rounded-pill" data-bs-toggle="modal" data-bs-target="#bookApptModal" onclick="document.getElementById('appt_patient_id').value='<?php echo $pid; ?>'">Book Appt</button>
+                        </div>
+                    </div>
+                </div>
+                <?php endforeach; ?>
+            </div>
+            <?php endif; ?>
         </div>
 
         <!-- APPOINTMENTS SECTION -->
         <div id="section-appointments" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-5 text-center text-muted">
-                <i class="bi bi-calendar2-x display-4 mb-3"></i>
-                <h5 class="fw-bold">No Upcoming Appointments</h5>
-                <p>Once linked to a patient, their appointments will appear here.</p>
+            <h5 class="fw-bold mb-4">Upcoming Appointments for Dependants</h5>
+            <div class="card border-0 shadow-sm p-4">
+                <?php if (empty($appointments)): ?>
+                    <p class="text-muted text-center py-4">No upcoming appointments scheduled.</p>
+                <?php else: ?>
+                    <div class="table-responsive">
+                        <table class="table align-middle">
+                            <thead><tr><th>Date</th><th>Patient ID</th><th>Department</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($appointments as $a): ?>
+                                <tr>
+                                    <td><?php echo date('M d, Y', strtotime($a['date'])); ?></td>
+                                    <td><?php echo $a['patient_id']; ?></td>
+                                    <td><?php echo htmlspecialchars($a['department']); ?></td>
+                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
 
         <!-- EMERGENCY SECTION -->
         <div id="section-emergency" class="dashboard-section d-none">
             <div class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Emergency Dispatch</h5>
+                <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Emergency Dispatch for Dependants</h5>
                 <div class="alert border-0 rounded-4 bg-danger text-white mb-4">
                     <strong>⚠ Warning:</strong> Only use this for genuine medical emergencies. Misuse may result in account suspension.
                 </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted small">GhanaPostGPS Location of Emergency</label>
-                    <input type="text" class="form-control rounded-pill px-3" placeholder="e.g. AK-485-9323" value="<?php echo htmlspecialchars($metadata['ghana_post_gps'] ?? ''); ?>">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted small">Brief Description</label>
-                    <textarea class="form-control" rows="3" placeholder="e.g. Patient has collapsed and is unresponsive..."></textarea>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label text-muted small">Severity</label>
-                    <select class="form-select rounded-pill px-3">
-                        <option value="high">High - Immediate dispatch needed</option>
-                        <option value="medium">Medium - Urgent but stable</option>
-                        <option value="low">Low - Non-critical</option>
-                    </select>
-                </div>
-                <button class="btn btn-danger rounded-pill px-5 fw-bold">🚨 Request Emergency Dispatch</button>
+                <form action="/api/emergency/report.php" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Select Affected Dependant</label>
+                        <select name="patient_id" class="form-select rounded-pill px-3" required>
+                            <?php foreach ($linkedPatients as $pid): ?>
+                                <option value="<?php echo $pid; ?>">Patient <?php echo substr($pid, 0, 8); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">GhanaPostGPS Location</label>
+                        <input type="text" name="location" class="form-control rounded-pill px-3" placeholder="e.g. AK-485-9323" value="<?php echo htmlspecialchars($metadata['ghana_post_gps'] ?? ''); ?>" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Brief Description of Emergency</label>
+                        <textarea name="description" class="form-control" rows="3" placeholder="e.g. Patient has collapsed..." required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Severity</label>
+                        <select name="severity" class="form-select rounded-pill px-3">
+                            <option value="high">High - Immediate dispatch needed</option>
+                            <option value="medium">Medium - Urgent but stable</option>
+                            <option value="low">Low - Non-critical</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-danger rounded-pill px-5 fw-bold w-100">🚨 Request Emergency Dispatch</button>
+                </form>
             </div>
         </div>
 
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="linkPatientModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/api/profile/update.php" method="POST" class="modal-content border-0 shadow">
+                <div class="modal-header border-0"><h5 class="fw-bold">Link New Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <p class="text-muted small">Enter the unique Patient ID of the person you wish to manage.</p>
+                    <input type="text" name="new_patient_id" class="form-control rounded-pill px-3 mb-3" placeholder="e.g. uuid-1234-..." required>
+                    <input type="hidden" name="action" value="link_patient">
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill">Link Patient</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal fade" id="bookApptModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/api/appointments/book.php" method="POST" class="modal-content border-0 shadow">
+                <input type="hidden" name="patient_id" id="appt_patient_id">
+                <div class="modal-header border-0"><h5 class="fw-bold">Book Dependant Appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <div class="mb-3"><label class="small text-muted">Department</label><select name="department" class="form-select rounded-pill px-3"><option>General OPD</option><option>Pediatrics</option><option>Cardiology</option><option>Maternity</option></select></div>
+                    <div class="mb-3"><label class="small text-muted">Preferred Date</label><input type="date" name="date" class="form-control rounded-pill px-3" required min="<?php echo date('Y-m-d'); ?>"></div>
+                    <div class="mb-3"><label class="small text-muted">Reason for Visit</label><textarea name="reason" class="form-control" rows="3" placeholder="Symptoms..."></textarea></div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Confirm Appointment</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Bootstrap 5 JS Bundle -->
