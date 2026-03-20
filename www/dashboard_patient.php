@@ -103,7 +103,7 @@ $name = $metadata['name'] ?? 'Patient';
                         </div>
                         <h5 class="fw-bold">Next Appointment</h5>
                         <p class="text-muted">You have no upcoming appointments scheduled.</p>
-                        <button class="btn btn-outline-primary w-100 mt-auto">Book Now</button>
+                        <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-appointments')">Book Now</button>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -120,7 +120,7 @@ $name = $metadata['name'] ?? 'Patient';
                             <span class="text-muted">Last Checkup</span>
                             <span class="fw-bold">Mar 12, 2026</span>
                         </div>
-                        <button class="btn btn-outline-primary w-100 mt-auto">Full Record</button>
+                        <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-records')">Full Record</button>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -131,7 +131,7 @@ $name = $metadata['name'] ?? 'Patient';
                         <h5 class="fw-bold">Pending Invoices</h5>
                         <h3 class="fw-bold mt-2">₵ 0.00</h3>
                         <p class="text-muted small">No outstanding payments at this time.</p>
-                        <button class="btn btn-outline-primary w-100 mt-auto">View Billing</button>
+                        <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-invoices')">View Billing</button>
                     </div>
                 </div>
             </div>
@@ -141,7 +141,7 @@ $name = $metadata['name'] ?? 'Patient';
                     <div class="card p-4 border-0 shadow-sm h-100">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="fw-bold mb-0">Recent Activity</h5>
-                            <a href="#" class="text-primary text-decoration-none small fw-bold">See All</a>
+                            <a href="#" class="text-primary text-decoration-none small fw-bold" onclick="navigateTo('section-records'); return false;">See All</a>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">
@@ -181,7 +181,7 @@ $name = $metadata['name'] ?? 'Patient';
                                 <span class="badge bg-white text-primary rounded-pill px-3 mt-2">Verified</span>
                             <?php else: ?>
                                 <p class="mb-4 opacity-75">Connect your NHIS card to benefit from subsidized healthcare costs.</p>
-                                <button class="btn btn-light rounded-pill px-4 text-primary fw-bold">Link Ghana Card/NHIS</button>
+                                <button class="btn btn-light rounded-pill px-4 text-primary fw-bold" onclick="navigateTo('section-profile')">Link Ghana Card/NHIS</button>
                             <?php endif; ?>
                         </div>
                         <hr class="bg-white opacity-25">
@@ -196,7 +196,7 @@ $name = $metadata['name'] ?? 'Patient';
                 <i class="bi bi-calendar2-x display-4 mb-3"></i>
                 <h5 class="fw-bold">No Upcoming Appointments</h5>
                 <p>You can book a new consultation to see a specialist.</p>
-                <button class="btn btn-primary rounded-pill px-4 mt-3 mx-auto" style="width: fit-content;">Book Appointment</button>
+                <button class="btn btn-primary rounded-pill px-4 mt-3 mx-auto" style="width: fit-content;" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">Book Appointment</button>
             </div>
         </div>
 
@@ -237,21 +237,68 @@ $name = $metadata['name'] ?? 'Patient';
 
     </div>
 
+    <!-- Book Appointment Modal -->
+    <div class="modal fade" id="bookAppointmentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Book an Appointment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Select Department</label>
+                        <select class="form-select rounded-pill px-3">
+                            <option>General OPD</option>
+                            <option>Cardiology</option>
+                            <option>Pediatrics</option>
+                            <option>Maternity</option>
+                            <option>Dental</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Preferred Date</label>
+                        <input type="date" class="form-control rounded-pill px-3">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted small">Reason for Visit</label>
+                        <textarea class="form-control" rows="3" placeholder="Briefly describe your symptoms or reason..."></textarea>
+                    </div>
+                    <div class="alert alert-info border-0 rounded-4 small"><i class="bi bi-info-circle me-1"></i> A doctor will confirm your appointment and may call you.</div>
+                    <button class="btn btn-primary w-100 rounded-pill">Submit Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function navigateTo(sectionId) {
+            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
+            const sections = document.querySelectorAll('.dashboard-section');
+            // Hide all sections
+            sections.forEach(sec => sec.classList.add('d-none'));
+            // Show target
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.remove('d-none');
+            // Update active link
+            links.forEach(l => {
+                if (l.getAttribute('data-target') === sectionId) {
+                    l.classList.add('active');
+                } else {
+                    l.classList.remove('active');
+                }
+            });
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    links.forEach(l => l.classList.remove('active'));
-                    link.classList.add('active');
-                    sections.forEach(sec => sec.classList.add('d-none'));
-                    const targetId = link.getAttribute('data-target');
-                    const targetSection = document.getElementById(targetId);
-                    if (targetSection) targetSection.classList.remove('d-none');
+                    navigateTo(link.getAttribute('data-target'));
                 });
             });
         });

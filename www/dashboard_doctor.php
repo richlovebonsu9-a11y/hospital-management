@@ -127,7 +127,7 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
                                 <td><small>BP: 120/80 | Temp: 37°C</small></td>
                                 <td><span class="badge bg-warning-soft text-warning rounded-pill px-3">Waiting</span></td>
                                 <td>
-                                    <button class="btn btn-primary btn-sm rounded-pill px-3">Start Call</button>
+                                    <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="navigateTo('section-consults')">Start Call</button>
                                     <button class="btn btn-light btn-sm rounded-circle shadow-sm ms-1"><i class="bi bi-three-dots-vertical"></i></button>
                                 </td>
                             </tr>
@@ -173,7 +173,7 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
                         <h6 class="fw-bold mb-3">Create E-Prescription</h6>
                         <input type="text" class="form-control mb-3" placeholder="Patient Name or ID">
                         <textarea class="form-control mb-3" rows="3" placeholder="Medication Details..."></textarea>
-                        <button class="btn btn-primary rounded-pill">Send to Pharmacy</button>
+                        <button class="btn btn-primary rounded-pill" onclick="navigateTo('section-labs')">View Lab Results</button>
                     </div>
                 </div>
             </div>
@@ -196,15 +196,21 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    links.forEach(l => l.classList.remove('active'));
-                    link.classList.add('active');
-                    sections.forEach(sec => sec.classList.add('d-none'));
-                    const targetId = link.getAttribute('data-target');
-                    const targetSection = document.getElementById(targetId);
-                    if (targetSection) targetSection.classList.remove('d-none');
+                    navigateTo(link.getAttribute('data-target'));
                 });
             });
         });
+
+        function navigateTo(sectionId) {
+            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
+            const sections = document.querySelectorAll('.dashboard-section');
+            sections.forEach(sec => sec.classList.add('d-none'));
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.remove('d-none');
+            links.forEach(l => {
+                l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
+            });
+        }
     </script>
 </body>
 </html>

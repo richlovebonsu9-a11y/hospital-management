@@ -124,15 +124,21 @@ $name = $user['user_metadata']['name'] ?? 'Staff Member';
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    links.forEach(l => l.classList.remove('active'));
-                    link.classList.add('active');
-                    sections.forEach(sec => sec.classList.add('d-none'));
-                    const targetId = link.getAttribute('data-target');
-                    const targetSection = document.getElementById(targetId);
-                    if (targetSection) targetSection.classList.remove('d-none');
+                    navigateTo(link.getAttribute('data-target'));
                 });
             });
         });
+
+        function navigateTo(sectionId) {
+            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
+            const sections = document.querySelectorAll('.dashboard-section');
+            sections.forEach(sec => sec.classList.add('d-none'));
+            const target = document.getElementById(sectionId);
+            if (target) target.classList.remove('d-none');
+            links.forEach(l => {
+                l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
+            });
+        }
     </script>
 </body>
 </html>
