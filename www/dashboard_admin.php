@@ -347,6 +347,32 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 </div>
             </div>
         </div>
+    <!-- Edit Staff Modal -->
+    <div class="modal fade" id="editStaffModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Edit Staff Profile</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <form action="/api/admin/staff_edit" method="POST">
+                        <input type="hidden" name="user_id" id="edit_user_id">
+                        <div class="mb-3"><label class="small text-muted">Full Name</label><input type="text" name="name" id="edit_name" class="form-control rounded-pill px-3" required></div>
+                        <div class="mb-3"><label class="small text-muted">Email (Read-only)</label><input type="email" id="edit_email" class="form-control rounded-pill px-3" readonly disabled></div>
+                        <div class="row">
+                            <div class="col-6 mb-3"><label class="small text-muted">Role</label>
+                                <select name="role" id="edit_role" class="form-select rounded-pill px-3">
+                                    <option value="doctor">Doctor</option>
+                                    <option value="nurse">Nurse</option>
+                                    <option value="pharmacist">Pharmacist</option>
+                                    <option value="technician">Technician</option>
+                                </select>
+                            </div>
+                            <div class="col-6 mb-3"><label class="small text-muted">Department</label><input type="text" name="department" id="edit_department" class="form-control rounded-pill px-3" required></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -363,6 +389,18 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 if(target) { e.preventDefault(); navigateTo(target); }
             });
         });
+
+        function editStaff(staffJson) {
+            const staff = JSON.parse(staffJson);
+            document.getElementById('edit_user_id').value = staff.id;
+            document.getElementById('edit_name').value = staff.name;
+            document.getElementById('edit_email').value = staff.email;
+            document.getElementById('edit_role').value = staff.role;
+            document.getElementById('edit_department').value = staff.department;
+            
+            const editModal = new bootstrap.Modal(document.getElementById('editStaffModal'));
+            editModal.show();
+        }
     </script>
 </body>
 </html>
