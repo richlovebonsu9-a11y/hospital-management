@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS guardians (
 ALTER TABLE guardians ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Admins can manage all guardian links" ON guardians FOR ALL TO authenticated USING (auth.jwt() -> 'user_metadata' ->> 'role' = 'admin');
 CREATE POLICY "Users can view their own guardian links" ON guardians FOR SELECT TO authenticated USING (auth.uid() = patient_id OR auth.uid() = guardian_id);
+CREATE POLICY "Guardians can create links" ON guardians FOR INSERT TO authenticated WITH CHECK (auth.uid() = guardian_id);
+CREATE POLICY "Patients can update their links" ON guardians FOR UPDATE TO authenticated USING (auth.uid() = patient_id OR auth.uid() = guardian_id);
 
 -- 3. Appointments
 CREATE TABLE IF NOT EXISTS appointments (
