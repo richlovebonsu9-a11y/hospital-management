@@ -29,14 +29,14 @@ if (isset($_SESSION['user'])) {
                             <h2 class="fw-bold text-secondary">Welcome Back</h2>
                             <p class="text-muted">Login to GGHMS Dashboard</p>
                         </div>
-                        <form action="/api/auth/login" method="POST">
+                        <form action="/api/auth/login" method="POST" autocomplete="off">
                             <div class="mb-4">
                                 <label class="form-label fw-600">Email Address</label>
-                                <input type="email" name="email" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="name@hospital.com">
+                                <input type="email" name="email" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="name@hospital.com" autocomplete="off">
                             </div>
                             <div class="mb-5">
                                 <label class="form-label fw-600">Password</label>
-                                <input type="password" name="password" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="••••••••">
+                                <input type="password" name="password" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="••••••••" autocomplete="new-password">
                             </div>
                             <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow">Sign In &rarr;</button>
                         </form>
