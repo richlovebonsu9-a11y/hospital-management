@@ -1,3 +1,4 @@
+<?php
 session_start();
 require_once __DIR__ . '/../src/lib/Supabase.php';
 use App\Lib\Supabase;
@@ -33,6 +34,7 @@ $timeline = array_merge($vitals, $labs);
 usort($timeline, function($a, $b) {
     return strtotime($b['recorded_at'] ?? $b['created_at']) - strtotime($a['recorded_at'] ?? $a['created_at']);
 });
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
