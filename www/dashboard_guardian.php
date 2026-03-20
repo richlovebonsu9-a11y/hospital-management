@@ -12,6 +12,8 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 
 
 $user = $_SESSION['user'];
 $userId = $user['id'];
+$name = $user['user_metadata']['name'] ?? 'Guardian';
+$sb = new Supabase();
 // 1. Fetch linked patients from the 'guardians' table
 $linkedRes = $sb->request('GET', '/rest/v1/guardians?guardian_id=eq.' . $userId . '&select=*,patient:patient_id(*)');
 $guardianLinks = ($linkedRes['status'] === 200) ? $linkedRes['data'] : [];
