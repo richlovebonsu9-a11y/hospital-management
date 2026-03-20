@@ -347,6 +347,7 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 </div>
             </div>
         </div>
+    </div>
     <!-- Edit Staff Modal -->
     <div class="modal fade" id="editStaffModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
