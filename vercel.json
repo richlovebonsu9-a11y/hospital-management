@@ -8,6 +8,10 @@
     {
       "src": "api/**/*.php",
       "use": "vercel-php@0.7.1"
+    },
+    {
+      "src": "www/assets/**/*",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -28,7 +32,11 @@
       "dest": "/www/signup.php"
     },
     {
-      "src": "/(.*)",
+      "src": "/(.*)\\.php",
+      "dest": "/www/$1.php"
+    },
+    {
+      "src": "/",
       "dest": "/www/index.php"
     }
   ]
