@@ -20,15 +20,30 @@ if ($action === 'link_patient') {
         header('Location: /dashboard_guardian.php?error=missing_fields'); exit;
     }
     
-    // 1. Find the patient profile by Email (use service key to bypass RLS for lookup)
-    $pRes = $sb->request('GET', '/rest/v1/profiles?email=eq.' . urlencode($patientEmail) . '&select=id,name', null, true);
+    // 1. Find the patient email in Supabase Auth (since profiles table doesn't have email)
+    $authRes = $sb->request('GET', '/auth/v1/admin/users', null, true);
     
-    if ($pRes['status'] !== 200 || empty($pRes['data'])) {
+    $patientId = null;
+    $patientActualName = null;
+    
+    if ($authRes['status'] === 200 && isset($authRes['data']['users'])) {
+        foreach ($authRes['data']['users'] as $u) {
+            if (isset($u['email']) && strtolower($u['email']) === strtolower($patientEmail)) {
+                $patientId = $u['id'];
+                $patientActualName = $u['user_metadata']['name'] ?? '';
+                break;
+            }
+        }
+    }
+    
+    if (!$patientId) {
         header('Location: /dashboard_guardian.php?error=patient_not_found'); exit;
     }
     
-    $patient = $pRes['data'][0];
-    $patientId = $patient['id'];
+    // Optional: Verify name roughly matches (case insensitive fuzzy)
+    if ($patientName && strpos(strtolower($patientActualName), strtolower($patientName)) === false) {
+        // We still link, but maybe log it? For now, just link if email is correct.
+    }
     
     // 2. Create the guardian link in the table (standardizing with admin view)
     $linkData = [
