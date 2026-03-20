@@ -71,9 +71,6 @@ $user = $_SESSION['user'];
                                     <textarea name="reason" class="form-control rounded-4 p-4 border-light bg-light" rows="3" placeholder="Briefly describe your symptoms..."></textarea>
                                 </div>
                             </div>
-                            <div class="alert bg-primary-soft text-primary border-0 rounded-4 mb-4">
-                                <i class="bi bi-info-circle-fill me-2"></i> You will receive an SMS confirmation via AfricasTalking once your appointment is confirmed.
-                            </div>
                             <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow">Book Appointment Now &rarr;</button>
                         </form>
                     </div>

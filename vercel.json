@@ -1,13 +1,13 @@
 {
   "version": 2,
   "functions": {
-    "public/index.php": {
+    "www/index.php": {
       "runtime": "vercel-php@0.7.1"
     },
-    "public/login.php": {
+    "www/login.php": {
       "runtime": "vercel-php@0.7.1"
     },
-    "public/signup.php": {
+    "www/signup.php": {
       "runtime": "vercel-php@0.7.1"
     },
     "api/**/*.php": {
@@ -21,19 +21,19 @@
     },
     {
       "src": "/assets/(.*)",
-      "dest": "/public/assets/$1"
+      "dest": "/www/assets/$1"
     },
     {
       "src": "/login",
-      "dest": "/public/login.php"
+      "dest": "/www/login.php"
     },
     {
       "src": "/signup",
-      "dest": "/public/signup.php"
+      "dest": "/www/signup.php"
     },
     {
       "src": "/(.*)",
-      "dest": "/public/index.php"
+      "dest": "/www/index.php"
     }
   ]
 }
