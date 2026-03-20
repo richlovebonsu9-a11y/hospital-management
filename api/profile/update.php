@@ -20,8 +20,8 @@ if ($action === 'link_patient') {
         header('Location: /dashboard_guardian.php?error=missing_fields'); exit;
     }
     
-    // 1. Find the patient profile by Email (more robust than exact name match)
-    $pRes = $sb->request('GET', '/rest/v1/profiles?email=eq.' . urlencode($patientEmail) . '&select=id,name');
+    // 1. Find the patient profile by Email (use service key to bypass RLS for lookup)
+    $pRes = $sb->request('GET', '/rest/v1/profiles?email=eq.' . urlencode($patientEmail) . '&select=id,name', null, true);
     
     if ($pRes['status'] !== 200 || empty($pRes['data'])) {
         header('Location: /dashboard_guardian.php?error=patient_not_found'); exit;
