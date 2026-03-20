@@ -1,8 +1,8 @@
 <?php
 // Patient Dashboard - GGHMS
 session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: /login');
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 'patient') {
     exit;
 }
 

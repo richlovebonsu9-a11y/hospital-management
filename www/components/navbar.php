@@ -1,4 +1,6 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 // Shared Navbar - GGHMS
 $user_logged_in = isset($_SESSION['user']);
 $user_role = $_SESSION['user']['user_metadata']['role'] ?? 'patient';

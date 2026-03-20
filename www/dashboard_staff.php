@@ -1,8 +1,8 @@
 <?php
 // Staff Dashboard - GGHMS (Nurse/Pharmacist/Technician)
 session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: /login');
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['user_metadata']['role'] ?? '', ['nurse', 'pharmacist', 'technician'])) {
     exit;
 }
 

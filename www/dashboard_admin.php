@@ -1,7 +1,8 @@
 <?php
 // Admin Dashboard - GGHMS
 session_start();
-if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? '') !== 'admin') {
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+if (!isset($_SESSION['user']) || $_SESSION['user']['user_metadata']['role'] !== 'admin') {
     header('Location: /login');
     exit;
 }

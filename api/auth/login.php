@@ -14,6 +14,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($result['status'] === 200) {
         $tokenData = $result['data'];
+        
+        // Use cookies instead of server-side sessions for Vercel Serverless
+        setcookie('sb_user', json_encode($tokenData['user']), time() + 86400, '/', '', true, true);
+        setcookie('sb_token', $tokenData['access_token'], time() + 86400, '/', '', true, true);
+        
         $_SESSION['user'] = $tokenData['user'];
         $_SESSION['access_token'] = $tokenData['access_token'];
         
