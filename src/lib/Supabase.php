@@ -13,7 +13,7 @@ class Supabase {
         $this->serviceKey = getenv('SUPABASE_SERVICE_ROLE_KEY');
     }
 
-    private function request($method, $path, $data = null, $useServiceKey = false) {
+    public function request($method, $path, $data = null, $useServiceKey = false) {
         $url = $this->url . $path;
         $ch = curl_init($url);
         
