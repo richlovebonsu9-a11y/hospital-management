@@ -2,16 +2,16 @@
   "version": 2,
   "functions": {
     "www/index.php": {
-      "runtime": "vercel-php@0.7.1"
+      "runtime": "vercel-php"
     },
     "www/login.php": {
-      "runtime": "vercel-php@0.7.1"
+      "runtime": "vercel-php"
     },
     "www/signup.php": {
-      "runtime": "vercel-php@0.7.1"
+      "runtime": "vercel-php"
     },
     "api/**/*.php": {
-      "runtime": "vercel-php@0.7.1"
+      "runtime": "vercel-php"
     }
   },
   "routes": [
