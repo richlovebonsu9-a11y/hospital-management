@@ -227,7 +227,12 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
         <!-- PATIENT DIRECTORY SECTION -->
         <div id="section-patients" class="dashboard-section d-none">
             <div class="card p-4 border-0 shadow-sm">
-                        <thead class="table-light"><tr><th>Name</th><th>Email</th><th>Guardian</th><th>Patient ID</th><th>Joined</th><th>Actions</th></tr></thead>
+                <h5 class="fw-bold mb-4">Registered Patients</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Email</th><th>Guardian</th><th>Patient ID</th><th>Joined</th><th>Actions</th></tr>
+                        </thead>
                         <tbody>
                             <?php if (empty($patientList)): ?>
                                 <tr><td colspan="6" class="text-center py-4 text-muted">No patients registered.</td></tr>
@@ -244,7 +249,7 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                             <button class="btn btn-sm btn-link text-muted p-0" onclick="openLinkModal('<?php echo $p['id']; ?>', '<?php echo htmlspecialchars($p['name']); ?>')">+ Link</button>
                                         <?php endif; ?>
                                     </td>
-                                    <td><small class="text-muted"><?php echo $p['id']; ?></small></td>
+                                    <td><small class="text-muted"><?php echo substr($p['id'], 0, 8); ?></small></td>
                                     <td><?php echo date('M d, Y', strtotime($p['joined'])); ?></td>
                                     <td><a href="/emr.php?patient_id=<?php echo $p['id']; ?>" class="btn btn-sm btn-light rounded-pill px-3">View EMR</a></td>
                                 </tr>
@@ -394,11 +399,10 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                             </div>
                             <div class="col-6 mb-3"><label class="small text-muted">Department</label><input type="text" name="department" id="edit_department" class="form-control rounded-pill px-3" required></div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Save Changes</button>
-                    </form>
                 </div>
             </div>
         </div>
+    </div>
 
     <!-- Link Guardian Modal -->
     <div class="modal fade" id="linkGuardianModal" tabindex="-1" aria-hidden="true">
@@ -434,7 +438,6 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 </div>
             </div>
         </div>
-    </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
