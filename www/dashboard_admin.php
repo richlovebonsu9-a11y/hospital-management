@@ -250,7 +250,7 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                     <td><span class="text-capitalize badge bg-secondary"><?php echo htmlspecialchars($staff['role']); ?></span></td>
                                     <td><?php echo htmlspecialchars($staff['department']); ?></td>
                                     <td><span class="badge bg-success"><?php echo htmlspecialchars($staff['status']); ?></span></td>
-                                    <td><button class="btn btn-sm btn-outline-secondary" onclick="editStaff('<?php echo htmlspecialchars(json_encode($staff), ENT_QUOTES, 'UTF-8'); ?>')">Edit</button></td>
+                                    <td><button class="btn btn-sm btn-outline-secondary" onclick="editStaff('<?php echo base64_encode(json_encode($staff)); ?>')">Edit</button></td>
                                 </tr>
                             <?php endforeach; endif; ?>
                         </tbody>
@@ -390,16 +390,21 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             });
         });
 
-        function editStaff(staffJson) {
-            const staff = JSON.parse(staffJson);
-            document.getElementById('edit_user_id').value = staff.id;
-            document.getElementById('edit_name').value = staff.name;
-            document.getElementById('edit_email').value = staff.email;
-            document.getElementById('edit_role').value = staff.role;
-            document.getElementById('edit_department').value = staff.department;
-            
-            const editModal = new bootstrap.Modal(document.getElementById('editStaffModal'));
-            editModal.show();
+        function editStaff(staffBase64) {
+            try {
+                const staff = JSON.parse(atob(staffBase64));
+                document.getElementById('edit_user_id').value = staff.id;
+                document.getElementById('edit_name').value = staff.name;
+                document.getElementById('edit_email').value = staff.email;
+                document.getElementById('edit_role').value = staff.role;
+                document.getElementById('edit_department').value = staff.department;
+                
+                const editModal = new bootstrap.Modal(document.getElementById('editStaffModal'));
+                editModal.show();
+            } catch (e) {
+                console.error("Error parsing staff data:", e);
+                alert("Could not load staff details. Please try again.");
+            }
         }
     </script>
 </body>
