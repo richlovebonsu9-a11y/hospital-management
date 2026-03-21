@@ -56,7 +56,6 @@ if ($role === 'doctor') {
         $consultId = $consultRes['data'][0]['id'];
         // Save Prescription linked to this consultation
         $sb->request('POST', '/rest/v1/prescriptions', [
-            'patient_id' => $patientId,
             'consultation_id' => $consultId,
             'medication_name' => $meds, // Using medication_name for the bulk string for now
             'status' => 'pending'
