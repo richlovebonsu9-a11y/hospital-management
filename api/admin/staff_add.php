@@ -25,7 +25,7 @@ $name = trim($_POST['name'] ?? '');
 $email = trim($_POST['email'] ?? '');
 $password = $_POST['password'] ?? '';
 $role = trim($_POST['role'] ?? '');
-$department = trim($_POST['department'] ?? '');
+$department = trim($_POST['department'] ?? 'General OPD');
 
 if (empty($name) || empty($email) || empty($password) || empty($role)) {
     header('Location: /dashboard_admin.php?error=Missing+required+fields');
@@ -40,6 +40,14 @@ $result = $supabase->auth()->signUp($email, $password, [
 ]);
 
 if ($result['status'] >= 200 && $result['status'] < 300) {
+    if (isset($result['data']['user']['id'])) {
+        $supabase->request('POST', '/rest/v1/profiles', [
+            'id' => $result['data']['user']['id'],
+            'name' => $name,
+            'role' => $role,
+            'department' => $department
+        ], true);
+    }
     header('Location: /dashboard_admin.php?staff_added=1');
     exit;
 } else {

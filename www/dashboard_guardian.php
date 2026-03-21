@@ -347,7 +347,20 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                 <input type="hidden" name="patient_id" id="appt_patient_id">
                 <div class="modal-header border-0"><h5 class="fw-bold">Book Dependant Appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
-                    <div class="mb-3"><label class="small text-muted">Department</label><select name="department" class="form-select rounded-pill px-3"><option>General OPD</option><option>Pediatrics</option><option>Cardiology</option><option>Maternity</option></select></div>
+                    <div class="mb-3">
+                        <label class="small text-muted">Department</label>
+                        <select name="department" class="form-select rounded-pill px-3" required>
+                            <option value="General OPD">General OPD</option>
+                            <option value="Cardiology">Cardiology</option>
+                            <option value="Pediatrics">Pediatrics</option>
+                            <option value="Laboratory">Laboratory</option>
+                            <option value="Pharmacy">Pharmacy</option>
+                            <option value="Radiology">Radiology</option>
+                            <option value="Maternity">Maternity</option>
+                            <option value="Orthopedics">Orthopedics</option>
+                            <option value="Surgery">Surgery</option>
+                        </select>
+                    </div>
                     <div class="mb-3"><label class="small text-muted">Preferred Date</label><input type="date" name="date" class="form-control rounded-pill px-3" required min="<?php echo date('Y-m-d'); ?>"></div>
                     <div class="mb-3"><label class="small text-muted">Reason for Visit</label><textarea name="reason" class="form-control" rows="3" placeholder="Symptoms..."></textarea></div>
                     <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Confirm Appointment</button>

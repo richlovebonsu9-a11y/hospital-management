@@ -411,7 +411,20 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                         <div class="mb-3"><label class="small text-muted">Temp Password</label><input type="password" name="password" class="form-control rounded-pill px-3" required minlength="6"></div>
                         <div class="row">
                             <div class="col-6 mb-3"><label class="small text-muted">Role</label><select name="role" class="form-select rounded-pill px-3"><option value="doctor">Doctor</option><option value="nurse">Nurse</option><option value="pharmacist">Pharmacist</option><option value="technician">Technician</option></select></div>
-                            <div class="col-6 mb-3"><label class="small text-muted">Department</label><input type="text" name="department" class="form-control rounded-pill px-3" required></div>
+                            <div class="col-6 mb-3">
+                                <label class="small text-muted">Department</label>
+                                <select name="department" class="form-select rounded-pill px-3" required>
+                                    <option value="General OPD">General OPD</option>
+                                    <option value="Cardiology">Cardiology</option>
+                                    <option value="Pediatrics">Pediatrics</option>
+                                    <option value="Laboratory">Laboratory</option>
+                                    <option value="Pharmacy">Pharmacy</option>
+                                    <option value="Radiology">Radiology</option>
+                                    <option value="Maternity">Maternity</option>
+                                    <option value="Orthopedics">Orthopedics</option>
+                                    <option value="Surgery">Surgery</option>
+                                </select>
+                            </div>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Create Account</button>
                     </form>
@@ -438,7 +451,20 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                     <option value="technician">Technician</option>
                                 </select>
                             </div>
-                            <div class="col-6 mb-3"><label class="small text-muted">Department</label><input type="text" name="department" id="edit_department" class="form-control rounded-pill px-3" required></div>
+                            <div class="col-6 mb-3">
+                                <label class="small text-muted">Department</label>
+                                <select name="department" id="edit_department" class="form-select rounded-pill px-3" required>
+                                    <option value="General OPD">General OPD</option>
+                                    <option value="Cardiology">Cardiology</option>
+                                    <option value="Pediatrics">Pediatrics</option>
+                                    <option value="Laboratory">Laboratory</option>
+                                    <option value="Pharmacy">Pharmacy</option>
+                                    <option value="Radiology">Radiology</option>
+                                    <option value="Maternity">Maternity</option>
+                                    <option value="Orthopedics">Orthopedics</option>
+                                    <option value="Surgery">Surgery</option>
+                                </select>
+                            </div>
                         </div>
                 </div>
             </div>

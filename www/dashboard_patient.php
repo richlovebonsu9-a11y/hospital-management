@@ -454,13 +454,16 @@ foreach ($appointments as $a) {
                     <div class="modal-body p-4">
                         <div class="mb-3">
                             <label class="form-label text-muted small">Select Department</label>
-                            <select name="department" class="form-select rounded-pill px-3">
-                                <option>General OPD</option>
-                                <option>Cardiology</option>
-                                <option>Pediatrics</option>
-                                <option>Maternity</option>
-                                <option>Dental</option>
-                                <option>Neurology</option>
+                            <select name="department" class="form-select rounded-pill px-3" required>
+                                <option value="General OPD">General OPD</option>
+                                <option value="Cardiology">Cardiology</option>
+                                <option value="Pediatrics">Pediatrics</option>
+                                <option value="Laboratory">Laboratory</option>
+                                <option value="Pharmacy">Pharmacy</option>
+                                <option value="Radiology">Radiology</option>
+                                <option value="Maternity">Maternity</option>
+                                <option value="Orthopedics">Orthopedics</option>
+                                <option value="Surgery">Surgery</option>
                             </select>
                         </div>
                         <div class="mb-3">

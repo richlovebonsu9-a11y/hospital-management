@@ -11,13 +11,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $role = $_POST['role'] ?? '';
     $phone = $_POST['phone'] ?? '';
     $ghana_post_gps = $_POST['ghana_post_gps'] ?? '';
+    $department = $_POST['department'] ?? 'General OPD';
 
     $supabase = new Supabase();
     $result = $supabase->auth()->signUp($email, $password, [
         'name' => $name,
         'role' => $role,
         'phone' => $phone,
-        'ghana_post_gps' => $ghana_post_gps
+        'ghana_post_gps' => $ghana_post_gps,
+        'department' => $department
     ]);
 
     if ($result['status'] >= 200 && $result['status'] < 300) {

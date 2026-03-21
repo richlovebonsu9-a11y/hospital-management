@@ -54,6 +54,20 @@
                                     <label class="form-label fw-600">Email Address</label>
                                     <input type="email" name="email" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="name@example.com">
                                 </div>
+                                <div class="col-md-6" id="dept-container" style="display: none;">
+                                    <label class="form-label fw-600">Department</label>
+                                    <select name="department" class="form-select rounded-pill px-4 py-3 border-light bg-light">
+                                        <option value="General OPD">General OPD</option>
+                                        <option value="Cardiology">Cardiology</option>
+                                        <option value="Pediatrics">Pediatrics</option>
+                                        <option value="Laboratory">Laboratory</option>
+                                        <option value="Pharmacy">Pharmacy</option>
+                                        <option value="Radiology">Radiology</option>
+                                        <option value="Maternity">Maternity</option>
+                                        <option value="Orthopedics">Orthopedics</option>
+                                        <option value="Surgery">Surgery</option>
+                                    </select>
+                                </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-600">Password</label>
                                     <input type="password" name="password" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="••••••••">
@@ -67,6 +81,18 @@
                                 <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow">Create My Account &rarr;</button>
                             </div>
                         </form>
+
+                        <script>
+                            document.querySelector('select[name="role"]').addEventListener('change', function() {
+                                const role = this.value;
+                                const deptContainer = document.getElementById('dept-container');
+                                if (['doctor', 'nurse', 'pharmacist', 'technician'].includes(role)) {
+                                    deptContainer.style.display = 'block';
+                                } else {
+                                    deptContainer.style.display = 'none';
+                                }
+                            });
+                        </script>
                         <div class="text-center mt-5">
                             <p class="text-muted mb-0">Already a member? <a href="/login" class="text-primary fw-bold text-decoration-none">Sign In</a></p>
                         </div>

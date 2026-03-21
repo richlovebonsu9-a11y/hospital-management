@@ -51,6 +51,13 @@ $updateResponse = $supabase->request('PUT', '/auth/v1/admin/users/' . urlencode(
     'user_metadata' => $currentMetadata
 ], true);
 
+// Sync with public.profiles table
+$supabase->request('PATCH', '/rest/v1/profiles?id=eq.' . $user_id, [
+    'name' => $name,
+    'role' => $role,
+    'department' => $department
+], true);
+
 if ($updateResponse['status'] >= 200 && $updateResponse['status'] < 300) {
     header('Location: /dashboard_admin.php?staff_edited=1');
     exit;
