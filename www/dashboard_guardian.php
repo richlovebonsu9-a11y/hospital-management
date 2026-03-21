@@ -22,7 +22,8 @@ $guardianLinks = ($linkedRes['status'] === 200) ? $linkedRes['data'] : [];
 $appointments = [];
 foreach ($guardianLinks as $link) {
     if (($link['status'] ?? '') === 'approved') {
-        $aRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $link['patient_id'] . '&order=appointment_date.asc');
+        // Use service key to fetch appointments for linked patients (bypasses RLS for shared viewing)
+        $aRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $link['patient_id'] . '&order=date.asc', null, true);
         if ($aRes['status'] === 200) $appointments = array_merge($appointments, $aRes['data']);
     }
 }
@@ -100,6 +101,17 @@ foreach ($guardianLinks as $link) {
             <?php if (isset($_GET['linked'])): ?>
                 <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4">
                     <i class="bi bi-check-circle me-2"></i> Patient link requested successfully!
+                </div>
+            <?php endif; ?>
+            <?php if (isset($_GET['appt_booked'])): ?>
+                <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-calendar-check-fill me-3 fs-4"></i>
+                        <div>
+                            <h6 class="fw-bold mb-0">Appointment Booked!</h6>
+                            <p class="small mb-0 opacity-75">Your appointment for the linked patient has been submitted successfully.</p>
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
         </header>
