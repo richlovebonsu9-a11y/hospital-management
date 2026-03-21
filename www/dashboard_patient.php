@@ -33,6 +33,10 @@ $labResults = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 $rxRes = $sb->request('GET', '/rest/v1/prescriptions?patient_id=eq.' . $userId . '&order=created_at.desc');
 $prescriptions = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
 
+// 5. Fetch Pending Guardian Links
+$pendingLinksRes = $sb->request('GET', '/rest/v1/guardians?patient_id=eq.' . $userId . '&status=eq.pending&select=*,guardian:guardian_id(*)', null, true);
+$pendingLinks = ($pendingLinksRes['status'] === 200) ? $pendingLinksRes['data'] : [];
+
 // Find next appointment for the overview card
 $nextAppt = null;
 foreach ($appointments as $a) {
@@ -125,6 +129,49 @@ foreach ($appointments as $a) {
                 </div>
             </div>
         </header>
+
+        <!-- Feedback Alerts -->
+        <?php if (isset($_GET['success'])): ?>
+            <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <?php 
+                    echo ($_GET['success'] === 'link_approved') ? 'Relationship request approved successfully!' : 
+                         (($_GET['success'] === 'link_declined') ? 'Relationship request declined.' : 'Success!');
+                ?>
+            </div>
+        <?php endif; ?>
+        <?php if (isset($_GET['error'])): ?>
+            <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4">
+                <i class="bi bi-exclamation-circle-fill me-2"></i>
+                <?php 
+                    echo ($_GET['error'] === 'update_failed') ? 'Failed to update relationship status. Please try again.' : 'An error occurred.';
+                ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Guardian Link Requests -->
+        <?php foreach ($pendingLinks as $link): ?>
+            <div class="alert alert-primary border-0 rounded-4 shadow-sm mb-4 p-4 d-flex align-items-center justify-content-between">
+                <div>
+                    <h6 class="fw-bold mb-1"><i class="bi bi-person-plus-fill me-2"></i> Relationship Request</h6>
+                    <p class="mb-0 text-secondary">
+                        <strong><?php echo htmlspecialchars($link['guardian']['name'] ?? 'Someone'); ?></strong> wants to link to your profile as a <strong><?php echo htmlspecialchars($link['relationship']); ?></strong>.
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    <form action="/api/guardian/manage" method="POST">
+                        <input type="hidden" name="link_id" value="<?php echo $link['id']; ?>">
+                        <input type="hidden" name="action" value="approve">
+                        <button type="submit" class="btn btn-success rounded-pill px-4 btn-sm">Approve</button>
+                    </form>
+                    <form action="/api/guardian/manage" method="POST">
+                        <input type="hidden" name="link_id" value="<?php echo $link['id']; ?>">
+                        <input type="hidden" name="action" value="decline">
+                        <button type="submit" class="btn btn-outline-danger rounded-pill px-4 btn-sm">Decline</button>
+                    </form>
+                </div>
+            </div>
+        <?php endforeach; ?>
 
         <div id="section-dashboard" class="dashboard-section">
             <div class="row g-4 mb-5">
