@@ -340,7 +340,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
     <?php if ($role === 'nurse'): ?>
     <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/consultation/save" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/consultation/save.php" method="POST" class="modal-content border-0 shadow">
                 <input type="hidden" name="patient_id" id="patient_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
@@ -361,7 +361,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
     <?php if ($role === 'pharmacist'): ?>
     <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/prescriptions/dispense" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/prescriptions/dispense.php" method="POST" class="modal-content border-0 shadow">
                 <input type="hidden" name="prescription_id" id="prescription_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
@@ -378,7 +378,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
     <?php if ($role === 'technician'): ?>
     <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/lab/submit" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/lab/submit.php" method="POST" class="modal-content border-0 shadow">
                 <input type="hidden" name="request_id" id="request_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Submit Lab Result</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
