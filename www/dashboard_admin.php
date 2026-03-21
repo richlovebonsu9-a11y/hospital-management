@@ -72,6 +72,10 @@ foreach($guardianLinks as $link) {
 $guardiansRes = $sb->request('GET', '/rest/v1/profiles?role=eq.guardian&select=id,name');
 $allGuardians = ($guardiansRes['status'] === 200) ? $guardiansRes['data'] : [];
 
+// 5. Fetch All Scheduled Appointments for Management
+$appointmentsRes = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&select=*,patient:patient_id(name),assigned_to:assigned_to(name)&order=appointment_date.asc', null, true);
+$allAppointments = ($appointmentsRes['status'] === 200) ? $appointmentsRes['data'] : [];
+
 // Emergency Status Calc
 $highSeverityCount = 0;
 foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'] ?? '') !== 'resolved') $highSeverityCount++;
@@ -106,6 +110,7 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             <a href="#" class="nav-link-custom" data-target="section-staff"><i class="bi bi-people"></i> Staff Management</a>
             <a href="#" class="nav-link-custom" data-target="section-patients"><i class="bi bi-person-badge"></i> Patient Directory</a>
             <a href="#" class="nav-link-custom" data-target="section-emergencies"><i class="bi bi-exclamation-octagon"></i> Emergency Queue</a>
+            <a href="#" class="nav-link-custom" data-target="section-appointments"><i class="bi bi-calendar-check"></i> Appointments</a>
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
             <hr class="my-4">
@@ -289,6 +294,44 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             </div>
         </div>
 
+        <!-- APPOINTMENT MANAGEMENT SECTION -->
+        <div id="section-appointments" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm">
+                <h5 class="fw-bold mb-4">Patient Appointment Management</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Date</th><th>Patient</th><th>Department</th><th>Reason</th><th>Assigned To</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($allAppointments)): ?>
+                                <tr><td colspan="6" class="text-center py-4 text-muted">No scheduled appointments to manage.</td></tr>
+                            <?php endif; foreach($allAppointments as $a): ?>
+                                <tr>
+                                    <td><?php echo date('M d, H:i', strtotime($a['appointment_date'])); ?></td>
+                                    <td class="fw-bold"><?php echo htmlspecialchars($a['patient']['name'] ?? 'Guest'); ?></td>
+                                    <td><span class="badge bg-info-soft text-info rounded-pill px-3"><?php echo htmlspecialchars($a['department'] ?? 'General'); ?></span></td>
+                                    <td class="small"><?php echo htmlspecialchars($a['reason']); ?></td>
+                                    <td>
+                                        <?php if(isset($a['assigned_to'])): ?>
+                                            <span class="text-primary fw-bold"><i class="bi bi-person-check-fill me-1"></i><?php echo htmlspecialchars($a['assigned_to']['name']); ?></span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">Unassigned</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary rounded-pill px-3" onclick="openAssignModal('<?php echo $a['id']; ?>', '<?php echo htmlspecialchars($a['department'] ?? 'General OPD'); ?>')">
+                                            <?php echo isset($a['assigned_to']) ? 'Reassign' : 'Assign Staff'; ?>
+                                        </button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         <!-- EMERGENCIES SECTION -->
         <div id="section-emergencies" class="dashboard-section d-none">
             <div class="card p-4 border-0 shadow-sm">
@@ -440,6 +483,39 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
         </div>
     </div>
 
+    <!-- Assign Staff Modal -->
+    <div class="modal fade" id="assignStaffModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Assign Staff to Appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <form action="/api/admin/assign_appointment.php" method="POST">
+                        <input type="hidden" name="appointment_id" id="assign_appt_id">
+                        <div class="mb-3">
+                            <label class="small text-muted">Department Context</label>
+                            <input type="text" id="assign_dept_display" class="form-control rounded-pill px-3" readonly disabled>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted">Select Staff Member</label>
+                            <select name="assigned_to" class="form-select rounded-pill px-3" required id="assign_staff_select">
+                                <option value="">-- Choose Staff --</option>
+                                <?php foreach($staffMembers as $s): ?>
+                                    <option value="<?php echo $s['id']; ?>" data-dept="<?php echo htmlspecialchars($s['department']); ?>">
+                                        <?php echo htmlspecialchars($s['name']); ?> (<?php echo htmlspecialchars($s['role']); ?> - <?php echo htmlspecialchars($s['department']); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="alert alert-info border-0 rounded-4 small">
+                            <i class="bi bi-info-circle me-1"></i> Showing priority to staff in the matching department.
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Confirm Assignment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function navigateTo(sectionId) {
@@ -477,6 +553,25 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             document.getElementById('link_patient_name').value = patientName;
             const linkModal = new bootstrap.Modal(document.getElementById('linkGuardianModal'));
             linkModal.show();
+        }
+
+        function openAssignModal(apptId, department) {
+            document.getElementById('assign_appt_id').value = apptId;
+            document.getElementById('assign_dept_display').value = department;
+            
+            // Filter dropdown to show relevant department first (optional UX improvement)
+            const select = document.getElementById('assign_staff_select');
+            const options = select.options;
+            for (let i = 1; i < options.length; i++) {
+                const optDept = options[i].getAttribute('data-dept');
+                if (optDept === department) {
+                    options[i].style.fontWeight = 'bold';
+                    options[i].text = "⭐ " + options[i].text.replace("⭐ ", "");
+                }
+            }
+
+            const assignModal = new bootstrap.Modal(document.getElementById('assignStaffModal'));
+            assignModal.show();
         }
     </script>
 </body>

@@ -13,6 +13,7 @@ if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['user_metadata']['r
 $user = $_SESSION['user'];
 $role = $user['user_metadata']['role'] ?? 'staff';
 $name = $user['user_metadata']['name'] ?? 'Staff Member';
+$dept = $user['user_metadata']['department'] ?? 'General OPD';
 
 $sb = new Supabase();
 $tasks = [];
@@ -20,8 +21,8 @@ $roleData = [];
 
 // 1. Fetch Task Queue (Cross-role tasks)
 if ($role === 'nurse') {
-    // Nurses see the patient queue for vitals - Use service key for system-wide visibility
-    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&order=appointment_date.asc', null, true);
+    // Nurses see the patient queue for their department OR assigned to them specifically
+    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&or=(department.eq.' . urlencode($dept) . ',assigned_to.eq.' . $user['id'] . ')&order=appointment_date.asc', null, true);
     $tasks = ($res['status'] === 200) ? $res['data'] : [];
 } elseif ($role === 'pharmacist') {
     // Pharmacists see pending prescriptions
