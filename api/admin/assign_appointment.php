@@ -43,17 +43,22 @@ $res = $sb->request('PATCH', '/rest/v1/appointments?id=eq.' . $apptId, [
 if ($res['status'] >= 200 && $res['status'] < 300) {
     // 4. Create Notifications for Patient and Guardian
     $timeStr = date('M d, H:i', strtotime($appt['appointment_date']));
-    $msg = "Your appointment on $timeStr has been assigned to $staffName.";
     
-    // Notify Patient
-    $sb->request('POST', '/rest/v1/notifications', [
-        'user_id' => $appt['patient_id'],
-        'message' => $msg
-    ]);
+    // Explicitly include staff name or fallback
+    $displayStaff = !empty($staffName) ? $staffName : 'a medical specialist';
+    $msg = "Confirmation: Your appointment on $timeStr has been assigned to $displayStaff.";
     
-    // Notify Guardian (if the appointment was booked by/for a dependant)
+    // Notify Patient (Always notify patient, even if guardian booked)
+    if (!empty($appt['patient_id'])) {
+        $sb->request('POST', '/rest/v1/notifications', [
+            'user_id' => $appt['patient_id'],
+            'message' => $msg
+        ]);
+    }
+    
+    // Notify Guardian (if applicable)
     if (!empty($appt['guardian_id'])) {
-        $guardianMsg = "The appointment for " . ($appt['patient']['name'] ?? 'your dependant') . " on $timeStr has been assigned to $staffName.";
+        $guardianMsg = "Update: The appointment for " . ($appt['patient']['name'] ?? 'your dependant') . " on $timeStr has been assigned to $displayStaff.";
         $sb->request('POST', '/rest/v1/notifications', [
             'user_id' => $appt['guardian_id'],
             'message' => $guardianMsg
