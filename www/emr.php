@@ -70,22 +70,32 @@ if (!$patient) {
 }
 
 // 3. Fetch Unified Clinical History with Staff Names
-$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,profiles!recorded_by(name)&order=recorded_at.desc', null, true);
+// Vitals (Nursing)
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,staff:profiles!recorded_by(name)&order=recorded_at.desc', null, true);
 $vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
 
-$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name),tech:profiles!completed_by(name),recorded_at:created_at&order=created_at.desc', null, true);
+// Lab Requests (Laboratory)
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name),tech:profiles!completed_by(name)&order=created_at.desc', null, true);
 $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
-$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name),recorded_at:created_at&order=created_at.desc', null, true);
+// Consultations (General OPD)
+$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name)&order=created_at.desc', null, true);
 $consults = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
 
-$scriptsRes = $sb->request('GET', '/rest/v1/prescriptions?consultation_id=in.(' . implode(',', array_map(fn($c) => $c['id'], $consults) ?: ['00000000-0000-0000-0000-000000000000']) . ')&order=created_at.desc', null, true);
-$prescriptions = ($scriptsRes['status'] === 200) ? $scriptsRes['data'] : [];
+// Prescriptions (Pharmacy - only show dispensed as separate events if needed, but for now we link to consults)
+$consultIds = array_map(fn($c) => $c['id'], $consults);
+$scriptsRes = !empty($consultIds) ? $sb->request('GET', '/rest/v1/prescriptions?consultation_id=in.(' . implode(',', $consultIds) . ')&select=*,pharmacist:profiles!dispensed_by(name)&order=created_at.desc', null, true) : null;
+$prescriptions = ($scriptsRes && $scriptsRes['status'] === 200) ? $scriptsRes['data'] : [];
 
-// Combine into a timeline
+// Combine into a unified timeline
+// We tag each entry with a 'type' to help rendering
+foreach ($vitals as &$v) { $v['emr_type'] = 'nursing'; $v['sort_date'] = $v['recorded_at']; }
+foreach ($labs as &$l) { $l['emr_type'] = 'laboratory'; $l['sort_date'] = $l['created_at']; }
+foreach ($consults as &$c) { $c['emr_type'] = 'opd'; $c['sort_date'] = $c['created_at']; }
+
 $timeline = array_merge($vitals, $labs, $consults);
 usort($timeline, function($a, $b) {
-    return strtotime($b['recorded_at'] ?? $b['created_at']) - strtotime($a['recorded_at'] ?? $a['created_at']);
+    return strtotime($b['sort_date'] ?? 'now') - strtotime($a['sort_date'] ?? 'now');
 });
 
 // Helper for Search
@@ -173,7 +183,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                 <p class="text-muted">No medical records found for this patient.</p>
                             </div>
                         <?php else: foreach ($timeline as $entry): 
-                            $date = strtotime($entry['recorded_at'] ?? $entry['created_at']);
+                            $date = strtotime($entry['sort_date'] ?? 'now');
                         ?>
                             <div class="d-flex mb-5">
                                 <div class="text-center me-4" style="min-width: 80px;">
@@ -181,75 +191,89 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                     <small class="text-muted text-uppercase"><?php echo date('M \'y', $date); ?></small>
                                 </div>
                                 <div class="flex-grow-1 border-start ps-4">
-                                    <?php if (isset($entry['temperature'])): // Nursing / Vitals ?>
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <h6 class="fw-bold text-primary mb-0">NURSING: Vitals Recorded</h6>
-                                            <small class="text-muted small">By: <?php echo htmlspecialchars($entry['profiles']['name'] ?? 'Staff'); ?></small>
-                                        </div>
-                                        <div class="row g-2 mt-2">
-                                            <div class="col-6 col-md-3">
-                                                <div class="p-2 bg-light rounded-3 small">
-                                                    <span class="d-block text-muted">Temp</span>
-                                                    <span class="fw-bold"><?php echo $entry['temperature']; ?>°C</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-6 col-md-3">
-                                                <div class="p-2 bg-light rounded-3 small">
-                                                    <span class="d-block text-muted">BP</span>
-                                                    <span class="fw-bold"><?php echo $entry['blood_pressure']; ?></span>
-                                                </div>
-                                            </div>
-                                            <div class="col-6 col-md-3">
-                                                <div class="p-2 bg-light rounded-3 small">
-                                                    <span class="d-block text-muted">Pulse</span>
-                                                    <span class="fw-bold"><?php echo $entry['pulse']; ?> bpm</span>
-                                                </div>
-                                            </div>
-                                            <div class="col-6 col-md-3">
-                                                <div class="p-2 bg-light rounded-3 small">
-                                                    <span class="d-block text-muted">Weight</span>
-                                                    <span class="fw-bold"><?php echo $entry['weight']; ?> kg</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    <?php elseif (isset($entry['notes'])): // General OPD / Consultation ?>
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <h6 class="fw-bold text-success mb-0">GENERAL OPD: Consultation</h6>
-                                            <small class="text-muted small">Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Staff'); ?></small>
-                                        </div>
-                                        <div class="card p-3 bg-white border rounded-4 mt-2">
-                                            <p class="small mb-0" style="white-space: pre-wrap;"><?php echo htmlspecialchars($entry['notes']); ?></p>
-                                        </div>
-                                        
-                                        <?php 
-                                        $linkedPrescriptions = array_filter($prescriptions, fn($pr) => $pr['consultation_id'] === $entry['id']);
-                                        if (!empty($linkedPrescriptions)): ?>
-                                            <div class="mt-3">
-                                                <small class="fw-bold text-muted d-block mb-1">Prescribed Medication:</small>
-                                                <?php foreach($linkedPrescriptions as $pr): ?>
-                                                    <div class="badge bg-primary-soft text-primary p-2 rounded-3 me-2 mb-2 border border-primary">
-                                                        <i class="bi bi-capsule me-1"></i> <?php echo htmlspecialchars($pr['medication_name']); ?> (<?php echo htmlspecialchars($pr['dosage']); ?>)
-                                                    </div>
-                                                <?php endforeach; ?>
-                                            </div>
-                                        <?php endif; ?>
-
-                                    <?php else: // Laboratory / Tests ?>
-                                        <div class="d-flex justify-content-between align-items-center mb-1">
-                                            <h6 class="fw-bold text-info mb-0">LABORATORY: <?php echo htmlspecialchars($entry['test_name']); ?></h6>
-                                            <small class="text-muted small">Technician: <?php echo htmlspecialchars($entry['tech']['name'] ?? 'Verified'); ?></small>
-                                        </div>
-                                        <p class="text-muted small mb-2">Requested by: Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Staff'); ?> | Status: <span class="text-capitalize badge bg-light text-dark"><?php echo htmlspecialchars($entry['status']); ?></span></p>
-                                        <?php if ($entry['result_text']): ?>
-                                            <div class="card p-3 bg-light border-0 rounded-4">
-                                                <h6 class="fw-bold small mb-2 text-danger">Result Notes</h6>
-                                                <p class="small mb-0"><?php echo nl2br(htmlspecialchars($entry['result_text'])); ?></p>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
+                                     <?php if (($entry['emr_type'] ?? '') === 'nursing'): // Nursing / Vitals ?>
+                                         <div class="d-flex justify-content-between align-items-center mb-1">
+                                             <h6 class="fw-bold text-primary mb-0"><i class="bi bi-thermometer-half me-1"></i> NURSING: Vitals Recorded</h6>
+                                             <small class="text-muted small">Recorded by: <?php echo htmlspecialchars($entry['staff']['name'] ?? 'Staff'); ?></small>
+                                         </div>
+                                         <div class="row g-2 mt-2">
+                                             <div class="col-6 col-md-3">
+                                                 <div class="p-2 bg-light rounded-3 small">
+                                                     <span class="d-block text-muted text-uppercase extra-small font-monospace" style="font-size: 0.65rem;">Temp</span>
+                                                     <span class="fw-bold"><?php echo !empty($entry['temperature']) ? $entry['temperature'].'°C' : '--'; ?></span>
+                                                 </div>
+                                             </div>
+                                             <div class="col-6 col-md-3">
+                                                 <div class="p-2 bg-light rounded-3 small">
+                                                     <span class="d-block text-muted text-uppercase extra-small font-monospace" style="font-size: 0.65rem;">BP</span>
+                                                     <span class="fw-bold"><?php echo !empty($entry['blood_pressure']) ? $entry['blood_pressure'] : '--'; ?></span>
+                                                 </div>
+                                             </div>
+                                             <div class="col-6 col-md-3">
+                                                 <div class="p-2 bg-light rounded-3 small">
+                                                     <span class="d-block text-muted text-uppercase extra-small font-monospace" style="font-size: 0.65rem;">Pulse</span>
+                                                     <span class="fw-bold"><?php echo !empty($entry['pulse']) ? $entry['pulse'].' bpm' : '--'; ?></span>
+                                                 </div>
+                                             </div>
+                                             <div class="col-6 col-md-3">
+                                                 <div class="p-2 bg-light rounded-3 small">
+                                                     <span class="d-block text-muted text-uppercase extra-small font-monospace" style="font-size: 0.65rem;">Weight</span>
+                                                     <span class="fw-bold"><?php echo !empty($entry['weight']) ? $entry['weight'].' kg' : '--'; ?></span>
+                                                 </div>
+                                             </div>
+                                         </div>
+                                     <?php elseif (($entry['emr_type'] ?? '') === 'opd'): // General OPD / Consultation ?>
+                                         <div class="d-flex justify-content-between align-items-center mb-1">
+                                             <h6 class="fw-bold text-success mb-0"><i class="bi bi-journal-check me-1"></i> GENERAL OPD: Consultation</h6>
+                                             <small class="text-muted small">Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Medical Staff'); ?></small>
+                                         </div>
+                                         <div class="card p-3 bg-white border rounded-4 mt-2">
+                                             <p class="small mb-0" style="white-space: pre-wrap;"><?php echo htmlspecialchars($entry['notes']); ?></p>
+                                         </div>
+                                         
+                                         <?php 
+                                         $linkedPrescriptions = array_filter($prescriptions, fn($pr) => $pr['consultation_id'] === $entry['id']);
+                                         if (!empty($linkedPrescriptions)): ?>
+                                             <div class="mt-3">
+                                                 <small class="fw-bold text-muted d-block mb-2">Prescriptions & Pharmacy:</small>
+                                                 <?php foreach($linkedPrescriptions as $pr): ?>
+                                                     <div class="p-2 rounded-3 mb-2 border <?php echo ($pr['status'] === 'dispensed') ? 'bg-success-soft border-success' : 'bg-primary-soft border-primary'; ?>">
+                                                         <div class="d-flex justify-content-between align-items-center">
+                                                             <span class="small fw-bold <?php echo ($pr['status'] === 'dispensed') ? 'text-success' : 'text-primary'; ?>">
+                                                                 <i class="bi bi-capsule me-1"></i> <?php echo htmlspecialchars($pr['medication_name']); ?> (<?php echo htmlspecialchars($pr['dosage']); ?>)
+                                                             </span>
+                                                             <?php if ($pr['status'] === 'dispensed'): ?>
+                                                                 <span class="extra-small text-success"><i class="bi bi-check-circle-fill me-1"></i> Dispensed by <?php echo htmlspecialchars($pr['pharmacist']['name'] ?? 'Pharmacist'); ?></span>
+                                                             <?php else: ?>
+                                                                 <span class="extra-small text-primary"><i class="bi bi-hourglass-split me-1"></i> Pending Dispense</span>
+                                                             <?php endif; ?>
+                                                         </div>
+                                                     </div>
+                                                 <?php endforeach; ?>
+                                             </div>
+                                         <?php endif; ?>
+ 
+                                     <?php elseif (($entry['emr_type'] ?? '') === 'laboratory'): // Laboratory / Tests ?>
+                                         <div class="d-flex justify-content-between align-items-center mb-1">
+                                             <h6 class="fw-bold text-info mb-0"><i class="bi bi-clipboard2-pulse me-1"></i> LABORATORY: <?php echo htmlspecialchars($entry['test_name']); ?></h6>
+                                             <?php if ($entry['status'] === 'completed'): ?>
+                                                 <small class="text-muted small">Recorded by: <?php echo htmlspecialchars($entry['tech']['name'] ?? 'Technician'); ?></small>
+                                             <?php else: ?>
+                                                 <small class="text-muted small">Status: <span class="badge bg-warning text-dark">Pending Result</span></small>
+                                             <?php endif; ?>
+                                         </div>
+                                         <p class="text-muted small mb-2">Requested by: Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Medical Staff'); ?></p>
+                                         <?php if ($entry['result_text']): ?>
+                                             <div class="card p-3 bg-light border-0 rounded-4">
+                                                 <h6 class="fw-bold small mb-2 text-danger">Diagnostic Finding</h6>
+                                                 <p class="small mb-0"><?php echo nl2br(htmlspecialchars($entry['result_text'])); ?></p>
+                                             </div>
+                                         <?php endif; ?>
+                                     <?php endif; ?>
                                 </div>
                             </div>
-                        <?php endforeach; endif; ?>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                     </div>
                 </div>
             </div>

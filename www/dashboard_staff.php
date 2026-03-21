@@ -36,12 +36,12 @@ $assignedTasks = ($assignedApptsRes['status'] === 200) ? $assignedApptsRes['data
 // 4. Role-specific items (Prescriptions for Pharmacists, Lab for Techs)
 $roleTasks = [];
 if ($role === 'pharmacist') {
-    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&order=created_at.asc');
+    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,consult:consultations(patient:profiles!patient_id(name))&order=created_at.asc');
     $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
     $invRes = $sb->request('GET', '/rest/v1/drug_inventory?order=drug_name.asc');
     $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
 } elseif ($role === 'technician') {
-    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&order=created_at.asc');
+    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*,patient:profiles!patient_id(name)&order=created_at.asc');
     $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
 }
 
@@ -164,9 +164,10 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                             <?php if (empty($tasks)): ?>
                                 <tr><td colspan="4" class="text-center py-4 text-muted">No pending tasks in your queue.</td></tr>
                             <?php endif; foreach ($tasks as $t): 
-                                $isAssigned = ($t['assigned_to'] === $user['id']);
+                                $isAssigned = (($t['assigned_to'] ?? '') === $user['id']);
+                                $canProcess = ($isAssigned || in_array($role, ['pharmacist', 'technician']));
                             ?>
-                            <tr class="<?php echo $isAssigned ? 'table-primary-soft' : ''; ?>">
+                            <tr class="<?php echo $canProcess ? 'table-primary-soft' : ''; ?>">
                                 <td>#<?php echo substr($t['id'], 0, 5); ?></td>
                                 <td>
                                     <?php 
@@ -179,23 +180,25 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                             echo "<i class='bi bi-shield-lock me-1'></i> Departmental Appointment Request (ID: " . substr($t['patient_id'] ?? 'unknown', 0, 8) . ")";
                                             echo "<div class='extra-small text-muted'>Awaiting admin assignment for full details.</div>";
                                         }
-                                    } elseif ($role === 'pharmacist' && isset($t['medication_details'])) {
-                                        echo "Dispense: " . htmlspecialchars($t['medication_details']);
+                                    } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
+                                        $pName = $t['consult']['patient']['name'] ?? 'Patient';
+                                        echo "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
                                     } elseif ($role === 'technician') {
-                                        echo "Test: " . htmlspecialchars($t['test_name']);
+                                        $pName = $t['patient']['name'] ?? 'Patient';
+                                        echo "Test: <span class='fw-bold'>" . htmlspecialchars($t['test_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
                                     }
                                     ?>
                                 </td>
                                 <td>
-                                    <?php if ($isAssigned): ?>
+                                    <?php if ($canProcess): ?>
                                         <span class="badge bg-danger rounded-pill px-3">Priority</span>
                                     <?php else: ?>
                                         <span class="badge bg-light text-muted rounded-pill px-3">Restricted</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
-                                    <?php if ($isAssigned): ?>
-                                        <?php if ($role === 'nurse'): ?>
+                                    <?php if ($canProcess): ?>
+                                        <?php if ($role === 'nurse' && $isAssigned): ?>
                                             <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
                                         <?php elseif ($role === 'pharmacist'): ?>
                                             <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
