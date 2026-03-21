@@ -346,9 +346,17 @@ foreach ($appointments as $a) {
             <div class="row g-4">
                 <div class="col-md-6">
                     <div class="card border-0 shadow-sm p-4">
-                        <h6 class="fw-bold mb-3"><i class="bi bi-clipboard2-pulse me-2"></i> Lab Results</h6>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-clipboard2-pulse me-2"></i> Lab Results</h6>
+                            <button class="btn btn-sm btn-outline-info rounded-pill fw-bold px-3" data-bs-toggle="modal" data-bs-target="#labRequestModal">
+                                Request Lab Test
+                            </button>
+                        </div>
                         <?php if (empty($labResults)): ?>
-                            <p class="text-muted small">No lab results found.</p>
+                            <div class="text-center py-3">
+                                <p class="text-muted small mb-3">No lab results found.</p>
+                                <button class="btn btn-primary rounded-pill btn-sm px-4" data-bs-toggle="modal" data-bs-target="#labRequestModal">Apply for Lab Test</button>
+                            </div>
                         <?php else: ?>
                             <div class="list-group list-group-flush">
                                 <?php foreach ($labResults as $lr): ?>
@@ -475,6 +483,37 @@ foreach ($appointments as $a) {
                         <button type="submit" class="btn btn-primary w-100 rounded-pill">Submit Request</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAB REQUEST MODAL -->
+    <div class="modal fade" id="labRequestModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-info text-dark border-0 py-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-droplet-half me-2"></i> Request Laboratory Test</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/lab/create.php" method="POST">
+                        <input type="hidden" name="patient_id" value="<?php echo $userId; ?>">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Diagnostic Test Type</label>
+                            <select name="test_type" class="form-select rounded-4 p-2 bg-light border-0" required>
+                                <option value="Blood Test">Blood Test</option>
+                                <option value="Urinalysis">Urinalysis</option>
+                                <option value="Imaging">Imaging (X-Ray / MRI)</option>
+                                <option value="Pathology">Pathology</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted">Test Name / Description</label>
+                            <input type="text" name="test_name" class="form-control rounded-4 p-2 bg-light border-0" placeholder="e.g. Complete Blood Count (CBC)" required>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100 rounded-pill fw-bold py-2">Submit Request to Lab</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
