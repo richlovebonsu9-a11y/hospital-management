@@ -40,7 +40,19 @@ if ($action === 'link_patient') {
         header('Location: /dashboard_guardian.php?error=patient_not_found'); exit;
     }
     
-    // 2. Ensure patient has a profile record (required for foreign key in guardians table)
+    // 2. Ensure BOTH guardian and patient have profile records (required for foreign keys)
+    // Check Guardian
+    $gProfileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $userId . '&select=id', null, true);
+    if ($gProfileRes['status'] !== 200 || empty($gProfileRes['data'])) {
+        $sb->request('POST', '/rest/v1/profiles', [
+            'id' => $userId,
+            'name' => $_SESSION['user']['user_metadata']['name'] ?? 'Guardian',
+            'role' => 'guardian',
+            'ghana_post_gps' => 'Unknown'
+        ], true);
+    }
+
+    // Check Patient
     $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=id', null, true);
     if ($profileRes['status'] !== 200 || empty($profileRes['data'])) {
         // Create minimal profile
@@ -48,7 +60,7 @@ if ($action === 'link_patient') {
             'id' => $patientId,
             'name' => $patientActualName,
             'role' => 'patient',
-            'ghana_post_gps' => 'Unknown' // REQUIRED field in schema
+            'ghana_post_gps' => 'Unknown'
         ], true);
     }
     
