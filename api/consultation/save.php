@@ -25,17 +25,25 @@ if (!$patientId) {
 $sb = new Supabase();
 
 // 1. Save Vitals
-$sb->request('POST', '/rest/v1/vitals', [
-    'patient_id' => $patientId,
-    'recorded_by' => $u['id'],
+$vitalsData = [
     'temperature' => $temp,
     'blood_pressure' => $bp,
     'weight' => $weight,
     'pulse' => $pulse
-]);
+];
 
-// 2. Here we would also save notes/diagnosis to a consultations/EMR table if we had one defined in detail
-// for now, vitals is the key structured data.
+$sb->request('POST', '/rest/v1/vitals', array_merge($vitalsData, [
+    'patient_id' => $patientId,
+    'recorded_by' => $u['id']
+]));
+
+// 2. Save Consultation Record
+$sb->request('POST', '/rest/v1/consultations', [
+    'patient_id' => $patientId,
+    'doctor_id' => $u['id'],
+    'notes' => "Diagnosis: $diagnosis\n\nNotes: $notes\n\nAdmission Recommended: $admission",
+    'vitals' => json_encode($vitalsData)
+]);
 
 header('Location: /dashboard_doctor.php?visit_finished=1');
 exit;

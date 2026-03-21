@@ -104,6 +104,14 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                     <span class="badge bg-danger rounded-pill ms-auto"><?php echo count($notifications); ?></span>
                 <?php endif; ?>
             </a>
+            <hr class="my-3">
+            <form action="/emr.php" method="GET" class="px-2 mb-3">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-white border-end-0 rounded-start-pill"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="patient_id" class="form-control border-start-0 rounded-end-pill" placeholder="Search Patient ID..." required>
+                </div>
+                <small class="text-muted extra-small mt-1 d-block text-center">Enter UUID or scan card</small>
+            </form>
             <hr class="my-4">
             <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>

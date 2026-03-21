@@ -69,18 +69,29 @@ if (!$patient) {
     exit;
 }
 
-// Fetch Clinical Data (Vitals, Lab Results) using Service Key for authorized viewers
+// 3. Fetch Unified Clinical History (Service Key for authorized viewers)
 $vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&order=recorded_at.desc', null, true);
 $vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
 
 $labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc', null, true);
 $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
+$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc', null, true);
+$consults = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
+
+$scriptsRes = $sb->request('GET', '/rest/v1/prescriptions?consultation_id=in.(' . implode(',', array_map(fn($c) => $c['id'], $consults) ?: ['00000000-0000-0000-0000-000000000000']) . ')&order=created_at.desc', null, true);
+// If no consults, fetch scripts directly by patient_id if we had that column, but for now we follow the join logic.
+$prescriptions = ($scriptsRes['status'] === 200) ? $scriptsRes['data'] : [];
+
 // Combine into a timeline
-$timeline = array_merge($vitals, $labs);
+$timeline = array_merge($vitals, $labs, $consults);
 usort($timeline, function($a, $b) {
     return strtotime($b['recorded_at'] ?? $b['created_at']) - strtotime($a['recorded_at'] ?? $a['created_at']);
 });
+
+// Helper for Search
+$allPatientsRes = ($role !== 'patient' && $role !== 'guardian') ? $sb->request('GET', '/rest/v1/profiles?role=eq.patient&select=id,name', null, true) : null;
+$searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatientsRes['data'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -98,9 +109,23 @@ usort($timeline, function($a, $b) {
         <header class="d-flex justify-content-between align-items-center mb-5">
             <div>
                 <h2 class="fw-bold mb-1">Electronic Medical Record</h2>
-                <p class="text-muted">Comprehensive history of your visits and treatments.</p>
+                <p class="text-muted">Comprehensive history of clinical visits and treatments.</p>
             </div>
-            <button class="btn btn-outline-primary rounded-pill px-4"><i class="bi bi-download me-2"></i> Export PDF</button>
+            <div class="d-flex gap-2">
+                <?php if (!empty($searchList)): ?>
+                    <form class="d-flex" action="/emr.php" method="GET">
+                        <select name="patient_id" class="form-select rounded-pill me-2 border-primary" onchange="this.form.submit()" style="min-width: 250px;">
+                            <option value="">🔍 Search Patient Profile...</option>
+                            <?php foreach($searchList as $sp): ?>
+                                <option value="<?php echo $sp['id']; ?>" <?php echo ($sp['id'] === $targetPatientId ? 'selected' : ''); ?>>
+                                    <?php echo htmlspecialchars($sp['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </form>
+                <?php endif; ?>
+                <button class="btn btn-outline-primary rounded-pill px-4" onclick="window.print()"><i class="bi bi-printer me-2"></i> Print Record</button>
+            </div>
         </header>
 
         <div class="row g-4">
@@ -122,6 +147,18 @@ usort($timeline, function($a, $b) {
                     <div class="mb-3">
                         <small class="text-muted d-block">Blood Group</small>
                         <span class="fw-bold text-danger"><?php echo htmlspecialchars($patient['blood_group'] ?? 'Unknown'); ?></span>
+                    </div>
+                    <hr>
+                    <div class="d-grid gap-2">
+                        <?php if ($role === 'nurse'): ?>
+                            <button class="btn btn-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#vitalsModal">
+                                <i class="bi bi-thermometer-half me-2"></i> Log Daily Vitals
+                            </button>
+                        <?php elseif ($role === 'doctor'): ?>
+                            <button class="btn btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#consultationModal">
+                                <i class="bi bi-journal-medical me-2"></i> Start Consultation
+                            </button>
+                        <?php endif; ?>
                     </div>
                     <hr>
                     <small class="text-muted small">Data protected under Data Protection Act 2012.</small>
@@ -173,6 +210,25 @@ usort($timeline, function($a, $b) {
                                                 </div>
                                             </div>
                                         </div>
+                                    <?php elseif (isset($entry['notes'])): // It's a Consultation entry ?>
+                                        <h6 class="fw-bold mb-1 text-success">Clinical Consultation</h6>
+                                        <div class="card p-3 bg-white border rounded-4 mt-2">
+                                            <p class="small mb-0" style="white-space: pre-wrap;"><?php echo htmlspecialchars($entry['notes']); ?></p>
+                                        </div>
+                                        
+                                        <?php 
+                                        $linkedPrescriptions = array_filter($prescriptions, fn($pr) => $pr['consultation_id'] === $entry['id']);
+                                        if (!empty($linkedPrescriptions)): ?>
+                                            <div class="mt-3">
+                                                <small class="fw-bold text-muted d-block mb-1">Prescribed Medication:</small>
+                                                <?php foreach($linkedPrescriptions as $pr): ?>
+                                                    <div class="badge bg-primary-soft text-primary p-2 rounded-3 me-2 mb-2 border border-primary">
+                                                        <i class="bi bi-capsule me-1"></i> <?php echo htmlspecialchars($pr['medication_name']); ?> (<?php echo htmlspecialchars($pr['dosage']); ?>)
+                                                    </div>
+                                                <?php endforeach; ?>
+                                            </div>
+                                        <?php endif; ?>
+
                                     <?php else: // It's a Lab Request ?>
                                         <h6 class="fw-bold mb-1 text-info"><?php echo htmlspecialchars($entry['test_name']); ?> (<?php echo htmlspecialchars($entry['test_type']); ?>)</h6>
                                         <p class="text-muted small mb-2">Status: <span class="text-capitalize"><?php echo htmlspecialchars($entry['status']); ?></span></p>
@@ -191,5 +247,94 @@ usort($timeline, function($a, $b) {
             </div>
         </div>
     </div>
+    <!-- VITALS MODAL (For Nurses) -->
+    <div class="modal fade" id="vitalsModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">Record Daily Vitals</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/consultation/save.php" method="POST">
+                        <input type="hidden" name="patient_id" value="<?php echo $targetPatientId; ?>">
+                        <div class="row g-3">
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Temperature (°C)</label>
+                                <input type="number" step="0.1" name="temperature" class="form-control rounded-4" placeholder="36.5">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Blood Pressure</label>
+                                <input type="text" name="blood_pressure" class="form-control rounded-4" placeholder="120/80">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Weight (kg)</label>
+                                <input type="number" step="0.1" name="weight" class="form-control rounded-4" placeholder="70.5">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Pulse (bpm)</label>
+                                <input type="number" name="pulse" class="form-control rounded-4" placeholder="72">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-4">Save Vitals</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONSULTATION MODAL (For Doctors) -->
+    <div class="modal fade" id="consultationModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-success text-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">Start Clinical Consultation</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/consultation/save.php" method="POST">
+                        <input type="hidden" name="patient_id" value="<?php echo $targetPatientId; ?>">
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1">Temp (°C)</label>
+                                <input type="number" step="0.1" name="temperature" class="form-control rounded-4">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1">BP</label>
+                                <input type="text" name="blood_pressure" class="form-control rounded-4">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1">Pulse (bpm)</label>
+                                <input type="number" name="pulse" class="form-control rounded-4">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="small fw-bold text-muted mb-1">Weight (kg)</label>
+                                <input type="number" step="0.1" name="weight" class="form-control rounded-4">
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Diagnosis</label>
+                            <input type="text" name="diagnosis" class="form-control rounded-4" placeholder="Primary diagnosis..." required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Clinical Notes</label>
+                            <textarea name="notes" class="form-control rounded-4" rows="4" placeholder="Detailed symptoms and observations..." required></textarea>
+                        </div>
+                        
+                        <div class="form-check form-switch mb-4">
+                            <input class="form-check-input" type="checkbox" name="recommend_admission" id="admCheck">
+                            <label class="form-check-label ms-2" for="admCheck">Recommend Immediate Admission</label>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 rounded-pill">Complete Consultation & Save Record</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
