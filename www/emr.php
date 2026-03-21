@@ -12,10 +12,35 @@ if (!isset($_SESSION['user'])) {
 
 $sb = new Supabase();
 $currentUser = $_SESSION['user'];
+$role = $currentUser['user_metadata']['role'] ?? 'patient';
 $targetPatientId = $_GET['patient_id'] ?? $currentUser['id'];
 
-// Fetch Patient Profile
-$profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . urlencode($targetPatientId) . '&select=*');
+// Determine redirect dashboard
+$dashboardLink = '/dashboard_patient.php';
+if ($role === 'guardian') $dashboardLink = '/dashboard_guardian.php';
+if ($role === 'admin') $dashboardLink = '/dashboard_admin.php';
+if (in_array($role, ['doctor', 'nurse', 'pharmacist', 'technician'])) $dashboardLink = '/dashboard_staff.php';
+
+// 1. Permission Check
+$canView = ($targetPatientId === $currentUser['id']); // Self
+if (!$canView && $role === 'admin') $canView = true; // Admin
+if (!$canView && in_array($role, ['doctor', 'nurse', 'pharmacist', 'technician'])) $canView = true; // Staff
+
+if (!$canView && $role === 'guardian') {
+    // Check for an APPROVED link in the guardians table
+    $linkRes = $sb->request('GET', '/rest/v1/guardians?guardian_id=eq.' . $currentUser['id'] . '&patient_id=eq.' . $targetPatientId . '&status=eq.approved&select=id', null, true);
+    if ($linkRes['status'] === 200 && !empty($linkRes['data'])) {
+        $canView = true;
+    }
+}
+
+if (!$canView) {
+    header('Location: ' . $dashboardLink . '?error=unauthorized_access');
+    exit;
+}
+
+// 2. Fetch Patient Profile (Use service key to ensure authorized viewers can see metadata)
+$profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . urlencode($targetPatientId) . '&select=*', null, true);
 $patient = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : null;
 
 if (!$patient) {
@@ -36,7 +61,7 @@ if (!$patient) {
             </div>
             <h2 class="fw-bold mb-3">Record Not Found</h2>
             <p class="text-muted mb-4">We couldn't find a medical record for the requested patient ID. Please verify the link or contact administration.</p>
-            <a href="/dashboard_admin" class="btn btn-primary rounded-pill px-5">Back to Dashboard</a>
+            <a href="<?php echo $dashboardLink; ?>" class="btn btn-primary rounded-pill px-5">Back to Dashboard</a>
         </div>
     </body>
     </html>
@@ -44,11 +69,11 @@ if (!$patient) {
     exit;
 }
 
-// Fetch Clinical Data (Vitals, Lab Results, Prescriptions)
-$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&order=recorded_at.desc');
+// Fetch Clinical Data (Vitals, Lab Results) using Service Key for authorized viewers
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&order=recorded_at.desc', null, true);
 $vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
 
-$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc');
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc', null, true);
 $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
 // Combine into a timeline
