@@ -21,12 +21,45 @@ if (!$apptId || !$assignedTo) {
 }
 
 $sb = new Supabase();
-// Update the appointment with the assigned staff member
+
+// 1. Fetch appointment details first to get patient and guardian info
+$apptRes = $sb->request('GET', '/rest/v1/appointments?id=eq.' . $apptId . '&select=*,patient:patient_id(name)', null, true);
+$appt = ($apptRes['status'] === 200 && !empty($apptRes['data'])) ? $apptRes['data'][0] : null;
+
+if (!$appt) {
+    header('Location: /dashboard_admin.php?error=not_found');
+    exit;
+}
+
+// 2. Fetch the newly assigned staff name
+$staffRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $assignedTo . '&select=name', null, true);
+$staffName = ($staffRes['status'] === 200 && !empty($staffRes['data'])) ? $staffRes['data'][0]['name'] : 'a healthcare specialist';
+
+// 3. Update the appointment with the assigned staff member
 $res = $sb->request('PATCH', '/rest/v1/appointments?id=eq.' . $apptId, [
     'assigned_to' => $assignedTo
 ]);
 
 if ($res['status'] >= 200 && $res['status'] < 300) {
+    // 4. Create Notifications for Patient and Guardian
+    $timeStr = date('M d, H:i', strtotime($appt['appointment_date']));
+    $msg = "Your appointment on $timeStr has been assigned to $staffName.";
+    
+    // Notify Patient
+    $sb->request('POST', '/rest/v1/notifications', [
+        'user_id' => $appt['patient_id'],
+        'message' => $msg
+    ]);
+    
+    // Notify Guardian (if the appointment was booked by/for a dependant)
+    if (!empty($appt['guardian_id'])) {
+        $guardianMsg = "The appointment for " . ($appt['patient']['name'] ?? 'your dependant') . " on $timeStr has been assigned to $staffName.";
+        $sb->request('POST', '/rest/v1/notifications', [
+            'user_id' => $appt['guardian_id'],
+            'message' => $guardianMsg
+        ]);
+    }
+
     header('Location: /dashboard_admin.php?assigned=1#section-appointments');
 } else {
     header('Location: /dashboard_admin.php?error=assignment_failed&msg=' . urlencode($res['data']['message'] ?? 'DB Error'));

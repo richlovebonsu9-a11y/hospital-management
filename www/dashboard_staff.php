@@ -22,7 +22,7 @@ $roleData = [];
 // 1. Fetch Task Queue (Cross-role tasks)
 if ($role === 'nurse') {
     // Nurses see the patient queue for their department OR assigned to them specifically
-    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&or=(department.eq.' . urlencode($dept) . ',assigned_to.eq.' . $user['id'] . ')&order=appointment_date.asc', null, true);
+    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&select=*,patient:patient_id(name)&or=(department.eq.' . urlencode($dept) . ',assigned_to.eq.' . $user['id'] . ')&order=appointment_date.asc', null, true);
     $tasks = ($res['status'] === 200) ? $res['data'] : [];
 } elseif ($role === 'pharmacist') {
     // Pharmacists see pending prescriptions
@@ -107,24 +107,45 @@ if ($role === 'nurse') {
                         <tbody>
                             <?php if (empty($tasks)): ?>
                                 <tr><td colspan="4" class="text-center py-4 text-muted">No pending tasks in your queue.</td></tr>
-                            <?php endif; foreach ($tasks as $t): ?>
-                            <tr>
+                            <?php endif; foreach ($tasks as $t): 
+                                $isAssigned = ($t['assigned_to'] === $user['id']);
+                            ?>
+                            <tr class="<?php echo $isAssigned ? 'table-primary-soft' : ''; ?>">
                                 <td>#<?php echo substr($t['id'], 0, 5); ?></td>
                                 <td>
                                     <?php 
-                                    if ($role === 'nurse') echo "Record vitals for Patient " . substr($t['patient_id'], 0, 8);
-                                    elseif ($role === 'pharmacist') echo "Dispense: " . htmlspecialchars($t['medication_details']);
-                                    elseif ($role === 'technician') echo "Test: " . htmlspecialchars($t['test_name']);
+                                    if ($role === 'nurse') {
+                                        if ($isAssigned) {
+                                            echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . htmlspecialchars($t['patient']['name'] ?? 'Patient');
+                                            echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
+                                        } else {
+                                            echo "<i class='bi bi-shield-lock me-1'></i> Appointment Request (Patient " . substr($t['patient_id'], 0, 8) . "...)";
+                                        }
+                                    } elseif ($role === 'pharmacist') {
+                                        echo "Dispense: " . htmlspecialchars($t['medication_details']);
+                                    } elseif ($role === 'technician') {
+                                        echo "Test: " . htmlspecialchars($t['test_name']);
+                                    }
                                     ?>
                                 </td>
-                                <td><span class="badge bg-primary-soft text-primary rounded-pill px-3">Standard</span></td>
                                 <td>
-                                    <?php if ($role === 'nurse'): ?>
-                                        <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Vitals</button>
-                                    <?php elseif ($role === 'pharmacist'): ?>
-                                        <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
-                                    <?php elseif ($role === 'technician'): ?>
-                                        <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>')">Result</button>
+                                    <?php if ($isAssigned): ?>
+                                        <span class="badge bg-danger rounded-pill px-3">Priority</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted rounded-pill px-3">Restricted</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($isAssigned): ?>
+                                        <?php if ($role === 'nurse'): ?>
+                                            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
+                                        <?php elseif ($role === 'pharmacist'): ?>
+                                            <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
+                                        <?php elseif ($role === 'technician'): ?>
+                                            <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>')">Result</button>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="text-muted small">Awaiting Assignment</span>
                                     <?php endif; ?>
                                 </td>
                             </tr>
