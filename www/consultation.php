@@ -4,6 +4,7 @@ session_start();
 require_once __DIR__ . '/../src/lib/Supabase.php';
 use App\Lib\Supabase;
 
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? '') !== 'doctor') {
     header('Location: /login');
     exit;
