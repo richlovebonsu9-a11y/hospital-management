@@ -197,7 +197,7 @@ $seenToday = count($mySchedule); // Simplification
                             <tbody>
                                 <?php foreach ($mySchedule as $s): ?>
                                     <tr>
-                                        <td><?php echo date('M d, Y', strtotime($s['date'])); ?></td>
+                                        <td><?php echo date('M d, Y', strtotime($s['appointment_date'])); ?></td>
                                         <td><?php echo substr($s['patient_id'], 0, 8); ?></td>
                                         <td><?php echo htmlspecialchars($s['reason']); ?></td>
                                         <td><span class="badge bg-success-soft text-success rounded-pill px-3"><?php echo $s['status']; ?></span></td>
