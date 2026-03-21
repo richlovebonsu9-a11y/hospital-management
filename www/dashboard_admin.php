@@ -14,15 +14,18 @@ $user = $_SESSION['user'];
 $name = $user['user_metadata']['name'] ?? 'Admin';
 $sb = new Supabase();
 
-// 1. Fetch Staff & Patients (From Profiles Table for DB consistency)
+// 1. Fetch Staff, Patients & Guardians (From Profiles Table for DB consistency)
 $profilesRes = $sb->request('GET', '/rest/v1/profiles?select=*', null, true);
 $staffMembers = [];
 $patientList = [];
+$guardianList = [];
+$profilesMap = []; // global map for ID -> Name lookups
 $totalPatients = 0;
 if ($profilesRes['status'] === 200) {
     foreach ($profilesRes['data'] as $u) {
-        $r = $u['role'] ?? 'patient';
-        if (in_array(strtolower($r), ['doctor', 'nurse', 'pharmacist', 'technician', 'admin'])) {
+        $profilesMap[$u['id']] = $u['name'] ?? 'Unknown';
+        $r = strtolower($u['role'] ?? 'patient');
+        if (in_array($r, ['doctor', 'nurse', 'pharmacist', 'technician', 'admin'])) {
             $staffMembers[] = [
                 'id' => $u['id'], 
                 'name' => $u['name'] ?? 'Unknown', 
@@ -30,6 +33,13 @@ if ($profilesRes['status'] === 200) {
                 'department' => $u['department'] ?? 'General OPD', 
                 'email' => $u['email'] ?? '', 
                 'status' => 'Active'
+            ];
+        } elseif ($r === 'guardian') {
+            $guardianList[] = [
+                'id' => $u['id'],
+                'name' => $u['name'] ?? 'Guest',
+                'email' => $u['email'] ?? '',
+                'joined' => $u['created_at']
             ];
         } else {
             $patientList[] = [
@@ -60,9 +70,11 @@ $guardianLinks = ($guardianLinksRes['status'] === 200) ? $guardianLinksRes['data
 // Map patient_id -> guardian info for easy lookup in table
 $patientGuardians = [];
 foreach($guardianLinks as $link) {
+    $guardianName = $profilesMap[$link['guardian_id']] ?? $link['guardian']['name'] ?? 'Unknown';
     $patientGuardians[$link['patient_id']][] = [
+        'link_id' => $link['id'],
         'id' => $link['guardian_id'],
-        'name' => $link['guardian']['name'] ?? 'Unknown',
+        'name' => $guardianName,
         'relationship' => $link['relationship'],
         'status' => $link['status'] ?? 'pending'
     ];
@@ -109,6 +121,7 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             <a href="#" class="nav-link-custom active" data-target="section-analytics"><i class="bi bi-speedometer2"></i> Analytics</a>
             <a href="#" class="nav-link-custom" data-target="section-staff"><i class="bi bi-people"></i> Staff Management</a>
             <a href="#" class="nav-link-custom" data-target="section-patients"><i class="bi bi-person-badge"></i> Patient Directory</a>
+            <a href="#" class="nav-link-custom" data-target="section-guardians"><i class="bi bi-shield-check"></i> Guardian Management</a>
             <a href="#" class="nav-link-custom" data-target="section-emergencies"><i class="bi bi-exclamation-octagon"></i> Emergency Queue</a>
             <a href="#" class="nav-link-custom" data-target="section-appointments"><i class="bi bi-calendar-check"></i> Appointments</a>
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
@@ -247,9 +260,14 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                     <td><?php echo htmlspecialchars($p['email'] ?? '—'); ?></td>
                                     <td>
                                         <?php if (isset($patientGuardians[$p['id']])): foreach($patientGuardians[$p['id']] as $g): ?>
-                                            <span class="badge <?php echo ($g['status'] === 'approved' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'); ?> rounded-pill px-2 mb-1" title="<?php echo htmlspecialchars($g['relationship']); ?>">
-                                                <i class="bi bi-shield-check me-1"></i><?php echo htmlspecialchars($g['name']); ?> (<?php echo $g['status']; ?>)
-                                            </span>
+                                            <div class="mb-2">
+                                                <span class="badge <?php echo ($g['status'] === 'approved' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'); ?> rounded-pill px-2" title="<?php echo htmlspecialchars($g['relationship']); ?>">
+                                                    <i class="bi bi-shield-check me-1"></i><?php echo htmlspecialchars($g['name']); ?> (<?php echo $g['status']; ?>)
+                                                </span>
+                                                <?php if ($g['status'] === 'pending'): ?>
+                                                    <button class="btn btn-xs btn-success py-0 px-2 ms-1" style="font-size: 0.7rem;" onclick="approveLink('<?php echo $g['link_id']; ?>')">Approve</button>
+                                                <?php endif; ?>
+                                            </div>
                                         <?php endforeach; else: ?>
                                             <button class="btn btn-sm btn-link text-muted p-0" onclick="openLinkModal('<?php echo $p['id']; ?>', '<?php echo htmlspecialchars($p['name']); ?>')">+ Link</button>
                                         <?php endif; ?>
@@ -257,6 +275,50 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                     <td><small class="text-muted"><?php echo substr($p['id'], 0, 8); ?></small></td>
                                     <td><?php echo date('M d, Y', strtotime($p['joined'])); ?></td>
                                     <td><a href="/emr.php?patient_id=<?php echo $p['id']; ?>" class="btn btn-sm btn-light rounded-pill px-3">View EMR</a></td>
+                                </tr>
+                            <?php endforeach; endif; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- GUARDIAN MANAGEMENT SECTION -->
+        <div id="section-guardians" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm">
+                <h5 class="fw-bold mb-4">Registered Guardians</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Email</th><th>Linked Patients</th><th>Joined</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($guardianList)): ?>
+                                <tr><td colspan="5" class="text-center py-4 text-muted">No guardians registered.</td></tr>
+                            <?php else: foreach ($guardianList as $g): ?>
+                                <tr>
+                                    <td class="fw-bold"><?php echo htmlspecialchars($g['name']); ?></td>
+                                    <td><?php echo htmlspecialchars($g['email'] ?: '—'); ?></td>
+                                    <td>
+                                        <?php 
+                                        $links = [];
+                                        foreach($guardianLinks as $l) if($l['guardian_id'] === $g['id']) $links[] = $l;
+                                        if (empty($links)): ?>
+                                            <span class="text-muted small">No patients linked</span>
+                                        <?php else: foreach($links as $l): ?>
+                                            <div class="mb-1">
+                                                <span class="badge bg-light text-dark border rounded-pill px-2">
+                                                    <?php echo htmlspecialchars($profilesMap[$l['patient_id']] ?? 'Unknown'); ?> 
+                                                    <small class="text-muted">(<?php echo $l['status']; ?>)</small>
+                                                </span>
+                                                <?php if ($l['status'] === 'pending'): ?>
+                                                    <button class="btn btn-xs btn-outline-success py-0 px-2 ms-1" style="font-size: 0.7rem;" onclick="approveLink('<?php echo $l['id']; ?>')">Approve</button>
+                                                <?php endif; ?>
+                                            </div>
+                                        <?php endforeach; endif; ?>
+                                    </td>
+                                    <td><?php echo date('M d, Y', strtotime($g['joined'])); ?></td>
+                                    <td><button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="openLinkModalDirect('<?php echo $g['id']; ?>', '<?php echo htmlspecialchars($g['name']); ?>')">Link Patient</button></td>
                                 </tr>
                             <?php endforeach; endif; ?>
                         </tbody>
@@ -584,6 +646,28 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             document.getElementById('link_patient_name').value = patientName;
             const linkModal = new bootstrap.Modal(document.getElementById('linkGuardianModal'));
             linkModal.show();
+        }
+
+        function openLinkModalDirect(guardianId, guardianName) {
+            // Re-use linkGuardianModal but swap fields? Better to have a dedicated one or generic
+            // For now, let's just alert that it's coming soon or use the same one logic
+            alert("To link " + guardianName + ", please go to the Patient Directory and click '+ Link' next to the patient.");
+        }
+
+        async function approveLink(linkId) {
+            if (!confirm("Approve this guardian-patient link?")) return;
+            const fd = new FormData();
+            fd.append('link_id', linkId);
+            fd.append('action', 'approve');
+
+            const res = await fetch('/api/admin/approve_guardian.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Link approved successfully!");
+                location.reload();
+            } else {
+                alert("Error: " + data.error);
+            }
         }
 
         function openAssignModal(apptId, department) {
