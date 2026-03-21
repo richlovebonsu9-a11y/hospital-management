@@ -69,26 +69,23 @@ if (!$patient) {
     exit;
 }
 
-// 3. Fetch Unified Clinical History with Staff Names
+// 3. Fetch Unified Clinical History (Raw fetches for debugging)
 // Vitals (Nursing)
-$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,staff:profiles!recorded_by(name)&order=recorded_at.desc', null, true);
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $targetPatientId . '&select=*&order=recorded_at.desc', null, true);
 $vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
 
 // Lab Requests (Laboratory)
-$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name),tech:profiles!completed_by(name)&order=created_at.desc', null, true);
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $targetPatientId . '&select=*&order=created_at.desc', null, true);
 $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
 // Consultations (General OPD)
-$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name)&order=created_at.desc', null, true);
+$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . $targetPatientId . '&select=*&order=created_at.desc', null, true);
 $consults = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
 
-// Prescriptions (Pharmacy - only show dispensed as separate events if needed, but for now we link to consults)
-$consultIds = array_map(fn($c) => $c['id'], $consults);
-$scriptsRes = !empty($consultIds) ? $sb->request('GET', '/rest/v1/prescriptions?consultation_id=in.(' . implode(',', $consultIds) . ')&select=*,pharmacist:profiles!dispensed_by(name)&order=created_at.desc', null, true) : null;
-$prescriptions = ($scriptsRes && $scriptsRes['status'] === 200) ? $scriptsRes['data'] : [];
+// Prescriptions
+$prescriptions = []; // Temporary bypass
 
 // Combine into a unified timeline
-// We tag each entry with a 'type' to help rendering
 foreach ($vitals as &$v) { $v['emr_type'] = 'nursing'; $v['sort_date'] = $v['recorded_at']; }
 foreach ($labs as &$l) { $l['emr_type'] = 'laboratory'; $l['sort_date'] = $l['created_at']; }
 foreach ($consults as &$c) { $c['emr_type'] = 'opd'; $c['sort_date'] = $c['created_at']; }
