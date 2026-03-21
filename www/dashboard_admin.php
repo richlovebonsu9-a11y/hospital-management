@@ -27,7 +27,8 @@ if ($profilesRes['status'] === 200) {
                 'id' => $u['id'], 
                 'name' => $u['name'] ?? 'Unknown', 
                 'role' => $r, 
-                'department' => $u['department'] ?? 'General', 
+                'department' => $u['department'] ?? 'General OPD', 
+                'email' => $u['email'] ?? '', 
                 'status' => 'Active'
             ];
         } else {
@@ -282,7 +283,7 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                             <?php else: foreach ($staffMembers as $staff): ?>
                                 <tr>
                                     <td class="fw-bold"><?php echo htmlspecialchars($staff['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($staff['email']); ?></td>
+                                    <td class="text-muted small"><?php echo htmlspecialchars($staff['email'] ?? '—'); ?></td>
                                     <td><span class="text-capitalize badge bg-secondary"><?php echo htmlspecialchars($staff['role']); ?></span></td>
                                     <td><?php echo htmlspecialchars($staff['department']); ?></td>
                                     <td><span class="badge bg-success"><?php echo htmlspecialchars($staff['status']); ?></span></td>
