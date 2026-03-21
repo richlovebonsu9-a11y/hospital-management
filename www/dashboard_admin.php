@@ -268,7 +268,10 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             <div class="card p-4 border-0 shadow-sm">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="fw-bold mb-0">Staff Member Directory</h5>
-                    <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addStaffModal"><i class="bi bi-plus-lg"></i> Add New Staff</button>
+                    <div>
+                        <button class="btn btn-outline-primary rounded-pill px-4 me-2" onclick="syncStaffData()"><i class="bi bi-arrow-repeat"></i> Sync Staff Data</button>
+                        <button class="btn btn-primary rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#addStaffModal"><i class="bi bi-plus-lg"></i> Add New Staff</button>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -596,6 +599,33 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
 
             const assignModal = new bootstrap.Modal(document.getElementById('assignStaffModal'));
             assignModal.show();
+        }
+
+        async function syncStaffData() {
+            if (!confirm("This will scan for missing staff profiles and restore them. Continue?")) return;
+            
+            const btn = event.currentTarget;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Syncing...';
+
+            try {
+                const response = await fetch('/api/admin/reconcile_staff.php');
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(`Success! Reconciled ${result.reconciled_count} legacy staff members. Total checked: ${result.total_checked}.`);
+                    window.location.reload();
+                } else {
+                    alert("Sync failed: " + (result.error || "Unknown error"));
+                }
+            } catch (e) {
+                console.error(e);
+                alert("An error occurred during synchronization.");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
         }
     </script>
 </body>
