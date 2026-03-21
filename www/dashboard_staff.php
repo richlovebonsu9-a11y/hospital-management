@@ -45,6 +45,15 @@ if ($role === 'pharmacist') {
     $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
 }
 
+$vitalsPatients = [];
+if ($role === 'nurse') {
+    $todayStart = date('Y-m-d') . 'T00:00:00Z';
+    $vitalsRes = $sb->request('GET', '/rest/v1/vitals?recorded_at=gte.' . $todayStart . '&select=patient_id', null, true);
+    if ($vitalsRes['status'] === 200 && is_array($vitalsRes['data'])) {
+        foreach ($vitalsRes['data'] as $v) $vitalsPatients[] = $v['patient_id'];
+    }
+}
+
 // Combine all tasks. Use ID as key to deduplicate (assigned tasks override dept ones)
 $tasksMap = [];
 foreach ($deptTasks as $t) $tasksMap[$t['id']] = $t;
@@ -62,6 +71,7 @@ usort($tasks, function($a, $b) {
 // 5. Fetch Notifications for Staff
 $notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=5', null, true);
 $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
+$unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -100,8 +110,8 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
             <a href="#" class="nav-link-custom" data-target="section-comms"><i class="bi bi-chat-dots"></i> Internal Comms</a>
             <a href="#" class="nav-link-custom" data-target="section-notifications">
                 <i class="bi bi-bell"></i> Notifications
-                <?php if (!empty($notifications)): ?>
-                    <span class="badge bg-danger rounded-pill ms-auto"><?php echo count($notifications); ?></span>
+                <?php if ($unreadCount > 0): ?>
+                    <span class="badge bg-danger rounded-pill ms-auto nav-notif-badge"><?php echo $unreadCount; ?></span>
                 <?php endif; ?>
             </a>
             <hr class="my-3">
@@ -122,25 +132,28 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                 <p class="text-muted mb-0">Role: <span class="text-capitalize fw-bold text-primary"><?php echo htmlspecialchars($role); ?></span></p>
             </div>
             <div class="d-flex align-items-center">
-                <?php if (!empty($notifications)): ?>
-                    <div class="dropdown me-4">
-                        <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
-                            <i class="bi bi-bell fs-5 text-secondary"></i>
-                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="padding: 0.35em 0.5em;">
-                                <?php echo count($notifications); ?>
-                            </span>
-                        </button>
-                        <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
-                            <h6 class="fw-bold mb-3">Department Alerts</h6>
-                            <?php foreach($notifications as $n): ?>
-                                <div class="p-2 border-bottom border-light mb-2">
-                                    <p class="small mb-1 text-dark"><?php echo htmlspecialchars($n['message']); ?></p>
-                                    <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
+                <div class="dropdown me-4">
+                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell fs-5 text-secondary"></i>
+                        <?php if ($unreadCount > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
+                            <?php echo $unreadCount; ?>
+                        </span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
+                        <h6 class="fw-bold mb-3">Department Alerts</h6>
+                        <?php if (empty($notifications)): ?>
+                            <p class="text-muted small mb-0">No notifications.</p>
+                        <?php endif; ?>
+                        <?php foreach($notifications as $n): ?>
+                            <div class="p-2 border-bottom border-light mb-2 <?php echo empty($n['is_read']) ? 'bg-light rounded' : ''; ?>" <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor: pointer;"' ?>>
+                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
-                <?php endif; ?>
+                </div>
                 <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
                     <?php echo strtoupper(substr($name, 0, 1)); ?>
                 </div>
@@ -195,15 +208,25 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                 </td>
                                 <td>
                                     <?php if ($canProcess): ?>
-                                        <span class="badge bg-danger rounded-pill px-3">Priority</span>
+                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && in_array($t['patient_id'], $vitalsPatients)): ?>
+                                            <span class="badge bg-success-soft text-success rounded-pill px-3">Resolved</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger rounded-pill px-3">Priority</span>
+                                        <?php endif; ?>
                                     <?php else: ?>
                                         <span class="badge bg-light text-muted rounded-pill px-3">Restricted</span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
                                     <?php if ($canProcess): ?>
-                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && ($isAssigned || $isUnassignedNurseTask)): ?>
+                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && ($isAssigned || $isUnassignedNurseTask)): 
+                                                global $vitalsPatients;
+                                                if (in_array($t['patient_id'], $vitalsPatients ?? [])):
+                                        ?>
+                                            <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Vitals Recorded</span>
+                                        <?php else: ?>
                                             <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
+                                        <?php endif; ?>
                                         <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
                                             <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
                                         <?php elseif (isset($t['test_name']) && $role === 'technician'): ?>
@@ -491,6 +514,26 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
         function setPatientId(id) { document.getElementById('patient_id_field').value = id; }
         function setPrescriptionId(id) { document.getElementById('prescription_id_field').value = id; }
         function setRequestId(id) { document.getElementById('request_id_field').value = id; }
+
+        function markNotificationRead(el, id) {
+            if (el.classList.contains('bg-light')) {
+                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                el.classList.remove('bg-light', 'rounded');
+                const text = el.querySelector('p');
+                if (text) {
+                    text.classList.remove('fw-bold', 'text-dark');
+                    text.classList.add('text-muted');
+                }
+                el.style.cursor = 'default';
+                el.onclick = null;
+
+                document.querySelectorAll('.nav-notif-badge, .top-notif-badge').forEach(badge => {
+                    let count = parseInt(badge.innerText) - 1;
+                    if (count <= 0) badge.remove();
+                    else badge.innerText = count;
+                });
+            }
+        }
     </script>
 </body>
 </html>

@@ -80,6 +80,11 @@ if ($role === 'doctor') {
             'status' => 'pending'
         ], true); // useServiceKey = true
     }
+    
+    // Conclude formal appointment queue representation
+    $sb->request('PATCH', '/rest/v1/appointments?patient_id=eq.' . $patientId . '&assigned_to=eq.' . $u['id'] . '&status=eq.scheduled', [
+        'status' => 'completed'
+    ], true);
 }
 
 $redirect = ($role === 'doctor') ? '/dashboard_doctor.php' : '/dashboard_staff.php';

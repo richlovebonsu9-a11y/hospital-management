@@ -40,6 +40,11 @@ $labResults = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 $rxRes = $sb->request('GET', '/rest/v1/prescriptions?doctor_id=eq.' . $userId . '&order=created_at.desc');
 $prescriptions = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
 
+// 5. Fetch Notifications
+$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=5', null, true);
+$notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
+$unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
+
 // Stats
 $waitingCount = 0;
 foreach($queue as $q) if($q['status'] === 'scheduled') $waitingCount++;
@@ -95,6 +100,28 @@ $seenToday = count($mySchedule); // Simplification
                 <p class="text-muted mb-0">You have <?php echo count($queue); ?> patients in the queue today.</p>
             </div>
             <div class="d-flex align-items-center">
+                <div class="dropdown me-4">
+                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell fs-5 text-secondary"></i>
+                        <?php if ($unreadCount > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
+                            <?php echo $unreadCount; ?>
+                        </span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
+                        <h6 class="fw-bold mb-3">Clinical Alerts</h6>
+                        <?php if (empty($notifications)): ?>
+                            <p class="text-muted small mb-0">No alerts at this time.</p>
+                        <?php endif; ?>
+                        <?php foreach($notifications as $n): ?>
+                            <div class="p-2 border-bottom border-light mb-2 <?php echo empty($n['is_read']) ? 'bg-light rounded' : ''; ?>" <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor: pointer;"' ?>>
+                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
                 <div class="me-4 text-end">
                     <p class="mb-0 fw-bold"><?php echo htmlspecialchars($user['user_metadata']['department'] ?? 'OPD'); ?> Shift</p>
                     <span class="badge bg-success-soft text-success rounded-pill px-3">Active Now</span>
@@ -373,6 +400,26 @@ $seenToday = count($mySchedule); // Simplification
             links.forEach(l => {
                 l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
             });
+        }
+
+        function markNotificationRead(el, id) {
+            if (el.classList.contains('bg-light')) {
+                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                el.classList.remove('bg-light', 'rounded');
+                const text = el.querySelector('p');
+                if (text) {
+                    text.classList.remove('fw-bold', 'text-dark');
+                    text.classList.add('text-muted');
+                }
+                el.style.cursor = 'default';
+                el.onclick = null;
+
+                document.querySelectorAll('.top-notif-badge').forEach(badge => {
+                    let count = parseInt(badge.innerText) - 1;
+                    if (count <= 0) badge.remove();
+                    else badge.innerText = count;
+                });
+            }
         }
     </script>
 </body>
