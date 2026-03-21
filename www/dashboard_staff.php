@@ -326,56 +326,63 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
             </div>
         </div>
 
-        <!-- MODALS -->
-        <?php if ($role === 'nurse'): ?>
-        <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <form action="/api/consultation/save" method="POST" class="modal-content border-0 shadow">
-                    <input type="hidden" name="patient_id" id="patient_id_field">
-                    <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                    <div class="modal-body p-4">
-                        <div class="row g-3">
-                            <div class="col-6"><label class="small text-muted">Temp (°C)</label><input type="number" step="0.1" name="temperature" class="form-control rounded-pill px-3"></div>
-                            <div class="col-6"><label class="small text-muted">BP (mmHg)</label><input type="text" name="blood_pressure" class="form-control rounded-pill px-3" placeholder="120/80"></div>
-                            <div class="col-6"><label class="small text-muted">Weight (kg)</label><input type="number" step="0.1" name="weight" class="form-control rounded-pill px-3"></div>
-                            <div class="col-6"><label class="small text-muted">Pulse (bpm)</label><input type="number" name="pulse" class="form-control rounded-pill px-3"></div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-4">Save Vitals</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <?php elseif ($role === 'pharmacist'): ?>
-        <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <form action="/api/prescriptions/dispense" method="POST" class="modal-content border-0 shadow">
-                    <input type="hidden" name="prescription_id" id="prescription_id_field">
-                    <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                    <div class="modal-body p-4">
-                        <div class="mb-3"><label class="small text-muted">Batch Number</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" required></div>
-                        <div class="mb-3"><label class="small text-muted">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
-                        <button type="submit" class="btn btn-success w-100 rounded-pill">Confirm Dispense</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <?php elseif ($role === 'technician'): ?>
-        <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
-            <div class="modal-dialog modal-dialog-centered">
-                <form action="/api/lab/submit" method="POST" class="modal-content border-0 shadow">
-                    <input type="hidden" name="request_id" id="request_id_field">
-                    <div class="modal-header border-0"><h5 class="fw-bold">Submit Lab Result</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                    <div class="modal-body p-4">
-                        <div class="mb-3"><label class="small text-muted">Test Result Details</label><textarea name="result_text" class="form-control rounded-4" rows="4" required placeholder="Enter diagnostic findings..."></textarea></div>
-                        <button type="submit" class="btn btn-info text-white w-100 rounded-pill">Submit Result</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-        <?php endif; ?>
-    </div>
+    </div> <!-- End main-content -->
 
+    <!-- MODALS (Moved to root level for better Bootstrap compatibility) -->
+    
+    <!-- Nurse Vitals Modal -->
+    <?php if ($role === 'nurse'): ?>
+    <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/api/consultation/save" method="POST" class="modal-content border-0 shadow">
+                <input type="hidden" name="patient_id" id="patient_id_field">
+                <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-6"><label class="small text-muted">Temp (°C)</label><input type="number" step="0.1" name="temperature" class="form-control rounded-pill px-3"></div>
+                        <div class="col-6"><label class="small text-muted">BP (mmHg)</label><input type="text" name="blood_pressure" class="form-control rounded-pill px-3" placeholder="120/80"></div>
+                        <div class="col-6"><label class="small text-muted">Weight (kg)</label><input type="number" step="0.1" name="weight" class="form-control rounded-pill px-3"></div>
+                        <div class="col-6"><label class="small text-muted">Pulse (bpm)</label><input type="number" name="pulse" class="form-control rounded-pill px-3"></div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill mt-4">Save Vitals</button>
+                </div>
+            </form>
+        </div>
     </div>
+    <?php endif; ?>
+
+    <!-- Pharmacist Dispense Modal -->
+    <?php if ($role === 'pharmacist'): ?>
+    <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/api/prescriptions/dispense" method="POST" class="modal-content border-0 shadow">
+                <input type="hidden" name="prescription_id" id="prescription_id_field">
+                <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <div class="mb-3"><label class="small text-muted">Batch Number</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" required></div>
+                    <div class="mb-3"><label class="small text-muted">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
+                    <button type="submit" class="btn btn-success w-100 rounded-pill">Confirm Dispense</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Technician Lab Result Modal -->
+    <?php if ($role === 'technician'): ?>
+    <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/api/lab/submit" method="POST" class="modal-content border-0 shadow">
+                <input type="hidden" name="request_id" id="request_id_field">
+                <div class="modal-header border-0"><h5 class="fw-bold">Submit Lab Result</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <div class="mb-3"><label class="small text-muted">Test Result Details</label><textarea name="result_text" class="form-control rounded-4" rows="4" required placeholder="Enter diagnostic findings..."></textarea></div>
+                    <button type="submit" class="btn btn-info text-white w-100 rounded-pill">Submit Result</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <!-- PATIENT SEARCH MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1">
