@@ -41,6 +41,24 @@ $vitalsData = [
 ];
 $vitalsRes = $sb->request('POST', '/rest/v1/vitals', $vitalsData, true); // useServiceKey = true
 
+// Check if there was an urgent triage appointment for this patient requested by a doctor
+if ($role === 'nurse') {
+    $apptRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $patientId . '&status=eq.scheduled&doctor_id=not.is.null&order=created_at.desc&limit=1', null, true);
+    if ($apptRes['status'] === 200 && !empty($apptRes['data'])) {
+        $urgentAppt = $apptRes['data'][0];
+        $doctorId = $urgentAppt['doctor_id'];
+        
+        // Notify doctor
+        $sb->request('POST', '/rest/v1/notifications', [
+            'user_id' => $doctorId,
+            'message' => "Fresh vitals for Patient " . substr($patientId, 0, 8) . " have been successfully recorded by the nursing team."
+        ], true);
+        
+        // Mark appointment as completed so it leaves the nurse queue
+        $sb->request('PATCH', '/rest/v1/appointments?id=eq.' . $urgentAppt['id'], ['status' => 'completed'], true);
+    }
+}
+
 // 2. Doctor-specific logic (Consultation & Prescription)
 if ($role === 'doctor') {
     // Save Consultation Record

@@ -165,7 +165,8 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                 <tr><td colspan="4" class="text-center py-4 text-muted">No pending tasks in your queue.</td></tr>
                             <?php endif; foreach ($tasks as $t): 
                                 $isAssigned = (($t['assigned_to'] ?? '') === $user['id']);
-                                $canProcess = ($isAssigned || in_array($role, ['pharmacist', 'technician']));
+                                $isUnassignedNurseTask = ($role === 'nurse' && empty($t['assigned_to']) && isset($t['department']) && $t['department'] === ($user['user_metadata']['department'] ?? 'General OPD'));
+                                $canProcess = ($isAssigned || $isUnassignedNurseTask || in_array($role, ['pharmacist', 'technician']));
                             ?>
                             <tr class="<?php echo $canProcess ? 'table-primary-soft' : ''; ?>">
                                 <td>#<?php echo substr($t['id'], 0, 5); ?></td>
@@ -175,6 +176,9 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                         // It's an appointment
                                         if ($isAssigned) {
                                             echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . htmlspecialchars($t['patient']['name'] ?? 'Patient');
+                                            echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
+                                        } elseif ($isUnassignedNurseTask) {
+                                            echo "<span class='fw-bold text-warning'><i class='bi bi-exclamation-circle-fill me-1'></i> [URGENT TRIAGE]</span> Record vitals for Patient " . substr($t['patient_id'], 0, 8);
                                             echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
                                         } else {
                                             echo "<i class='bi bi-shield-lock me-1'></i> Departmental Appointment Request (ID: " . substr($t['patient_id'] ?? 'unknown', 0, 8) . ")";
@@ -198,7 +202,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                 </td>
                                 <td>
                                     <?php if ($canProcess): ?>
-                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && $isAssigned): ?>
+                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && ($isAssigned || $isUnassignedNurseTask)): ?>
                                             <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
                                         <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
                                             <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
