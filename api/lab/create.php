@@ -26,5 +26,18 @@ $res = $sb->request('POST', '/rest/v1/lab_requests', [
     'status' => 'pending'
 ], true);
 
+if ($res['status'] === 201) {
+    // Notify all technicians
+    $techRes = $sb->request('GET', '/rest/v1/profiles?role=eq.technician&select=id', null, true);
+    if ($techRes['status'] === 200 && !empty($techRes['data'])) {
+        foreach ($techRes['data'] as $tech) {
+            $sb->request('POST', '/rest/v1/notifications', [
+                'user_id' => $tech['id'],
+                'message' => "New Lab Request (" . $testType . " - " . $testName . ") ordered by Dr. " . ($u['user_metadata']['name'] ?? 'Doctor')
+            ], true);
+        }
+    }
+}
+
 header('Location: /dashboard_doctor.php?test_ordered=1');
 exit;

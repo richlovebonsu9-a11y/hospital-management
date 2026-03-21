@@ -36,12 +36,12 @@ $assignedTasks = ($assignedApptsRes['status'] === 200) ? $assignedApptsRes['data
 // 4. Role-specific items (Prescriptions for Pharmacists, Lab for Techs)
 $roleTasks = [];
 if ($role === 'pharmacist') {
-    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,consult:consultations(patient:profiles!patient_id(name))&order=created_at.asc');
+    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,patient:patient_id(name)&order=created_at.asc', null, true);
     $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
     $invRes = $sb->request('GET', '/rest/v1/drug_inventory?order=drug_name.asc');
     $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
 } elseif ($role === 'technician') {
-    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*,patient:profiles!patient_id(name)&order=created_at.asc');
+    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*,patient:patient_id(name)&order=created_at.asc', null, true);
     $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
 }
 
@@ -185,7 +185,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                             echo "<div class='extra-small text-muted'>Awaiting admin assignment for full details.</div>";
                                         }
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
-                                        $pName = $t['consult']['patient']['name'] ?? 'Patient';
+                                        $pName = $t['patient']['name'] ?? 'Patient';
                                         echo "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
                                     } elseif ($role === 'technician') {
                                         $pName = $t['patient']['name'] ?? 'Patient';
