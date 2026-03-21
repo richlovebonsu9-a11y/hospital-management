@@ -33,15 +33,18 @@ $res = $sb->request('POST', '/rest/v1/appointments', $data);
 
 // Check for success status (201 Created)
 if ($res['status'] === 201) {
-    // Notify all staff in the selected department
-    $staffRes = $sb->request('GET', '/rest/v1/profiles?department=eq.' . urlencode($department), null, true);
+    // Notify all STAFF (not patients) in the selected department
+    $staffRoles = urlencode('doctor,nurse,pharmacist,technician');
+    $deptEncoded = urlencode($department);
+    $staffRes = $sb->request('GET', '/rest/v1/profiles?department=eq.' . $deptEncoded . '&role=in.(' . urlencode('doctor,nurse,pharmacist,technician') . ')&select=id', null, true);
+    
     if ($staffRes['status'] === 200 && !empty($staffRes['data'])) {
+        $date_str = date('M d, Y \a\t H:i', strtotime($date));
         foreach ($staffRes['data'] as $staff) {
-            $msg = "New Appointment Request in your department (" . htmlspecialchars($department) . ") on " . date('M d, H:i', strtotime($date));
             $sb->request('POST', '/rest/v1/notifications', [
                 'user_id' => $staff['id'],
-                'message' => $msg
-            ]);
+                'message' => "New Appointment Request in $department on $date_str. Awaiting admin assignment."
+            ], true); // service key to bypass RLS
         }
     }
 } else {

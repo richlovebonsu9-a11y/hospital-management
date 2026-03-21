@@ -11,35 +11,56 @@ if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['user_metadata']['r
 }
 
 $user = $_SESSION['user'];
-$role = $user['user_metadata']['role'] ?? 'staff';
-$name = $user['user_metadata']['name'] ?? 'Staff Member';
-$dept = $user['user_metadata']['department'] ?? 'General OPD';
-
+$userId = $user['id'];
 $sb = new Supabase();
+
+// 1. Fetch live Profile data (metadata can be outdated until next login)
+$profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $userId . '&select=*', null, true);
+$profile = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : null;
+
+$role = $profile['role'] ?? $user['user_metadata']['role'] ?? 'staff';
+$name = $profile['name'] ?? $user['user_metadata']['name'] ?? 'Staff Member';
+$dept = $profile['department'] ?? 'General OPD';
+
 $tasks = [];
 $roleData = [];
 
-// 1. Fetch Task Queue (Cross-role tasks)
-if ($role === 'nurse') {
-    // Nurses see the patient queue for their department OR assigned to them specifically
-    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&select=*,patient:patient_id(name)&or=(department.eq.' . urlencode($dept) . ',assigned_to.eq.' . $user['id'] . ')&order=appointment_date.asc', null, true);
-    $tasks = ($res['status'] === 200) ? $res['data'] : [];
-} elseif ($role === 'pharmacist') {
-    // Pharmacists see pending prescriptions
+// 2. Fetch Departmental Appointment Queue (Limited info for all staff in dept)
+$deptApptsRes = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&department=eq.' . urlencode($dept) . '&select=*,patient:patient_id(name)&order=appointment_date.asc', null, true);
+$deptTasks = ($deptApptsRes['status'] === 200) ? $deptApptsRes['data'] : [];
+
+// 3. Fetch Specifically Assigned Appointments (Full info)
+$assignedApptsRes = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&assigned_to=eq.' . $userId . '&select=*,patient:patient_id(name)&order=appointment_date.asc', null, true);
+$assignedTasks = ($assignedApptsRes['status'] === 200) ? $assignedApptsRes['data'] : [];
+
+// 4. Role-specific items (Prescriptions for Pharmacists, Lab for Techs)
+$roleTasks = [];
+if ($role === 'pharmacist') {
     $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&order=created_at.asc');
-    $tasks = ($res['status'] === 200) ? $res['data'] : [];
-    
-    // Also fetch inventory
+    $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
     $invRes = $sb->request('GET', '/rest/v1/drug_inventory?order=drug_name.asc');
     $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
 } elseif ($role === 'technician') {
-    // Technicians see pending lab requests
     $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&order=created_at.asc');
-    $tasks = ($res['status'] === 200) ? $res['data'] : [];
+    $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
 }
 
-// 2. Fetch Notifications for Staff
-$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $user['id'] . '&order=created_at.desc&limit=5', null, true);
+// Combine all tasks. Use ID as key to deduplicate (assigned tasks override dept ones)
+$tasksMap = [];
+foreach ($deptTasks as $t) $tasksMap[$t['id']] = $t;
+foreach ($assignedTasks as $t) $tasksMap[$t['id']] = $t;
+foreach ($roleTasks as $t) $tasksMap[$t['id']] = $t;
+
+$tasks = array_values($tasksMap);
+// Sort by date/created_at
+usort($tasks, function($a, $b) {
+    $da = $a['appointment_date'] ?? $a['created_at'] ?? '0';
+    $db = $b['appointment_date'] ?? $b['created_at'] ?? '0';
+    return strtotime($da) - strtotime($db);
+});
+
+// 5. Fetch Notifications for Staff
+$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=5', null, true);
 $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
 ?>
 <!DOCTYPE html>
@@ -77,6 +98,12 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                 <a href="#" class="nav-link-custom" data-target="section-role"><i class="bi bi-clipboard-pulse"></i> Lab Requests</a>
             <?php endif; ?>
             <a href="#" class="nav-link-custom" data-target="section-comms"><i class="bi bi-chat-dots"></i> Internal Comms</a>
+            <a href="#" class="nav-link-custom" data-target="section-notifications">
+                <i class="bi bi-bell"></i> Notifications
+                <?php if (!empty($notifications)): ?>
+                    <span class="badge bg-danger rounded-pill ms-auto"><?php echo count($notifications); ?></span>
+                <?php endif; ?>
+            </a>
             <hr class="my-4">
             <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>
@@ -137,14 +164,16 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                 <td>#<?php echo substr($t['id'], 0, 5); ?></td>
                                 <td>
                                     <?php 
-                                    if ($role === 'nurse') {
+                                    if (isset($t['appointment_date'])) {
+                                        // It's an appointment
                                         if ($isAssigned) {
                                             echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . htmlspecialchars($t['patient']['name'] ?? 'Patient');
                                             echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
                                         } else {
-                                            echo "<i class='bi bi-shield-lock me-1'></i> Appointment Request (Patient " . substr($t['patient_id'], 0, 8) . "...)";
+                                            echo "<i class='bi bi-shield-lock me-1'></i> Departmental Appointment Request (ID: " . substr($t['patient_id'] ?? 'unknown', 0, 8) . ")";
+                                            echo "<div class='extra-small text-muted'>Awaiting admin assignment for full details.</div>";
                                         }
-                                    } elseif ($role === 'pharmacist') {
+                                    } elseif ($role === 'pharmacist' && isset($t['medication_details'])) {
                                         echo "Dispense: " . htmlspecialchars($t['medication_details']);
                                     } elseif ($role === 'technician') {
                                         echo "Test: " . htmlspecialchars($t['test_name']);
@@ -223,6 +252,27 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                             <h5 class="fw-bold mb-4">Lab Workload Overview</h5>
                             <p class="text-muted">Currently processing <?php echo count($tasks); ?> pending lab requests.</p>
                         </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <div id="section-notifications" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm">
+                <h5 class="fw-bold mb-4"><i class="bi bi-bell-fill me-2 text-primary"></i>Department Alerts</h5>
+                <?php if (empty($notifications)): ?>
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-bell-slash display-4 d-block mb-3"></i>
+                        <p>No new notifications. When appointments are booked in your department, they will appear here.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="list-group list-group-flush">
+                        <?php foreach ($notifications as $n): ?>
+                            <div class="list-group-item border-0 border-start border-4 border-primary ps-3 mb-3 bg-light rounded-3">
+                                <p class="mb-1 fw-bold small text-dark"><?php echo htmlspecialchars($n['message']); ?></p>
+                                <small class="text-muted"><i class="bi bi-clock me-1"></i><?php echo date('M d, Y \a\t H:i', strtotime($n['created_at'])); ?></small>
+                            </div>
+                        <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
