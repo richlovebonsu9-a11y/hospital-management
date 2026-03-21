@@ -159,12 +159,12 @@ foreach ($appointments as $a) {
                     </p>
                 </div>
                 <div class="d-flex gap-2">
-                    <form action="/api/guardian/manage" method="POST">
+                    <form action="/api/guardian/manage.php" method="POST">
                         <input type="hidden" name="link_id" value="<?php echo $link['id']; ?>">
                         <input type="hidden" name="action" value="approve">
                         <button type="submit" class="btn btn-success rounded-pill px-4 btn-sm">Approve</button>
                     </form>
-                    <form action="/api/guardian/manage" method="POST">
+                    <form action="/api/guardian/manage.php" method="POST">
                         <input type="hidden" name="link_id" value="<?php echo $link['id']; ?>">
                         <input type="hidden" name="action" value="decline">
                         <button type="submit" class="btn btn-outline-danger rounded-pill px-4 btn-sm">Decline</button>
