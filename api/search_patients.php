@@ -26,9 +26,15 @@ if (strlen($query) < 2) {
 }
 
 $sb = new Supabase();
-// Search by name or email or ghana_card or patient_id (id)
-// We use ilike for name and direct matches for ID/Card
-$res = $sb->request('GET', '/rest/v1/profiles?role=eq.patient&or=(name.ilike.*' . urlencode($query) . '*,id.eq.' . urlencode($query) . ',ghana_card.eq.' . urlencode($query) . ')&select=id,name,email,ghana_card&limit=10', null, true);
+// Robust search: ilike for names/emails/cards. Only use ID match if it looks like a valid UUID to avoid Postgres type errors.
+$cleanQuery = str_replace(['*', '(', ')'], '', $query); // Basic sanitization
+$or = "name.ilike.*$cleanQuery*,email.ilike.*$cleanQuery*,ghana_card.ilike.*$cleanQuery*";
+
+if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $cleanQuery)) {
+    $or .= ",id.eq.$cleanQuery";
+}
+
+$res = $sb->request('GET', '/rest/v1/profiles?role=eq.patient&or=(' . $or . ')&select=id,name,email,ghana_card&limit=10', null, true);
 
 if ($res['status'] === 200) {
     echo json_encode($res['data']);
