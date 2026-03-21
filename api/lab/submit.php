@@ -23,16 +23,19 @@ $patchData = [
     'result_text' => $result
 ];
 
-$reqRes = $sb->request('GET', '/rest/v1/lab_requests?id=eq.' . $requestId . '&select=doctor_id,patient_id', null, true);
+$reqRes = $sb->request('GET', '/rest/v1/lab_requests?id=eq.' . $requestId . '&select=doctor_id,patient_id,requester_id', null, true);
 $doctorId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['doctor_id'] : null;
 $patientId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['patient_id'] : null;
+$requesterId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['requester_id'] : null;
 
 $res = $sb->request('PATCH', '/rest/v1/lab_requests?id=eq.' . $requestId, $patchData, true);
 
 if ($res['status'] >= 200 && $res['status'] < 300) {
-    if ($doctorId) {
+    $targetNotificationId = $requesterId ?: $doctorId;
+    
+    if ($targetNotificationId) {
         $sb->request('POST', '/rest/v1/notifications', [
-            'user_id' => $doctorId,
+            'user_id' => $targetNotificationId,
             'message' => "Lab results for Patient " . substr($patientId, 0, 8) . " have been processed and are ready for review."
         ], true);
     }

@@ -75,7 +75,7 @@ $vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $targetPatie
 $vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
 
 // Lab Requests (Laboratory)
-$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $targetPatientId . '&select=*&order=created_at.desc', null, true);
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $targetPatientId . '&select=*,requester:profiles!requester_id(name,role),doctor:profiles!doctor_id(name)&order=created_at.desc', null, true);
 $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
 // Consultations (General OPD)
@@ -163,8 +163,13 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                 <i class="bi bi-thermometer-half me-2"></i> Log Daily Vitals
                             </button>
                         <?php elseif ($role === 'doctor'): ?>
-                            <button class="btn btn-success rounded-pill" data-bs-toggle="modal" data-bs-target="#consultationModal">
+                            <button class="btn btn-success rounded-pill mb-2" data-bs-toggle="modal" data-bs-target="#consultationModal">
                                 <i class="bi bi-journal-medical me-2"></i> Start Consultation
+                            </button>
+                        <?php endif; ?>
+                        <?php if (in_array($role, ['doctor', 'patient', 'guardian'])): ?>
+                            <button class="btn btn-outline-info rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#labRequestModal">
+                                <i class="bi bi-droplet-half me-2"></i> Request Lab Test
                             </button>
                         <?php endif; ?>
                     </div>
@@ -274,7 +279,13 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                                  <small class="text-muted small">Status: <span class="badge bg-warning text-dark">Pending Result</span></small>
                                              <?php endif; ?>
                                          </div>
-                                         <p class="text-muted small mb-2">Requested by: Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Medical Staff'); ?></p>
+                                         <p class="text-muted small mb-2">Requested by: <?php 
+                                             if (!empty($entry['requester']['name'])) {
+                                                 echo '<span class="fw-bold text-dark text-capitalize">' . htmlspecialchars($entry['requester']['role']) . '</span>: ' . htmlspecialchars($entry['requester']['name']);
+                                             } else {
+                                                 echo 'Dr. ' . htmlspecialchars($entry['doctor']['name'] ?? 'Medical Staff');
+                                             }
+                                         ?></p>
                                          <?php if ($entry['result_text']): ?>
                                              <div class="card p-3 bg-light border-0 rounded-4">
                                                  <h6 class="fw-bold small mb-2 text-danger">Diagnostic Finding</h6>
@@ -373,6 +384,37 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                         </div>
 
                         <button type="submit" class="btn btn-success w-100 rounded-pill">Complete Consultation & Save Record</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAB REQUEST MODAL -->
+    <div class="modal fade" id="labRequestModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-info text-dark border-0 py-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-droplet-half me-2"></i> Request Laboratory Test</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/lab/create.php" method="POST">
+                        <input type="hidden" name="patient_id" value="<?php echo $targetPatientId; ?>">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-muted">Diagnostic Test Type</label>
+                            <select name="test_type" class="form-select rounded-4 p-2 bg-light border-0" required>
+                                <option value="Blood Test">Blood Test</option>
+                                <option value="Urinalysis">Urinalysis</option>
+                                <option value="Imaging">Imaging (X-Ray / MRI)</option>
+                                <option value="Pathology">Pathology</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label small fw-bold text-muted">Test Name / Description</label>
+                            <input type="text" name="test_name" class="form-control rounded-4 p-2 bg-light border-0" placeholder="e.g. Complete Blood Count (CBC)" required>
+                        </div>
+                        <button type="submit" class="btn btn-info w-100 rounded-pill fw-bold py-2">Submit Request to Lab</button>
                     </form>
                 </div>
             </div>
