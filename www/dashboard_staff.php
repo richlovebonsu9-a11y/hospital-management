@@ -257,9 +257,39 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                     </div>
                 <?php elseif ($role === 'technician'): ?>
                     <div class="col-md-12">
-                        <div class="card border-0 shadow-sm p-4">
-                            <h5 class="fw-bold mb-4">Lab Workload Overview</h5>
-                            <p class="text-muted">Currently processing <?php echo count($tasks); ?> pending lab requests.</p>
+                        <div class="card border-0 shadow-sm p-4 rounded-5">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="fw-bold mb-0">Lab Request Management</h5>
+                                <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($roleTasks); ?> Pending</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead class="small text-muted">
+                                        <tr>
+                                            <th>Patient Name</th>
+                                            <th>Test Type</th>
+                                            <th>Specific Test</th>
+                                            <th>Date Requested</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($roleTasks)): ?>
+                                            <tr><td colspan="5" class="text-center py-4 text-muted small">No pending lab requests.</td></tr>
+                                        <?php endif; foreach ($roleTasks as $task): ?>
+                                            <tr>
+                                                <td><span class="fw-bold"><?php echo htmlspecialchars($task['patient']['name'] ?? 'Unknown'); ?></span></td>
+                                                <td><small class="text-uppercase extra-small fw-bold text-muted"><?php echo htmlspecialchars($task['test_type']); ?></small></td>
+                                                <td><?php echo htmlspecialchars($task['test_name']); ?></td>
+                                                <td class="small"><?php echo date('M d, H:i', strtotime($task['created_at'])); ?></td>
+                                                <td>
+                                                    <button class="btn btn-info btn-sm text-white rounded-pill px-3" onclick="setRequestId('<?php echo $task['id']; ?>')" data-bs-toggle="modal" data-bs-target="#labResultModal">Record Result</button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 <?php endif; ?>
@@ -323,6 +353,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                     <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body p-4">
                         <div class="mb-3"><label class="small text-muted">Batch Number</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" required></div>
+                        <div class="mb-3"><label class="small text-muted">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
                         <button type="submit" class="btn btn-success w-100 rounded-pill">Confirm Dispense</button>
                     </div>
                 </form>

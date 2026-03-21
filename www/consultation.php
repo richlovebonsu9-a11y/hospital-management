@@ -118,19 +118,12 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
 
             <div class="col-lg-4">
                 <!-- E-Prescription -->
-                <div class="card border-0 shadow-sm rounded-5 p-4 mb-4 bg-white">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="fw-bold mb-0 text-primary">Electronic Prescription</h5>
-                        <i class="bi bi-capsule h4 text-primary mb-0"></i>
+                    <div class="mt-4">
+                        <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-capsule me-2"></i>E-Prescription</h5>
+                        <p class="text-muted small mb-3">Describe medications, dosage, and frequency below. This will be transmitted to the pharmacy immediately.</p>
+                        <textarea name="medication_details" class="form-control rounded-4 p-4 border-light bg-light small" rows="5" placeholder="Enter medication details... e.g. Amoxicillin 500mg, 1x3 daily for 5 days"></textarea>
                     </div>
-                    <form action="/api/prescriptions/create" method="POST">
-                        <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
-                        <div class="mb-3">
-                            <textarea name="medication_details" class="form-control rounded-4 p-3 border-light bg-light small" rows="5" placeholder="Enter medication, dosage, and frequency... e.g. Amoxicillin 500mg, 1x3 daily for 5 days"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill">Send to Pharmacy &rarr;</button>
-                    </form>
-                </div>
+                </form>
 
     <!-- Add Lab Request Modal -->
     <div class="modal fade" id="addLabModal" tabindex="-1" aria-hidden="true">

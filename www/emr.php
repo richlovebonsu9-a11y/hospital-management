@@ -228,6 +228,9 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                              <small class="text-muted small">Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Medical Staff'); ?></small>
                                          </div>
                                          <div class="card p-3 bg-white border rounded-4 mt-2">
+                                             <?php if (!empty($entry['diagnosis'])): ?>
+                                                <h6 class="fw-bold small text-danger mb-2">Diagnosis: <?php echo htmlspecialchars($entry['diagnosis']); ?></h6>
+                                             <?php endif; ?>
                                              <p class="small mb-0" style="white-space: pre-wrap;"><?php echo htmlspecialchars($entry['notes']); ?></p>
                                          </div>
                                          
@@ -235,17 +238,27 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                          $linkedPrescriptions = array_filter($prescriptions, fn($pr) => $pr['consultation_id'] === $entry['id']);
                                          if (!empty($linkedPrescriptions)): ?>
                                              <div class="mt-3">
-                                                 <small class="fw-bold text-muted d-block mb-2">Prescriptions & Pharmacy:</small>
+                                                 <small class="fw-bold text-muted d-block mb-2">Prescriptions & Pharmacy Flow:</small>
                                                  <?php foreach($linkedPrescriptions as $pr): ?>
-                                                     <div class="p-2 rounded-3 mb-2 border <?php echo ($pr['status'] === 'dispensed') ? 'bg-success-soft border-success' : 'bg-primary-soft border-primary'; ?>">
-                                                         <div class="d-flex justify-content-between align-items-center">
-                                                             <span class="small fw-bold <?php echo ($pr['status'] === 'dispensed') ? 'text-success' : 'text-primary'; ?>">
-                                                                 <i class="bi bi-capsule me-1"></i> <?php echo htmlspecialchars($pr['medication_name']); ?> (<?php echo htmlspecialchars($pr['dosage']); ?>)
-                                                             </span>
+                                                     <div class="p-3 rounded-4 mb-2 border <?php echo ($pr['status'] === 'dispensed') ? 'bg-success-soft border-success' : 'bg-primary-soft border-primary'; ?>">
+                                                         <div class="d-flex justify-content-between align-items-start">
+                                                             <div class="flex-grow-1">
+                                                                <span class="small fw-bold <?php echo ($pr['status'] === 'dispensed') ? 'text-success' : 'text-primary'; ?>">
+                                                                    <i class="bi bi-capsule me-1"></i> <?php echo htmlspecialchars($pr['medication_name']); ?>
+                                                                </span>
+                                                                <?php if (!empty($pr['dispense_notes'])): ?>
+                                                                    <p class="extra-small text-muted mt-2 mb-0 border-top pt-2">
+                                                                        <i class="bi bi-info-circle me-1"></i> <strong>Pharmacist Note:</strong> <?php echo htmlspecialchars($pr['dispense_notes']); ?>
+                                                                    </p>
+                                                                <?php endif; ?>
+                                                             </div>
                                                              <?php if ($pr['status'] === 'dispensed'): ?>
-                                                                 <span class="extra-small text-success"><i class="bi bi-check-circle-fill me-1"></i> Dispensed by <?php echo htmlspecialchars($pr['pharmacist']['name'] ?? 'Pharmacist'); ?></span>
+                                                                 <div class="text-end">
+                                                                    <span class="badge bg-success rounded-pill extra-small"><i class="bi bi-check-circle-fill me-1"></i> Dispensed</span>
+                                                                    <small class="d-block text-muted extra-small mt-1">by <?php echo htmlspecialchars($pr['pharmacist']['name'] ?? 'Pharmacist'); ?></small>
+                                                                 </div>
                                                              <?php else: ?>
-                                                                 <span class="extra-small text-primary"><i class="bi bi-hourglass-split me-1"></i> Pending Dispense</span>
+                                                                 <span class="badge bg-primary rounded-pill extra-small px-3">Pending</span>
                                                              <?php endif; ?>
                                                          </div>
                                                      </div>

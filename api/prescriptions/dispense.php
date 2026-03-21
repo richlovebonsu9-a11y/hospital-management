@@ -11,6 +11,7 @@ if (($u['user_metadata']['role'] ?? '') !== 'pharmacist') { header('Location: /d
 
 $prescriptionId = $_POST['prescription_id'] ?? '';
 $batch = $_POST['batch_number'] ?? '';
+$notes = $_POST['notes'] ?? '';
 
 if (!$prescriptionId) {
     header('Location: /dashboard_staff.php?error=no_prescription'); exit;
@@ -20,6 +21,7 @@ $sb = new Supabase();
 $res = $sb->request('PATCH', '/rest/v1/prescriptions?id=eq.' . $prescriptionId, [
     'status' => 'dispensed',
     'batch_number' => $batch,
+    'dispense_notes' => $notes,
     'dispensed_by' => $u['id']
 ]);
 
