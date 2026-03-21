@@ -82,15 +82,17 @@ $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 $consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . $targetPatientId . '&select=*&order=created_at.desc', null, true);
 $consults = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
 
-// Prescriptions
-$prescriptions = []; // Temporary bypass
+// Prescriptions (Pharmacy)
+$rxRes = $sb->request('GET', '/rest/v1/prescriptions?patient_id=eq.' . $targetPatientId . '&select=*,pharmacist:profiles!dispensed_by(name)&order=created_at.desc', null, true);
+$prescriptions = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
 
 // Combine into a unified timeline
 foreach ($vitals as &$v) { $v['emr_type'] = 'nursing'; $v['sort_date'] = $v['recorded_at']; }
 foreach ($labs as &$l) { $l['emr_type'] = 'laboratory'; $l['sort_date'] = $l['created_at']; }
 foreach ($consults as &$c) { $c['emr_type'] = 'opd'; $c['sort_date'] = $c['created_at']; }
+foreach ($prescriptions as &$p) { $p['emr_type'] = 'pharmacy'; $p['sort_date'] = $p['created_at']; }
 
-$timeline = array_merge($vitals, $labs, $consults);
+$timeline = array_merge($vitals, $labs, $consults, $prescriptions);
 usort($timeline, function($a, $b) {
     return strtotime($b['sort_date'] ?? 'now') - strtotime($a['sort_date'] ?? 'now');
 });

@@ -18,6 +18,7 @@ if (!$patientId || !$meds) {
 
 $sb = new Supabase();
 $res = $sb->request('POST', '/rest/v1/prescriptions', [
+    'patient_id' => $patientId, // Added for direct visibility
     'doctor_id' => $u['id'],
     'medication_name' => $meds,
     'status' => 'pending'

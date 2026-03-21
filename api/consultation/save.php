@@ -57,6 +57,7 @@ if ($role === 'doctor') {
         // Save Prescription linked to this consultation
         $sb->request('POST', '/rest/v1/prescriptions', [
             'consultation_id' => $consultId,
+            'patient_id' => $patientId, // Added for direct visibility
             'medication_name' => $meds, 
             'status' => 'pending'
         ], true); // useServiceKey = true

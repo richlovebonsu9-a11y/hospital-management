@@ -22,15 +22,15 @@ $apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId
 $appointments = ($apptsRes['status'] === 200) ? $apptsRes['data'] : [];
 
 // 2. Fetch Vitals (Health Summary)
-$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $userId . '&order=recorded_at.desc&limit=1');
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $userId . '&select=*&order=recorded_at.desc&limit=1', null, true);
 $latestVitals = ($vitalsRes['status'] === 200 && !empty($vitalsRes['data'])) ? $vitalsRes['data'][0] : null;
 
 // 3. Fetch Lab Results
-$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $userId . '&order=created_at.desc');
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $userId . '&select=*&order=created_at.desc', null, true);
 $labResults = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
-// 4. Fetch Prescriptions
-$rxRes = $sb->request('GET', '/rest/v1/prescriptions?patient_id=eq.' . $userId . '&order=created_at.desc');
+// 4. Fetch Prescriptions (Using direct patient_id filter)
+$rxRes = $sb->request('GET', '/rest/v1/prescriptions?patient_id=eq.' . $userId . '&select=*&order=created_at.desc', null, true);
 $prescriptions = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
 
 // 5. Fetch Pending Guardian Links
@@ -391,7 +391,7 @@ foreach ($appointments as $a) {
                                     <div class="list-group-item bg-transparent px-0">
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
-                                                <div class="fw-bold small"><?php echo htmlspecialchars($p['medication_details']); ?></div>
+                                                <div class="fw-bold small"><?php echo htmlspecialchars($p['medication_name'] ?? 'Medication Info'); ?></div>
                                                 <small class="text-muted"><?php echo date('M d, Y', strtotime($p['created_at'])); ?></small>
                                             </div>
                                             <span class="badge bg-primary rounded-pill px-2"><?php echo $p['status']; ?></span>
