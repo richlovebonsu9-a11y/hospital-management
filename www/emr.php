@@ -405,6 +405,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                             <label class="form-label small fw-bold text-muted">Diagnostic Test Type</label>
                             <select name="test_type" class="form-select rounded-4 p-2 bg-light border-0" required>
                                 <option value="Blood Test">Blood Test</option>
+                                <option value="Blood Group test">Blood Group Test</option>
                                 <option value="Urinalysis">Urinalysis</option>
                                 <option value="Imaging">Imaging (X-Ray / MRI)</option>
                                 <option value="Pathology">Pathology</option>

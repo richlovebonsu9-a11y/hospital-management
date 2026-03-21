@@ -23,14 +23,25 @@ $patchData = [
     'result_text' => $result
 ];
 
-$reqRes = $sb->request('GET', '/rest/v1/lab_requests?id=eq.' . $requestId . '&select=doctor_id,patient_id,requester_id', null, true);
+$reqRes = $sb->request('GET', '/rest/v1/lab_requests?id=eq.' . $requestId . '&select=doctor_id,patient_id,requester_id,test_type', null, true);
 $doctorId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['doctor_id'] : null;
 $patientId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['patient_id'] : null;
 $requesterId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['requester_id'] : null;
+$testType = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['test_type'] : '';
 
 $res = $sb->request('PATCH', '/rest/v1/lab_requests?id=eq.' . $requestId, $patchData, true);
 
 if ($res['status'] >= 200 && $res['status'] < 300) {
+    // Phase 38: Auto-update Blood Group in Profile
+    if ($testType === 'Blood Group test' && $patientId) {
+        // Try to extract blood group (e.g. O+, A, B-, AB)
+        preg_match('/(A|B|AB|O)[+-]?/i', $result, $matches);
+        if (!empty($matches[0])) {
+            $extractedBG = strtoupper($matches[0]);
+            $sb->request('PATCH', '/rest/v1/profiles?id=eq.' . $patientId, ['blood_group' => $extractedBG], true);
+        }
+    }
+
     $targetNotificationId = $requesterId ?: $doctorId;
     
     if ($targetNotificationId) {
