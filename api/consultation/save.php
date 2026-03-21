@@ -39,7 +39,7 @@ $vitalsData = [
     'pulse' => $pulse,
     'recorded_by' => $u['id']
 ];
-$vitalsRes = $sb->request('POST', '/rest/v1/vitals', $vitalsData);
+$vitalsRes = $sb->request('POST', '/rest/v1/vitals', $vitalsData, true); // useServiceKey = true
 
 // 2. Doctor-specific logic (Consultation & Prescription)
 if ($role === 'doctor') {
@@ -50,16 +50,16 @@ if ($role === 'doctor') {
         'notes' => $notes,
         'diagnosis' => $diagnosis,
         'recommend_admission' => $admission
-    ], true);
+    ], true); // useServiceKey = true
 
     if ($consultRes['status'] === 201 && !empty($consultRes['data']) && !empty($meds)) {
         $consultId = $consultRes['data'][0]['id'];
         // Save Prescription linked to this consultation
         $sb->request('POST', '/rest/v1/prescriptions', [
             'consultation_id' => $consultId,
-            'medication_name' => $meds, // Using medication_name for the bulk string for now
+            'medication_name' => $meds, 
             'status' => 'pending'
-        ]);
+        ], true); // useServiceKey = true
     }
 }
 

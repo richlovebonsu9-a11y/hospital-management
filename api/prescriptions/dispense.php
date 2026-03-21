@@ -23,7 +23,7 @@ $res = $sb->request('PATCH', '/rest/v1/prescriptions?id=eq.' . $prescriptionId, 
     'batch_number' => $batch,
     'dispense_notes' => $notes,
     'dispensed_by' => $u['id']
-]);
+], true);
 
 header('Location: /dashboard_staff.php?dispensed=1');
 exit;

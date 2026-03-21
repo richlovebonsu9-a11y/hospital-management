@@ -21,7 +21,7 @@ $res = $sb->request('POST', '/rest/v1/prescriptions', [
     'doctor_id' => $u['id'],
     'medication_name' => $meds,
     'status' => 'pending'
-]);
+], true);
 
 header('Location: /dashboard_doctor.php?prescription_sent=1');
 exit;

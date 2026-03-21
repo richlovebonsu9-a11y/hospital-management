@@ -24,7 +24,7 @@ $res = $sb->request('POST', '/rest/v1/lab_requests', [
     'test_type' => $testType,
     'test_name' => $testName,
     'status' => 'pending'
-]);
+], true);
 
 header('Location: /dashboard_doctor.php?test_ordered=1');
 exit;
