@@ -198,12 +198,14 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                 </td>
                                 <td>
                                     <?php if ($canProcess): ?>
-                                        <?php if ($role === 'nurse' && $isAssigned): ?>
+                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && $isAssigned): ?>
                                             <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
-                                        <?php elseif ($role === 'pharmacist'): ?>
+                                        <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
                                             <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
-                                        <?php elseif ($role === 'technician'): ?>
+                                        <?php elseif (isset($t['test_name']) && $role === 'technician'): ?>
                                             <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>')">Result</button>
+                                        <?php else: ?>
+                                            <span class="text-muted extra-small">View Details Only</span>
                                         <?php endif; ?>
                                     <?php else: ?>
                                         <span class="text-muted small">Awaiting Assignment</span>
