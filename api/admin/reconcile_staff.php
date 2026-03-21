@@ -1,5 +1,5 @@
 <?php
-// Reconciliation script to sync Auth users into the Profiles table
+// Enhanced Reconciliation script to sync Auth users into the Profiles table
 require_once __DIR__ . '/../../src/lib/Supabase.php';
 
 use App\Lib\Supabase;
@@ -21,7 +21,8 @@ if (($user['user_metadata']['role'] ?? '') !== 'admin') {
 
 $supabase = new Supabase();
 $reconciledCount = 0;
-$errors = [];
+$skippedCount = 0;
+$logs = [];
 
 // 1. Fetch all users from Supabase Auth
 $response = $supabase->request('GET', '/auth/v1/admin/users', null, true);
@@ -35,34 +36,52 @@ $users = $response['data']['users'] ?? [];
 
 foreach ($users as $u) {
     $uid = $u['id'];
+    $email = $u['email'] ?? 'No Email';
     $meta = $u['user_metadata'] ?? [];
-    $role = $meta['role'] ?? 'patient';
+    $role = strtolower($meta['role'] ?? 'patient');
     $name = $meta['name'] ?? 'Unknown User';
     $dept = $meta['department'] ?? 'General OPD';
 
-    // 2. Check if profile exists
-    $profileResp = $supabase->request('GET', '/rest/v1/profiles?id=eq.' . $uid);
-    
-    if ($profileResp['status'] === 200 && empty($profileResp['data'])) {
-        // 3. Profile missing! Create it.
-        $createResp = $supabase->request('POST', '/rest/v1/profiles', [
+    // We only care about reconciling STAFF
+    if (in_array($role, ['doctor', 'nurse', 'pharmacist', 'technician', 'admin'])) {
+        // Use UPSERT (POST with Prefer: resolution=merge-duplicates or simply check and update)
+        // For simplicity with our current client, we'll check existence or just try to insert/update.
+        
+        $profilePayload = [
             'id' => $uid,
             'name' => $name,
             'role' => $role,
             'department' => $dept
-        ], true);
+        ];
+
+        // Let's use internal UPSERT logic: Try to POST, if fails due to conflict, PATCH.
+        $createResp = $supabase->request('POST', '/rest/v1/profiles', $profilePayload, true);
 
         if ($createResp['status'] >= 200 && $createResp['status'] < 300) {
             $reconciledCount++;
+            $logs[] = "Successfully created profile for $name ($email) as $role in $dept";
+        } else if ($createResp['status'] == 409) {
+            // Already exists, let's UPDATE it to ensure role/dept is correct
+            $updateResp = $supabase->request('PATCH', '/rest/v1/profiles?id=eq.' . $uid, $profilePayload, true);
+            if ($updateResp['status'] >= 200 && $updateResp['status'] < 300) {
+                 $reconciledCount++;
+                 $logs[] = "Successfully updated legacy profile for $name ($email)";
+            } else {
+                 $logs[] = "Failed to update existing profile for $email: " . json_encode($updateResp['data']);
+            }
         } else {
-            $errors[] = "Failed to create profile for $uid: " . json_encode($createResp['data']);
+            $logs[] = "Failed to reconcile $email: Status " . $createResp['status'] . " - " . json_encode($createResp['data']);
         }
+    } else {
+        $skippedCount++;
+        $logs[] = "Skipping $email (Role: $role)";
     }
 }
 
 echo json_encode([
     'success' => true,
     'reconciled_count' => $reconciledCount,
+    'skipped_count' => $skippedCount,
     'total_checked' => count($users),
-    'errors' => $errors
+    'logs' => $logs
 ]);

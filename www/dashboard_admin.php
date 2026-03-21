@@ -614,7 +614,10 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                 const result = await response.json();
                 
                 if (result.success) {
-                    alert(`Success! Reconciled ${result.reconciled_count} legacy staff members. Total checked: ${result.total_checked}.`);
+                    let logSummary = result.logs ? "\n\nDetails:\n" + result.logs.slice(0, 10).join("\n") : "";
+                    if (result.logs && result.logs.length > 10) logSummary += "\n...and more.";
+                    
+                    alert(`Sync Complete!\nReconciled: ${result.reconciled_count}\nSkipped: ${result.skipped_count}\nTotal Checked: ${result.total_checked}${logSummary}`);
                     window.location.reload();
                 } else {
                     alert("Sync failed: " + (result.error || "Unknown error"));
