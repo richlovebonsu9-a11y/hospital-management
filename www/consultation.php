@@ -17,6 +17,10 @@ $sb = new Supabase();
 $labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . $patient_id . '&order=created_at.desc');
 $labRequests = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
+// Fetch latest vitals for this patient
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $patient_id . '&order=recorded_at.desc&limit=1', null, true);
+$latestVitals = ($vitalsRes['status'] === 200 && !empty($vitalsRes['data'])) ? $vitalsRes['data'][0] : null;
+
 $patient_name = "Patient " . substr($patient_id, 0, 8);
 ?>
 <!DOCTYPE html>
@@ -51,7 +55,35 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
                 <!-- Vitals & Notes -->
                 <form id="consultationForm" action="/api/consultation/save" method="POST" class="card border-0 shadow-sm rounded-5 p-4 mb-4">
                     <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
-                    <h5 class="fw-bold mb-4">Patient Vitals & Examination</h5>
+                    
+                    <?php if (isset($_GET['vitals_requested'])): ?>
+                        <div class="alert alert-success border-0 rounded-4 small py-2 mb-4"><i class="bi bi-check-circle-fill me-2"></i>Nurse triage requested successfully.</div>
+                    <?php endif; ?>
+
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold mb-0">Patient Vitals & Examination</h5>
+                        <button type="submit" form="requestVitalsForm" class="btn btn-outline-primary btn-sm rounded-pill"><i class="bi bi-bell-fill me-1"></i>Request Fresh Vitals</button>
+                    </div>
+
+                    <!-- Nurse Triage Vitals Read-Only Display -->
+                    <?php if ($latestVitals): ?>
+                    <div class="bg-primary-soft text-primary rounded-4 p-3 mb-4 small">
+                        <div class="d-flex justify-content-between mb-2">
+                            <strong><i class="bi bi-activity me-1"></i>Latest recorded vitals</strong>
+                            <span class="opacity-75"><?php echo date('M d, H:i', strtotime($latestVitals['recorded_at'])); ?></span>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-3">Temp: <strong><?php echo htmlspecialchars($latestVitals['temperature'] ?? '-'); ?>°C</strong></div>
+                            <div class="col-3">BP: <strong><?php echo htmlspecialchars($latestVitals['blood_pressure'] ?? '-'); ?></strong></div>
+                            <div class="col-3">Weight: <strong><?php echo htmlspecialchars($latestVitals['weight'] ?? '-'); ?>kg</strong></div>
+                            <div class="col-3">Pulse: <strong><?php echo htmlspecialchars($latestVitals['pulse'] ?? '-'); ?>bpm</strong></div>
+                        </div>
+                    </div>
+                    <?php else: ?>
+                    <div class="bg-light text-muted rounded-4 p-3 mb-4 small border">
+                        <i class="bi bi-exclamation-triangle me-1"></i>No vitals recorded by nurse yet for this visit.
+                    </div>
+                    <?php endif; ?>
                     <div class="row g-3 mb-4">
                         <div class="col-md-3">
                             <label class="form-label small text-muted">Temp (°C)</label>
@@ -121,7 +153,7 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
                     <div class="mt-4">
                         <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-capsule me-2"></i>E-Prescription</h5>
                         <p class="text-muted small mb-3">Describe medications, dosage, and frequency below. This will be transmitted to the pharmacy immediately.</p>
-                        <textarea name="medication_details" class="form-control rounded-4 p-4 border-light bg-light small" rows="5" placeholder="Enter medication details... e.g. Amoxicillin 500mg, 1x3 daily for 5 days"></textarea>
+                        <textarea name="medication_details" form="consultationForm" class="form-control rounded-4 p-4 border-light bg-light small" rows="5" placeholder="Enter medication details... e.g. Amoxicillin 500mg, 1x3 daily for 5 days"></textarea>
                     </div>
                 </form>
 
@@ -154,6 +186,11 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
             </div>
         </div>
     </div>
+
+    <!-- Hidden Form for Requesting Vitals -->
+    <form id="requestVitalsForm" action="/api/consultation/request_vitals.php" method="POST" class="d-none">
+        <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
+    </form>
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
