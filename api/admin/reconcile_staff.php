@@ -51,7 +51,8 @@ foreach ($users as $u) {
             'id' => $uid,
             'name' => $name,
             'role' => $role,
-            'department' => $dept
+            'department' => $dept,
+            'ghana_post_gps' => $meta['ghana_post_gps'] ?? 'N/A'  // Required NOT NULL - use saved value or placeholder
         ];
 
         // Let's use internal UPSERT logic: Try to POST, if fails due to conflict, PATCH.
