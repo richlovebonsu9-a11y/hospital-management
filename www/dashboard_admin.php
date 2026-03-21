@@ -35,6 +35,7 @@ if ($profilesRes['status'] === 200) {
             $patientList[] = [
                 'id' => $u['id'],
                 'name' => $u['name'] ?? 'Guest',
+                'email' => $u['email'] ?? '',
                 'joined' => $u['created_at']
             ];
             $totalPatients++;
@@ -242,8 +243,8 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                 <tr><td colspan="6" class="text-center py-4 text-muted">No patients registered.</td></tr>
                             <?php else: foreach ($patientList as $p): ?>
                                 <tr>
-                                    <td class="fw-bold"><?php echo htmlspecialchars($p['name']); ?></td>
-                                    <td><?php echo htmlspecialchars($p['email']); ?></td>
+                                    <td class="fw-bold"><?php echo htmlspecialchars($p['name'] ?? 'Unknown'); ?></td>
+                                    <td><?php echo htmlspecialchars($p['email'] ?? '—'); ?></td>
                                     <td>
                                         <?php if (isset($patientGuardians[$p['id']])): foreach($patientGuardians[$p['id']] as $g): ?>
                                             <span class="badge <?php echo ($g['status'] === 'approved' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'); ?> rounded-pill px-2 mb-1" title="<?php echo htmlspecialchars($g['relationship']); ?>">
