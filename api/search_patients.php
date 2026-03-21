@@ -26,19 +26,32 @@ if (strlen($query) < 2) {
 }
 
 $sb = new Supabase();
-// Robust search: ilike for names/emails/cards. Only use ID match if it looks like a valid UUID to avoid Postgres type errors.
-$cleanQuery = str_replace(['*', '(', ')'], '', $query); // Basic sanitization
-$or = "name.ilike.*$cleanQuery*,email.ilike.*$cleanQuery*,ghana_card.ilike.*$cleanQuery*";
-
-if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $cleanQuery)) {
-    $or .= ",id.eq.$cleanQuery";
-}
-
-$res = $sb->request('GET', '/rest/v1/profiles?role=eq.patient&or=(' . $or . ')&select=id,name,email,ghana_card&limit=10', null, true);
+// We fetch all patients and filter in PHP to avoid PostgREST syntax errors or missing column failures.
+// This is exactly how dashboard_admin.php fetches data successfully.
+$res = $sb->request('GET', '/rest/v1/profiles?role=eq.patient&select=*', null, true);
 
 if ($res['status'] === 200) {
-    echo json_encode($res['data']);
+    $patients = $res['data'];
+    $results = [];
+    $q = strtolower($query);
+
+    foreach ($patients as $p) {
+        $name = strtolower($p['name'] ?? '');
+        $email = strtolower($p['email'] ?? '');
+        $id = strtolower($p['id'] ?? '');
+        $card = strtolower($p['ghana_card'] ?? '');
+
+        if (str_contains($name, $q) || str_contains($email, $q) || $id === $q || $card === $q) {
+            $results[] = [
+                'id' => $p['id'],
+                'name' => $p['name'],
+                'email' => $p['email'] ?? '',
+                'ghana_card' => $p['ghana_card'] ?? ''
+            ];
+        }
+    }
+    echo json_encode(array_slice($results, 0, 10));
 } else {
     http_response_code(500);
-    echo json_encode(['error' => 'search_failed', 'details' => $res['data']]);
+    echo json_encode(['error' => 'fetch_failed', 'status' => $res['status']]);
 }
