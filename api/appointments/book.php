@@ -18,11 +18,11 @@ if (!$department || !$date) {
 
 $sb  = new Supabase();
 $data = [
-    'patient_id' => $patientId,
-    'department' => $department,
-    'date'       => $date,
-    'reason'     => $reason,
-    'status'     => 'scheduled',
+    'patient_id'       => $patientId,
+    'department'       => $department,
+    'appointment_date' => $date, // Corrected column name to match schema.sql
+    'reason'           => $reason,
+    'status'           => 'scheduled',
 ];
 
 if (($u['user_metadata']['role'] ?? '') === 'guardian') {
@@ -31,7 +31,15 @@ if (($u['user_metadata']['role'] ?? '') === 'guardian') {
 
 $res = $sb->request('POST', '/rest/v1/appointments', $data);
 
+// Check for success status (201 Created)
+if ($res['status'] !== 201) {
+    $role = $u['user_metadata']['role'] ?? 'patient';
+    $back = ($role === 'guardian') ? '/dashboard_guardian.php' : '/dashboard_patient.php';
+    header('Location: ' . $back . '?error=booking_failed&msg=' . urlencode($res['data']['message'] ?? 'Unable to save appointment.'));
+    exit;
+}
+
 $role  = $u['user_metadata']['role'] ?? 'patient';
-$redir = $role === 'guardian' ? '/dashboard_guardian.php?appt_booked=1' : '/dashboard_patient.php?appt_booked=1';
+$redir = ($role === 'guardian') ? '/dashboard_guardian.php?appt_booked=1' : '/dashboard_patient.php?appt_booked=1';
 header('Location: ' . $redir);
 exit;

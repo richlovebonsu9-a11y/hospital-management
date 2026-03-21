@@ -18,7 +18,7 @@ $name = $metadata['name'] ?? 'Patient';
 $sb = new Supabase();
 
 // 1. Fetch Appointments (Use service key to ensure consistency with guardian-booked visits)
-$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&order=date.asc', null, true);
+$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&order=appointment_date.asc', null, true);
 $appointments = ($apptsRes['status'] === 200) ? $apptsRes['data'] : [];
 
 // 2. Fetch Vitals (Health Summary)
@@ -40,7 +40,7 @@ $pendingLinks = ($pendingLinksRes['status'] === 200) ? $pendingLinksRes['data'] 
 // Find next appointment for the overview card
 $nextAppt = null;
 foreach ($appointments as $a) {
-    if ($a['status'] === 'scheduled' && strtotime($a['date']) >= strtotime('today')) {
+    if ($a['status'] === 'scheduled' && strtotime($a['appointment_date']) >= strtotime('today')) {
         $nextAppt = $a;
         break;
     }
@@ -182,7 +182,7 @@ foreach ($appointments as $a) {
                         </div>
                         <h5 class="fw-bold">Next Appointment</h5>
                         <?php if ($nextAppt): ?>
-                            <h6 class="fw-bold text-primary mb-1"><?php echo date('M d, Y', strtotime($nextAppt['date'])); ?></h6>
+                            <h6 class="fw-bold text-primary mb-1"><?php echo date('M d, Y', strtotime($nextAppt['appointment_date'])); ?></h6>
                             <p class="text-muted small mb-0"><?php echo htmlspecialchars($nextAppt['department']); ?></p>
                             <p class="text-muted extra-small">Status: <span class="text-capitalize"><?php echo $nextAppt['status']; ?></span></p>
                         <?php else: ?>
@@ -247,7 +247,7 @@ foreach ($appointments as $a) {
                                     });
                                     $recent = array_slice($combined, 0, 5);
                                     foreach ($recent as $item): 
-                                        $date = isset($item['created_at']) ? $item['created_at'] : $item['date'];
+                                        $date = isset($item['created_at']) ? $item['created_at'] : $item['appointment_date'];
                                         $type = isset($item['test_name']) ? 'Lab: '.$item['test_name'] : 'Appt: '.$item['department'];
                                         $status = $item['status'];
                                         $badgeClass = ($status === 'completed' || $status === 'dispensed') ? 'bg-success-soft text-success' : 'bg-primary-soft text-primary';
@@ -309,7 +309,7 @@ foreach ($appointments as $a) {
                             <tbody>
                                 <?php foreach ($appointments as $a): ?>
                                 <tr>
-                                    <td><?php echo date('M d, Y', strtotime($a['date'])); ?></td>
+                                    <td><?php echo date('M d, Y', strtotime($a['appointment_date'])); ?></td>
                                     <td><?php echo htmlspecialchars($a['department']); ?></td>
                                     <td><?php echo htmlspecialchars($a['reason']); ?></td>
                                     <td><span class="badge <?php echo ($a['status'] === 'completed') ? 'bg-success' : 'bg-primary'; ?> rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>

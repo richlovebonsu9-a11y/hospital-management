@@ -23,7 +23,7 @@ $appointments = [];
 foreach ($guardianLinks as $link) {
     if (($link['status'] ?? '') === 'approved') {
         // Use service key to fetch appointments for linked patients (bypasses RLS for shared viewing)
-        $aRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $link['patient_id'] . '&order=date.asc', null, true);
+        $aRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $link['patient_id'] . '&order=appointment_date.asc', null, true);
         if ($aRes['status'] === 200) $appointments = array_merge($appointments, $aRes['data']);
     }
 }
