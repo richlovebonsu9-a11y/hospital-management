@@ -126,6 +126,12 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
             <a href="#" class="nav-link-custom" data-target="section-appointments"><i class="bi bi-calendar-check"></i> Appointments</a>
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
+            <hr class="my-3">
+            <div class="px-2 mb-3">
+                <button class="btn btn-primary-soft text-primary w-100 rounded-pill d-flex align-items-center justify-content-center py-2" data-bs-toggle="modal" data-bs-target="#searchModal">
+                    <i class="bi bi-search me-2"></i> Find Patient
+                </button>
+            </div>
             <hr class="my-4">
             <a href="/" class="nav-link-custom"><i class="bi bi-house"></i> Back to Home</a>
             <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
@@ -609,19 +615,92 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
         </div>
     </div>
 
+    <!-- PATIENT SEARCH MODAL -->
+    <div class="modal fade" id="searchModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="fw-bold mb-0">Patient Lookup</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden border">
+                        <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
+                        <input type="text" id="patientSearchInput" class="form-control border-0 py-2" placeholder="Search by name, ID or GH card..." autocomplete="off">
+                    </div>
+                    <div id="searchResults" class="list-group list-group-flush">
+                        <p class="text-center text-muted py-3 small">Start typing to see results...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function navigateTo(sectionId) {
-            document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
-            document.querySelectorAll('#sidebarMenu .nav-link-custom').forEach(l => l.classList.remove('active'));
-            document.getElementById(sectionId).classList.remove('d-none');
-            document.querySelector(`[data-target="${sectionId}"]`).classList.add('active');
-        }
-        document.querySelectorAll('#sidebarMenu .nav-link-custom').forEach(link => {
-            link.addEventListener('click', (e) => {
-                const target = link.getAttribute('data-target');
-                if(target) { e.preventDefault(); navigateTo(target); }
+        // Tab Navigation & Search Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
+            const sections = document.querySelectorAll('.dashboard-section');
+            
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const targetId = link.getAttribute('data-target');
+                    if (targetId) {
+                        e.preventDefault();
+                        sections.forEach(sec => sec.classList.add('d-none'));
+                        const target = document.getElementById(targetId);
+                        if (target) target.classList.remove('d-none');
+                        links.forEach(l => l.classList.remove('active'));
+                        link.classList.add('active');
+                    }
+                });
             });
+
+            // Search Logic
+            const searchInput = document.getElementById('patientSearchInput');
+            const searchResults = document.getElementById('searchResults');
+            let searchTimeout;
+
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    const query = e.target.value;
+                    if (query.length < 2) {
+                        searchResults.innerHTML = '<p class="text-center text-muted py-3 small">Enter at least 2 characters...</p>';
+                        return;
+                    }
+
+                    searchTimeout = setTimeout(async () => {
+                        searchResults.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+                        try {
+                            const res = await fetch(`/api/search_patients.php?q=${encodeURIComponent(query)}`);
+                            const data = await res.json();
+                            
+                            if (data.length === 0) {
+                                searchResults.innerHTML = '<p class="text-center text-muted py-3 small">No patients found matching your search.</p>';
+                                return;
+                            }
+
+                            searchResults.innerHTML = data.map(p => `
+                                <a href="/emr.php?patient_id=${p.id}" class="list-group-item list-group-item-action border-0 rounded-4 mb-2 p-3 d-flex align-items-center bg-light">
+                                    <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; min-width: 40px;">
+                                        ${p.name.charAt(0)}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold mb-0">${p.name}</h6>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">${p.email || 'No email'}</small>
+                                        <small class="text-primary extra-small">ID: ${p.id.substring(0, 13)}...</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted ms-auto"></i>
+                                </a>
+                            `).join('');
+                        } catch (err) {
+                            searchResults.innerHTML = '<p class="text-center text-danger py-3 small">Error searching. Please try again.</p>';
+                        }
+                    }, 300);
+                });
+            }
         });
 
         function editStaff(staffBase64) {

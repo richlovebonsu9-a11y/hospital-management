@@ -341,20 +341,6 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
         <?php endif; ?>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
-            const sections = document.querySelectorAll('.dashboard-section');
-            links.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    navigateTo(link.getAttribute('data-target'));
-                });
-            });
-        });
-
     </div>
 
     <!-- PATIENT SEARCH MODAL -->
@@ -380,60 +366,69 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Modal Switcher
-        document.querySelectorAll('.nav-link-custom').forEach(link => {
-            link.addEventListener('click', function(e) {
-                if(this.dataset.target) {
-                    e.preventDefault();
-                    document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
-                    document.getElementById(this.dataset.target).classList.remove('d-none');
-                    document.querySelectorAll('.nav-link-custom').forEach(l => l.classList.remove('active'));
-                    this.classList.add('active');
-                }
+        // Tab Navigation & Search Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
+            const sections = document.querySelectorAll('.dashboard-section');
+            
+            links.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const targetId = link.getAttribute('data-target');
+                    if (targetId) {
+                        e.preventDefault();
+                        sections.forEach(sec => sec.classList.add('d-none'));
+                        const target = document.getElementById(targetId);
+                        if (target) target.classList.remove('d-none');
+                        links.forEach(l => l.classList.remove('active'));
+                        link.classList.add('active');
+                    }
+                });
             });
-        });
 
-        // Search Logic
-        const searchInput = document.getElementById('patientSearchInput');
-        const searchResults = document.getElementById('searchResults');
-        let searchTimeout;
+            // Search Logic
+            const searchInput = document.getElementById('patientSearchInput');
+            const searchResults = document.getElementById('searchResults');
+            let searchTimeout;
 
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            const query = e.target.value;
-            if (query.length < 2) {
-                searchResults.innerHTML = '<p class="text-center text-muted py-3 small">Enter at least 2 characters...</p>';
-                return;
-            }
-
-            searchTimeout = setTimeout(async () => {
-                searchResults.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
-                try {
-                    const res = await fetch(`/api/search_patients.php?q=${encodeURIComponent(query)}`);
-                    const data = await res.json();
-                    
-                    if (data.length === 0) {
-                        searchResults.innerHTML = '<p class="text-center text-muted py-3 small">No patients found matching your search.</p>';
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(searchTimeout);
+                    const query = e.target.value;
+                    if (query.length < 2) {
+                        searchResults.innerHTML = '<p class="text-center text-muted py-3 small">Enter at least 2 characters...</p>';
                         return;
                     }
 
-                    searchResults.innerHTML = data.map(p => `
-                        <a href="/emr.php?patient_id=${p.id}" class="list-group-item list-group-item-action border-0 rounded-4 mb-2 p-3 d-flex align-items-center bg-light">
-                            <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; min-width: 40px;">
-                                ${p.name.charAt(0)}
-                            </div>
-                            <div class="flex-grow-1">
-                                <h6 class="fw-bold mb-0">${p.name}</h6>
-                                <small class="text-muted d-block" style="font-size: 0.75rem;">${p.email || 'No email'}</small>
-                                <small class="text-primary extra-small">ID: ${p.id.substring(0, 13)}...</small>
-                            </div>
-                            <i class="bi bi-chevron-right text-muted ms-auto"></i>
-                        </a>
-                    `).join('');
-                } catch (err) {
-                    searchResults.innerHTML = '<p class="text-center text-danger py-3 small">Error searching. Please try again.</p>';
-                }
-            }, 300);
+                    searchTimeout = setTimeout(async () => {
+                        searchResults.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+                        try {
+                            const res = await fetch(`/api/search_patients.php?q=${encodeURIComponent(query)}`);
+                            const data = await res.json();
+                            
+                            if (data.length === 0) {
+                                searchResults.innerHTML = '<p class="text-center text-muted py-3 small">No patients found matching your search.</p>';
+                                return;
+                            }
+
+                            searchResults.innerHTML = data.map(p => `
+                                <a href="/emr.php?patient_id=${p.id}" class="list-group-item list-group-item-action border-0 rounded-4 mb-2 p-3 d-flex align-items-center bg-light">
+                                    <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; min-width: 40px;">
+                                        ${p.name.charAt(0)}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="fw-bold mb-0">${p.name}</h6>
+                                        <small class="text-muted d-block" style="font-size: 0.75rem;">${p.email || 'No email'}</small>
+                                        <small class="text-primary extra-small">ID: ${p.id.substring(0, 13)}...</small>
+                                    </div>
+                                    <i class="bi bi-chevron-right text-muted ms-auto"></i>
+                                </a>
+                            `).join('');
+                        } catch (err) {
+                            searchResults.innerHTML = '<p class="text-center text-danger py-3 small">Error searching. Please try again.</p>';
+                        }
+                    }, 300);
+                });
+            }
         });
 
         function navigateTo(sectionId) {
