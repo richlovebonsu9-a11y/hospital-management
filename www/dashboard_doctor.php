@@ -16,14 +16,20 @@ $name = $user['user_metadata']['name'] ?? 'Doctor';
 
 $sb = new Supabase();
 
-// 1. Fetch Today's Queue (Scheduled appointments for today, ideally assigned to this doctor or general)
-$today = date('Y-m-d');
-$queueRes = $sb->request('GET', '/rest/v1/appointments?date=eq.' . $today . '&status=neq.completed&order=created_at.asc');
-$queue = ($queueRes['status'] === 200) ? $queueRes['data'] : [];
+// 1. Fetch Today's Queue (Scheduled appointments for today)
+$todayStart = date('Y-m-d\T00:00:00');
+$todayEnd = date('Y-m-d\T23:59:59');
+$queueRes = $sb->request('GET', '/rest/v1/appointments?appointment_date=gte.' . $todayStart . '&appointment_date=lte.' . $todayEnd . '&status=neq.completed&order=created_at.asc', null, true);
+$queueRaw = ($queueRes['status'] === 200) ? $queueRes['data'] : [];
+$queue = [];
+foreach ($queueRaw as $q) {
+    if (empty($q['assigned_to']) || $q['assigned_to'] === $userId) {
+        $queue[] = $q;
+    }
+}
 
 // 2. Fetch My Schedule (All appointments assigned to this doctor)
-// Note: In a real system we'd filter by doctor_id. For now, we show all for the department if doctor_id is null or matches.
-$scheduleRes = $sb->request('GET', '/rest/v1/appointments?doctor_id=eq.' . $userId . '&order=date.asc');
+$scheduleRes = $sb->request('GET', '/rest/v1/appointments?assigned_to=eq.' . $userId . '&order=appointment_date.asc', null, true);
 $mySchedule = ($scheduleRes['status'] === 200) ? $scheduleRes['data'] : [];
 
 // 3. Fetch Lab Results (Ordered by this doctor)
