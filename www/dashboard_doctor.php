@@ -329,7 +329,7 @@ $seenToday = count($mySchedule); // Simplification
                     searchTimeout = setTimeout(async () => {
                         searchResults.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
                         try {
-                            const res = await fetch(`/api/search_patients.php?q=${encodeURIComponent(query)}`);
+                            const res = await fetch(`/api/search_patients?q=${encodeURIComponent(query)}`);
                             const data = await res.json();
                             
                             if (data.length === 0) {
