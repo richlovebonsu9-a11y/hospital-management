@@ -17,8 +17,8 @@ $name = $metadata['name'] ?? 'Patient';
 
 $sb = new Supabase();
 
-// 1. Fetch Appointments (Use service key to ensure consistency with guardian-booked visits)
-$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&order=appointment_date.asc', null, true);
+// 1. Fetch Appointments (join assigned staff so we can show their name)
+$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&select=*,assigned_staff:assigned_to(name)&order=appointment_date.asc', null, true);
 $appointments = ($apptsRes['status'] === 200) ? $apptsRes['data'] : [];
 
 // 2. Fetch Vitals (Health Summary)
@@ -326,6 +326,7 @@ foreach ($appointments as $a) {
                                     <th>Date</th>
                                     <th>Department</th>
                                     <th>Reason</th>
+                                    <th>Assigned To</th>
                                     <th>Status</th>
                                 </tr>
                             </thead>
@@ -335,6 +336,13 @@ foreach ($appointments as $a) {
                                     <td><?php echo date('M d, Y', strtotime($a['appointment_date'])); ?></td>
                                     <td><?php echo htmlspecialchars($a['department']); ?></td>
                                     <td><?php echo htmlspecialchars($a['reason']); ?></td>
+                                    <td>
+                                        <?php if (!empty($a['assigned_staff']['name'])): ?>
+                                            <span class="text-success fw-bold"><i class="bi bi-person-check-fill me-1"></i><?php echo htmlspecialchars($a['assigned_staff']['name']); ?></span>
+                                        <?php else: ?>
+                                            <span class="text-muted small">Pending</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td><span class="badge <?php echo ($a['status'] === 'completed') ? 'bg-success' : 'bg-primary'; ?> rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>
                                 </tr>
                                 <?php endforeach; ?>
