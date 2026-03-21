@@ -470,6 +470,8 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
                                 </select>
                             </div>
                         </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Save Changes</button>
+                    </form>
                 </div>
             </div>
         </div>
