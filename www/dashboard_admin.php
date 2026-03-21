@@ -14,28 +14,26 @@ $user = $_SESSION['user'];
 $name = $user['user_metadata']['name'] ?? 'Admin';
 $sb = new Supabase();
 
-// 1. Fetch Staff & Patients (From Auth)
-$authRes = $sb->request('GET', '/auth/v1/admin/users', null, true);
+// 1. Fetch Staff & Patients (From Profiles Table for DB consistency)
+$profilesRes = $sb->request('GET', '/rest/v1/profiles?select=*', null, true);
 $staffMembers = [];
 $patientList = [];
 $totalPatients = 0;
-if ($authRes['status'] === 200 && isset($authRes['data']['users'])) {
-    foreach ($authRes['data']['users'] as $u) {
-        $r = $u['user_metadata']['role'] ?? 'patient';
+if ($profilesRes['status'] === 200) {
+    foreach ($profilesRes['data'] as $u) {
+        $r = $u['role'] ?? 'patient';
         if (in_array(strtolower($r), ['doctor', 'nurse', 'pharmacist', 'technician', 'admin'])) {
             $staffMembers[] = [
                 'id' => $u['id'], 
-                'email' => $u['email'], 
-                'name' => $u['user_metadata']['name'] ?? 'Unknown', 
+                'name' => $u['name'] ?? 'Unknown', 
                 'role' => $r, 
-                'department' => $u['user_metadata']['department'] ?? 'General', 
+                'department' => $u['department'] ?? 'General', 
                 'status' => 'Active'
             ];
         } else {
             $patientList[] = [
                 'id' => $u['id'],
-                'email' => $u['email'],
-                'name' => $u['user_metadata']['name'] ?? 'Guest',
+                'name' => $u['name'] ?? 'Guest',
                 'joined' => $u['created_at']
             ];
             $totalPatients++;

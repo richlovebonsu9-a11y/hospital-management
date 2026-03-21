@@ -32,7 +32,19 @@ if (($u['user_metadata']['role'] ?? '') === 'guardian') {
 $res = $sb->request('POST', '/rest/v1/appointments', $data);
 
 // Check for success status (201 Created)
-if ($res['status'] !== 201) {
+if ($res['status'] === 201) {
+    // Notify all staff in the selected department
+    $staffRes = $sb->request('GET', '/rest/v1/profiles?department=eq.' . urlencode($department), null, true);
+    if ($staffRes['status'] === 200 && !empty($staffRes['data'])) {
+        foreach ($staffRes['data'] as $staff) {
+            $msg = "New Appointment Request in your department (" . htmlspecialchars($department) . ") on " . date('M d, H:i', strtotime($date));
+            $sb->request('POST', '/rest/v1/notifications', [
+                'user_id' => $staff['id'],
+                'message' => $msg
+            ]);
+        }
+    }
+} else {
     $role = $u['user_metadata']['role'] ?? 'patient';
     $back = ($role === 'guardian') ? '/dashboard_guardian.php' : '/dashboard_patient.php';
     header('Location: ' . $back . '?error=booking_failed&msg=' . urlencode($res['data']['message'] ?? 'Unable to save appointment.'));

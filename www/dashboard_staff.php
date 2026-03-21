@@ -37,6 +37,10 @@ if ($role === 'nurse') {
     $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&order=created_at.asc');
     $tasks = ($res['status'] === 200) ? $res['data'] : [];
 }
+
+// 2. Fetch Notifications for Staff
+$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $user['id'] . '&order=created_at.desc&limit=5', null, true);
+$notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -85,6 +89,25 @@ if ($role === 'nurse') {
                 <p class="text-muted mb-0">Role: <span class="text-capitalize fw-bold text-primary"><?php echo htmlspecialchars($role); ?></span></p>
             </div>
             <div class="d-flex align-items-center">
+                <?php if (!empty($notifications)): ?>
+                    <div class="dropdown me-4">
+                        <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
+                            <i class="bi bi-bell fs-5 text-secondary"></i>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="padding: 0.35em 0.5em;">
+                                <?php echo count($notifications); ?>
+                            </span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
+                            <h6 class="fw-bold mb-3">Department Alerts</h6>
+                            <?php foreach($notifications as $n): ?>
+                                <div class="p-2 border-bottom border-light mb-2">
+                                    <p class="small mb-1 text-dark"><?php echo htmlspecialchars($n['message']); ?></p>
+                                    <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
                 <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
                     <?php echo strtoupper(substr($name, 0, 1)); ?>
                 </div>

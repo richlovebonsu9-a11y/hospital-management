@@ -17,6 +17,10 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='appointments' AND column_name='assigned_to') THEN
         ALTER TABLE appointments ADD COLUMN assigned_to UUID REFERENCES profiles(id);
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='appointments' AND column_name='guardian_id') THEN
+        ALTER TABLE appointments ADD COLUMN guardian_id UUID REFERENCES profiles(id);
+    END IF;
 END $$;
 
 -- 3. Reload schema
