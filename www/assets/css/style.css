@@ -141,3 +141,41 @@ body {
 .nav-link.active {
     color: var(--primary-color) !important;
 }
+
+/* Dashboard Global Layout */
+.sidebar {
+    width: 280px; height: 100vh; position: fixed; left: 0; top: 0; 
+    background: white; border-right: 1px solid #eee; z-index: 1000; 
+    transition: transform 0.3s ease-in-out;
+}
+.sidebar-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+    background: rgba(0,0,0,0.5); z-index: 999;
+}
+.main-content {
+    margin-left: 280px; padding: 40px; background: #f8fafc; min-height: 100vh; 
+    transition: margin-left 0.3s ease-in-out, padding 0.3s ease-in-out;
+}
+.nav-link-custom {
+    display: flex; align-items: center; padding: 12px 20px; color: #64748b; 
+    text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s;
+}
+.nav-link-custom:hover, .nav-link-custom.active {
+    background: var(--primary-soft); color: var(--primary-color);
+}
+.nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
+
+/* Mobile Responsiveness Engine */
+@media (max-width: 991px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.show { transform: translateX(0); }
+    .sidebar-overlay.show { display: block; }
+    .main-content { margin-left: 0; padding: 20px; }
+    
+    /* Make tables responsive implicitly by allowing horizontal scroll */
+    .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    
+    /* Adjust specific sizing */
+    header h2 { font-size: 1.5rem; }
+    .dropdown-menu { width: 280px !important; }
+}

@@ -84,14 +84,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
-        .sidebar { width: 280px; height: 100vh; position: fixed; left: 0; top: 0; background: white; border-right: 1px solid #eee; z-index: 1000; }
-        .main-content { margin-left: 280px; padding: 40px; background: #f8fafc; min-height: 100vh; }
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
         .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
         .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
     </style>
 </head>
 <body>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar p-4">
         <div class="d-flex align-items-center mb-5">
             <div class="bg-primary rounded-circle me-2" style="width: 32px; height: 32px;"></div>
@@ -126,6 +125,14 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     </div>
 
     <div class="main-content">
+        <!-- Mobile Header -->
+        <div class="d-flex d-lg-none align-items-center mb-4 pb-3 border-bottom">
+            <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm p-2 me-3" onclick="toggleSidebar()">
+                <i class="bi bi-list fs-4 text-primary"></i>
+            </button>
+            <h4 class="fw-bold mb-0 text-primary">GGHMS</h4>
+        </div>
+
         <header class="d-flex justify-content-between align-items-center mb-5">
             <div>
                 <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($name); ?></h2>
@@ -534,6 +541,21 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 });
             }
         }
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+            document.querySelector('.sidebar-overlay').classList.toggle('show');
+        }
+
+        // Auto-close sidebar on mobile link click
+        document.querySelectorAll('.nav-link-custom').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 992) {
+                    document.querySelector('.sidebar').classList.remove('show');
+                    document.querySelector('.sidebar-overlay').classList.remove('show');
+                }
+            });
+        });
     </script>
 </body>
 </html>

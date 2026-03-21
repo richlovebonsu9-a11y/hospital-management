@@ -42,16 +42,13 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
-    <style>
-        .sidebar { width: 280px; height: 100vh; position: fixed; left: 0; top: 0; background: white; border-right: 1px solid #eee; z-index: 1000; }
-        .main-content { margin-left: 280px; padding: 40px; background: #f8fafc; min-height: 100vh; }
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
         .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
         .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
-        @media (max-width: 992px) { .sidebar { display: none; } .main-content { margin-left: 0; padding: 20px; } }
     </style>
 </head>
 <body>
+    <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar p-4">
         <div class="d-flex align-items-center mb-5">
             <div class="bg-primary rounded-circle me-2" style="width: 32px; height: 32px;"></div>
@@ -70,6 +67,14 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
     </div>
 
     <div class="main-content">
+        <!-- Mobile Header -->
+        <div class="d-flex d-lg-none align-items-center mb-4 pb-3 border-bottom">
+            <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm p-2 me-3" onclick="toggleSidebar()">
+                <i class="bi bi-list fs-4 text-primary"></i>
+            </button>
+            <h4 class="fw-bold mb-0 text-primary">GGHMS</h4>
+        </div>
+
         <header class="mb-5">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
@@ -389,9 +394,17 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
                     navigateTo(link.getAttribute('data-target'));
+                    if (window.innerWidth < 992) {
+                        toggleSidebar();
+                    }
                 });
             });
         });
+
+        function toggleSidebar() {
+            document.querySelector('.sidebar').classList.toggle('show');
+            document.querySelector('.sidebar-overlay').classList.toggle('show');
+        }
     </script>
 </body>
 </html>
