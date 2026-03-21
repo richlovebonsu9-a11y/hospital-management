@@ -19,7 +19,8 @@ if (!$requestId || !$result) {
 $sb = new Supabase();
 $res = $sb->request('PATCH', '/rest/v1/lab_requests?id=eq.' . $requestId, [
     'status' => 'completed',
-    'result_text' => $result
+    'result_text' => $result,
+    'completed_by' => $u['id']
 ]);
 
 header('Location: /dashboard_staff.php?result_submitted=1');

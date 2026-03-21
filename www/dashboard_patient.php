@@ -228,7 +228,7 @@ foreach ($appointments as $a) {
                             <span class="text-muted">Last Vitals</span>
                             <span class="fw-bold"><?php echo $latestVitals ? date('M d, Y', strtotime($latestVitals['recorded_at'])) : 'N/A'; ?></span>
                         </div>
-                        <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-records')">Full Record</button>
+                        <button class="btn btn-outline-primary w-100 mt-auto" onclick="location.href='/emr.php'">View Medical Records</button>
                     </div>
                 </div>
                 <div class="col-md-4">
@@ -249,7 +249,7 @@ foreach ($appointments as $a) {
                     <div class="card p-4 border-0 shadow-sm h-100">
                         <div class="d-flex justify-content-between align-items-center mb-4">
                             <h5 class="fw-bold mb-0">Recent Activity</h5>
-                            <a href="#" class="text-primary text-decoration-none small fw-bold" onclick="navigateTo('section-records'); return false;">See All</a>
+                            <a href="/emr.php" class="text-primary text-decoration-none small fw-bold">See All</a>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle">

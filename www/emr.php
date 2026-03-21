@@ -69,18 +69,17 @@ if (!$patient) {
     exit;
 }
 
-// 3. Fetch Unified Clinical History (Service Key for authorized viewers)
-$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&order=recorded_at.desc', null, true);
+// 3. Fetch Unified Clinical History with Staff Names
+$vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,profiles!recorded_by(name)&order=recorded_at.desc', null, true);
 $vitals = ($vitalsRes['status'] === 200) ? $vitalsRes['data'] : [];
 
-$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc', null, true);
+$labsRes = $sb->request('GET', '/rest/v1/lab_requests?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name),tech:profiles!completed_by(name),recorded_at:created_at&order=created_at.desc', null, true);
 $labs = ($labsRes['status'] === 200) ? $labsRes['data'] : [];
 
-$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,recorded_at:created_at&order=created_at.desc', null, true);
+$consultsRes = $sb->request('GET', '/rest/v1/consultations?patient_id=eq.' . urlencode($targetPatientId) . '&select=*,doctor:profiles!doctor_id(name),recorded_at:created_at&order=created_at.desc', null, true);
 $consults = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
 
 $scriptsRes = $sb->request('GET', '/rest/v1/prescriptions?consultation_id=in.(' . implode(',', array_map(fn($c) => $c['id'], $consults) ?: ['00000000-0000-0000-0000-000000000000']) . ')&order=created_at.desc', null, true);
-// If no consults, fetch scripts directly by patient_id if we had that column, but for now we follow the join logic.
 $prescriptions = ($scriptsRes['status'] === 200) ? $scriptsRes['data'] : [];
 
 // Combine into a timeline
@@ -182,8 +181,11 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                     <small class="text-muted text-uppercase"><?php echo date('M \'y', $date); ?></small>
                                 </div>
                                 <div class="flex-grow-1 border-start ps-4">
-                                    <?php if (isset($entry['temperature'])): // It's a Vitals entry ?>
-                                        <h6 class="fw-bold mb-1 text-primary">Vitals Recorded</h6>
+                                    <?php if (isset($entry['temperature'])): // Nursing / Vitals ?>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <h6 class="fw-bold text-primary mb-0">NURSING: Vitals Recorded</h6>
+                                            <small class="text-muted small">By: <?php echo htmlspecialchars($entry['profiles']['name'] ?? 'Staff'); ?></small>
+                                        </div>
                                         <div class="row g-2 mt-2">
                                             <div class="col-6 col-md-3">
                                                 <div class="p-2 bg-light rounded-3 small">
@@ -210,8 +212,11 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                                 </div>
                                             </div>
                                         </div>
-                                    <?php elseif (isset($entry['notes'])): // It's a Consultation entry ?>
-                                        <h6 class="fw-bold mb-1 text-success">Clinical Consultation</h6>
+                                    <?php elseif (isset($entry['notes'])): // General OPD / Consultation ?>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <h6 class="fw-bold text-success mb-0">GENERAL OPD: Consultation</h6>
+                                            <small class="text-muted small">Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Staff'); ?></small>
+                                        </div>
                                         <div class="card p-3 bg-white border rounded-4 mt-2">
                                             <p class="small mb-0" style="white-space: pre-wrap;"><?php echo htmlspecialchars($entry['notes']); ?></p>
                                         </div>
@@ -229,9 +234,12 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                             </div>
                                         <?php endif; ?>
 
-                                    <?php else: // It's a Lab Request ?>
-                                        <h6 class="fw-bold mb-1 text-info"><?php echo htmlspecialchars($entry['test_name']); ?> (<?php echo htmlspecialchars($entry['test_type']); ?>)</h6>
-                                        <p class="text-muted small mb-2">Status: <span class="text-capitalize"><?php echo htmlspecialchars($entry['status']); ?></span></p>
+                                    <?php else: // Laboratory / Tests ?>
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <h6 class="fw-bold text-info mb-0">LABORATORY: <?php echo htmlspecialchars($entry['test_name']); ?></h6>
+                                            <small class="text-muted small">Technician: <?php echo htmlspecialchars($entry['tech']['name'] ?? 'Verified'); ?></small>
+                                        </div>
+                                        <p class="text-muted small mb-2">Requested by: Dr. <?php echo htmlspecialchars($entry['doctor']['name'] ?? 'Staff'); ?> | Status: <span class="text-capitalize badge bg-light text-dark"><?php echo htmlspecialchars($entry['status']); ?></span></p>
                                         <?php if ($entry['result_text']): ?>
                                             <div class="card p-3 bg-light border-0 rounded-4">
                                                 <h6 class="fw-bold small mb-2 text-danger">Result Notes</h6>

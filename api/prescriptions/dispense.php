@@ -19,7 +19,8 @@ if (!$prescriptionId) {
 $sb = new Supabase();
 $res = $sb->request('PATCH', '/rest/v1/prescriptions?id=eq.' . $prescriptionId, [
     'status' => 'dispensed',
-    'batch_number' => $batch
+    'batch_number' => $batch,
+    'dispensed_by' => $u['id']
 ]);
 
 header('Location: /dashboard_staff.php?dispensed=1');
