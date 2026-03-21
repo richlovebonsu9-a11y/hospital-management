@@ -147,7 +147,12 @@ body {
     width: 280px; height: 100vh; position: fixed; left: 0; top: 0; 
     background: white; border-right: 1px solid #eee; z-index: 1000; 
     transition: transform 0.3s ease-in-out;
+    overflow-y: auto;
 }
+/* Custom Scrollbar for Sidebar */
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
 .sidebar-overlay {
     display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
     background: rgba(0,0,0,0.5); z-index: 999;
