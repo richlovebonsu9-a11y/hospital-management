@@ -17,8 +17,8 @@ $name = $metadata['name'] ?? 'Patient';
 
 $sb = new Supabase();
 
-// 1. Fetch Appointments
-$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&order=date.asc');
+// 1. Fetch Appointments (Use service key to ensure consistency with guardian-booked visits)
+$apptsRes = $sb->request('GET', '/rest/v1/appointments?patient_id=eq.' . $userId . '&order=date.asc', null, true);
 $appointments = ($apptsRes['status'] === 200) ? $apptsRes['data'] : [];
 
 // 2. Fetch Vitals (Health Summary)

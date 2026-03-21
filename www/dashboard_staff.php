@@ -20,8 +20,8 @@ $roleData = [];
 
 // 1. Fetch Task Queue (Cross-role tasks)
 if ($role === 'nurse') {
-    // Nurses see the patient queue for vitals
-    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&order=date.asc');
+    // Nurses see the patient queue for vitals - Use service key for system-wide visibility
+    $res = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&order=date.asc', null, true);
     $tasks = ($res['status'] === 200) ? $res['data'] : [];
 } elseif ($role === 'pharmacist') {
     // Pharmacists see pending prescriptions

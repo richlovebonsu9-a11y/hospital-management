@@ -43,8 +43,8 @@ if ($authRes['status'] === 200 && isset($authRes['data']['users'])) {
     }
 }
 
-// 2. Fetch Analytics (From DB)
-$apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, false);
+// 2. Fetch Analytics (Use service key for total system visibility)
+$apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, true);
 $totalAppointments = ($apptCountRes['status'] === 200) ? count($apptCountRes['data']) : 0;
 
 $emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?order=created_at.desc');
