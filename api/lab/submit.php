@@ -18,17 +18,10 @@ if (!$requestId || !$result) {
 
 $sb = new Supabase();
 
-// Safe constraint check: Verify tech exists in profiles before linking ForeignKey
-$profRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $u['id'] . '&select=id', null, true);
-$techValid = ($profRes['status'] === 200 && !empty($profRes['data']));
-
 $patchData = [
     'status' => 'completed',
     'result_text' => $result
 ];
-if ($techValid) {
-    $patchData['completed_by'] = $u['id'];
-}
 
 $reqRes = $sb->request('GET', '/rest/v1/lab_requests?id=eq.' . $requestId . '&select=doctor_id,patient_id', null, true);
 $doctorId = ($reqRes['status'] === 200 && !empty($reqRes['data'])) ? $reqRes['data'][0]['doctor_id'] : null;
