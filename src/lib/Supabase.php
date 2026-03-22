@@ -13,7 +13,7 @@ class Supabase {
         $this->serviceKey = getenv('SUPABASE_SERVICE_ROLE_KEY');
     }
 
-    public function request($method, $path, $data = null, $useServiceKey = false) {
+    public function request($method, $path, $data = null, $useServiceKey = false, $extraHeaders = []) {
         $url = $this->url . $path;
         $ch = curl_init($url);
         
@@ -22,6 +22,10 @@ class Supabase {
             'Content-Type: application/json',
             'Authorization: Bearer ' . ($useServiceKey ? $this->serviceKey : $this->anonKey)
         ];
+
+        foreach ($extraHeaders as $key => $value) {
+            $headers[] = "$key: $value";
+        }
 
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);

@@ -68,7 +68,7 @@ if ($role === 'doctor') {
         'notes' => $notes,
         'diagnosis' => $diagnosis,
         'recommend_admission' => $admission
-    ], true); // useServiceKey = true
+    ], true, ['Prefer' => 'return=representation']); // useServiceKey = true
 
     if ($consultRes['status'] === 201 && !empty($consultRes['data'])) {
         $consultId = $consultRes['data'][0]['id'];
