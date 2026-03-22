@@ -38,7 +38,7 @@ $roleTasks = [];
 if ($role === 'pharmacist') {
     $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,patient:patient_id(name)&order=created_at.asc', null, true);
     $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
-    $invRes = $sb->request('GET', '/rest/v1/drug_inventory?order=drug_name.asc');
+    $invRes = $sb->request('GET', '/rest/v1/drug_inventory?select=*&order=drug_name.asc', null, true);
     $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
 } elseif ($role === 'technician') {
     $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*,patient:patient_id(name)&order=created_at.asc', null, true);
@@ -138,7 +138,24 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($name); ?></h2>
                 <p class="text-muted mb-0">Role: <span class="text-capitalize fw-bold text-primary"><?php echo htmlspecialchars($role); ?></span></p>
             </div>
-            <div class="d-flex align-items-center">
+            
+            <?php if (isset($_GET['inventory_updated'])): ?>
+                <div class="alert alert-success border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
+                    <i class="bi bi-check-circle-fill me-2"></i> Inventory synchronized successfully.
+                </div>
+            <?php endif; ?>
+            <?php if (isset($_GET['dispensed'])): ?>
+                <div class="alert alert-success border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
+                    <i class="bi bi-capsule-pill me-2"></i> Medication dispensed & billed.
+                </div>
+            <?php endif; ?>
+            <?php if (isset($_GET['error']) && $_GET['error'] === 'out_of_stock'): ?>
+                <div class="alert alert-danger border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Error: Item is out of stock!
+                </div>
+            <?php endif; ?>
+
+            <div class="d-none d-lg-flex align-items-center">
                 <div class="dropdown me-4">
                     <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
                         <i class="bi bi-bell fs-5 text-secondary"></i>
@@ -206,7 +223,9 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                         }
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
                                         $pName = $t['patient']['name'] ?? 'Patient';
-                                        echo "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
+                                        $priority = ($t['is_ordered'] ?? false) ? "<span class='badge bg-warning text-dark me-2 small'><i class='bi bi-megaphone-fill me-1'></i> ORDERED</span>" : "";
+                                        echo $priority . "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
+                                        echo "<div class='extra-small text-muted'>" . htmlspecialchars(($t['dosage'] ?? '') . " | " . ($t['frequency'] ?? '') . " | " . ($t['duration'] ?? '')) . "</div>";
                                     } elseif ($role === 'technician') {
                                         $pName = $t['patient']['name'] ?? 'Patient';
                                         echo "Test: <span class='fw-bold'>" . htmlspecialchars($t['test_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
@@ -265,24 +284,36 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 <?php elseif ($role === 'pharmacist'): ?>
                     <div class="col-md-12">
                         <div class="card border-0 shadow-sm p-4">
-                            <h5 class="fw-bold mb-4">Drug Inventory</h5>
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="fw-bold mb-0">Pharmacy Inventory & Stock Control</h5>
+                                <button class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#inventoryModal" onclick="prepareInventoryModal('add')">
+                                    <i class="bi bi-plus-lg me-1"></i> Add Stock
+                                </button>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table align-middle">
-                                    <thead><tr><th>Drug Name</th><th>Stock</th><th>Expiry</th><th>Status</th></tr></thead>
+                                    <thead class="table-light"><tr><th>Drug Name</th><th>Category</th><th>Stock</th><th>Price (GHS)</th><th>Status</th><th>Actions</th></tr></thead>
                                     <tbody>
                                         <?php if (empty($roleData['inventory'])): ?>
-                                            <tr><td colspan="4" class="text-center py-3">No inventory data available.</td></tr>
+                                            <tr><td colspan="6" class="text-center py-3 text-muted small">No drugs registered in inventory.</td></tr>
                                         <?php endif; foreach ($roleData['inventory'] as $inv): ?>
                                             <tr>
                                                 <td class="fw-bold"><?php echo htmlspecialchars($inv['drug_name']); ?></td>
+                                                <td><span class="badge bg-light text-muted fw-normal"><?php echo htmlspecialchars($inv['category'] ?? 'General'); ?></span></td>
                                                 <td><?php echo $inv['stock_count']; ?> units</td>
-                                                <td><?php echo date('M d, Y', strtotime($inv['expiry_date'])); ?></td>
+                                                <td class="fw-bold text-primary">₵ <?php echo number_format($inv['unit_price'] ?? 0, 2); ?></td>
                                                 <td>
-                                                    <?php if ($inv['stock_count'] < 10): ?>
-                                                        <span class="badge bg-danger">Low Stock</span>
+                                                    <?php if ($inv['stock_count'] <= ($inv['reorder_level'] ?? 10)): ?>
+                                                        <span class="badge bg-danger-soft text-danger rounded-pill px-2">Low Stock</span>
                                                     <?php else: ?>
-                                                        <span class="badge bg-success">In Stock</span>
+                                                        <span class="badge bg-success-soft text-success rounded-pill px-2">Healthy</span>
                                                     <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-secondary border-0" data-bs-toggle="modal" data-bs-target="#inventoryModal" 
+                                                            onclick='prepareInventoryModal("edit", <?php echo json_encode($inv); ?>)'>
+                                                        <i class="bi bi-pencil-square"></i>
+                                                    </button>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -387,6 +418,78 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     </div>
     <?php endif; ?>
 
+    <!-- Pharmacist Inventory Management Modal -->
+    <?php if ($role === 'pharmacist'): ?>
+    <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/api/inventory/update.php" method="POST" class="modal-content border-0 shadow">
+                <input type="hidden" name="action" id="inv_action" value="add">
+                <input type="hidden" name="id" id="inv_id">
+                <div class="modal-header border-0">
+                    <h5 class="fw-bold mb-0" id="invModalTitle">Add New Drug</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="small text-muted fw-bold">Drug Name / Specification</label>
+                        <input type="text" name="drug_name" id="inv_name" class="form-control rounded-pill px-3" required>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="small text-muted fw-bold">Current Stock Level</label>
+                            <input type="number" name="stock_count" id="inv_stock" class="form-control rounded-pill px-3" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="small text-muted fw-bold">Unit Price (GHS)</label>
+                            <input type="number" step="0.01" name="unit_price" id="inv_price" class="form-control rounded-pill px-3" required>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="small text-muted fw-bold">Category</label>
+                        <select name="category" id="inv_category" class="form-select rounded-pill px-3">
+                            <option value="General">General</option>
+                            <option value="Antibiotics">Antibiotics</option>
+                            <option value="Painkillers">Painkillers</option>
+                            <option value="Antimalarials">Antimalarials</option>
+                            <option value="Injections">Injections</option>
+                            <option value="Surgical Supplies">Surgical Supplies</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Commit Inventory Update</button>
+                    <button type="submit" name="action" value="delete" id="inv_delete_btn" class="btn btn-link text-danger w-100 mt-2 d-none">Delete Drug Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script>
+        function prepareInventoryModal(action, data = null) {
+            const title = document.getElementById('invModalTitle');
+            const actionInput = document.getElementById('inv_action');
+            const idInput = document.getElementById('inv_id');
+            const delBtn = document.getElementById('inv_delete_btn');
+            
+            if (action === 'add') {
+                title.innerText = 'Add New Drug Stock';
+                actionInput.value = 'add';
+                idInput.value = '';
+                document.getElementById('inv_name').value = '';
+                document.getElementById('inv_stock').value = '0';
+                document.getElementById('inv_price').value = '0.00';
+                delBtn.classList.add('d-none');
+            } else {
+                title.innerText = 'Edit Drug Stock: ' + data.drug_name;
+                actionInput.value = 'update';
+                idInput.value = data.id;
+                document.getElementById('inv_name').value = data.drug_name;
+                document.getElementById('inv_stock').value = data.stock_count;
+                document.getElementById('inv_price').value = data.unit_price;
+                document.getElementById('inv_category').value = data.category || 'General';
+                delBtn.classList.remove('d-none');
+            }
+        }
+    </script>
+    <?php endif; ?>
+
     <!-- Pharmacist Dispense Modal -->
     <?php if ($role === 'pharmacist'): ?>
     <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
@@ -394,10 +497,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <form action="/api/prescriptions/dispense.php" method="POST" class="modal-content border-0 shadow">
                 <input type="hidden" name="prescription_id" id="prescription_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body p-4">
-                    <div class="mb-3"><label class="small text-muted">Batch Number</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" required></div>
-                    <div class="mb-3"><label class="small text-muted">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
-                    <button type="submit" class="btn btn-success w-100 rounded-pill">Confirm Dispense</button>
+                <div class="modal-body p-4 text-center">
+                    <i class="bi bi-box-seam display-4 text-success mb-3"></i>
+                    <p class="text-muted small px-3 mb-4">You are about to dispense this medication. This will decrement the inventory stock and generate an automated bill for the patient.</p>
+                    <div class="mb-3 text-start"><label class="small text-muted fw-bold">Batch Number / Trace ID</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" placeholder="e.g. BATCH-202X-001" required></div>
+                    <div class="mb-3 text-start"><label class="small text-muted fw-bold">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
+                    <button type="submit" class="btn btn-success w-100 rounded-pill py-2 fw-bold mt-2">Finalize & Dispense</button>
                 </div>
             </form>
         </div>

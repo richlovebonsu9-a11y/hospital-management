@@ -115,6 +115,13 @@ foreach ($appointments as $a) {
                 <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($name); ?>! 👋</h2>
                 <p class="text-muted mb-0">Welcome back to your health portal.</p>
             </div>
+            
+            <?php if (isset($_GET['ordered'])): ?>
+                <div class="alert alert-success border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
+                    <i class="bi bi-check-circle-fill me-2"></i> Medication order submitted to Pharmacy.
+                </div>
+            <?php endif; ?>
+
             <div class="d-flex align-items-center">
                 <a href="/emergency" class="btn btn-danger rounded-pill px-4 me-3"><i class="bi bi-exclamation-triangle-fill me-2"></i> EMERGENCY</a>
                 <?php if (!empty($notifications)): ?>
@@ -389,9 +396,20 @@ foreach ($appointments as $a) {
                                         <div class="d-flex justify-content-between align-items-center">
                                             <div>
                                                 <div class="fw-bold small"><?php echo htmlspecialchars($p['medication_name'] ?? 'Medication Info'); ?></div>
+                                                <div class="extra-small text-muted"><?php echo htmlspecialchars(($p['dosage'] ?? '') . " | " . ($p['frequency'] ?? '')); ?></div>
                                                 <small class="text-muted"><?php echo date('M d, Y', strtotime($p['created_at'])); ?></small>
                                             </div>
-                                            <span class="badge bg-primary rounded-pill px-2"><?php echo $p['status']; ?></span>
+                                            <div class="text-end">
+                                                <span class="badge <?php echo ($p['status'] === 'dispensed') ? 'bg-success' : 'bg-primary'; ?> rounded-pill px-2 mb-2 d-block"><?php echo $p['status']; ?></span>
+                                                <?php if ($p['status'] === 'pending' && !($p['is_ordered'] ?? false)): ?>
+                                                    <form action="/api/prescriptions/request_fulfillment.php" method="POST">
+                                                        <input type="hidden" name="prescription_id" value="<?php echo $p['id']; ?>">
+                                                        <button type="submit" class="btn btn-sm btn-outline-success rounded-pill extra-small py-0">Order for Pickup</button>
+                                                    </form>
+                                                <?php elseif ($p['is_ordered'] ?? false): ?>
+                                                    <span class="badge bg-warning-soft text-warning extra-small rounded-pill"><i class="bi bi-clock-history me-1"></i> Ordered</span>
+                                                <?php endif; ?>
+                                            </div>
                                         </div>
                                     </div>
                                 <?php endforeach; ?>

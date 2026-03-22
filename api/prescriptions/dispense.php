@@ -18,11 +18,70 @@ if (!$prescriptionId) {
 }
 
 $sb = new Supabase();
+
+// 1. Fetch Prescription Details
+$preRes = $sb->request('GET', '/rest/v1/prescriptions?id=eq.' . $prescriptionId . '&select=*,patient:patient_id(id)', null, true);
+if ($preRes['status'] !== 200 || empty($preRes['data'])) {
+    header('Location: /dashboard_staff.php?error=prescription_not_found'); exit;
+}
+$prescription = $preRes['data'][0];
+$patientId = $prescription['patient_id'] ?? $prescription['patient']['id'] ?? null;
+$drugId = $prescription['drug_id'] ?? null;
+
+// 2. Inventory & Billing Logic (If matched to an inventory item)
+if ($drugId && $patientId) {
+    $drugRes = $sb->request('GET', '/rest/v1/drug_inventory?id=eq.' . $drugId, null, true);
+    if ($drugRes['status'] === 200 && !empty($drugRes['data'])) {
+        $drug = $drugRes['data'][0];
+        $price = (float)($drug['unit_price'] ?? 0);
+        $stock = (int)($drug['stock_count'] ?? 0);
+
+        if ($stock > 0) {
+            // A. Decrement Stock
+            $sb->request('PATCH', '/rest/v1/drug_inventory?id=eq.' . $drugId, ['stock_count' => $stock - 1], true);
+
+            // B. Find or Create Unpaid Invoice
+            $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
+            
+            if ($invRes['status'] === 200 && !empty($invRes['data'])) {
+                $invoiceId = $invRes['data'][0]['id'];
+                $currentTotal = (float)$invRes['data'][0]['total_amount'];
+            } else {
+                // Create new invoice
+                $newInv = $sb->request('POST', '/rest/v1/invoices?select=id', ['patient_id' => $patientId, 'total_amount' => 0, 'status' => 'unpaid'], true);
+                if ($newInv['status'] === 201) {
+                    $invoiceId = $newInv['data'][0]['id'];
+                    $currentTotal = 0;
+                }
+            }
+
+            if (isset($invoiceId)) {
+                // C. Add Invoice Item
+                $sb->request('POST', '/rest/v1/invoice_items', [
+                    'invoice_id' => $invoiceId,
+                    'description' => 'Medication: ' . $drug['drug_name'],
+                    'quantity' => 1,
+                    'unit_price' => $price,
+                    'amount' => $price
+                ], true);
+
+                // D. Update Invoice Total
+                $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $price], true);
+            }
+        } else {
+             // Handle out of stock if needed, but normally UI might prevent this.
+             header('Location: /dashboard_staff.php?error=out_of_stock'); exit;
+        }
+    }
+}
+
+// 3. Complete Prescription
 $res = $sb->request('PATCH', '/rest/v1/prescriptions?id=eq.' . $prescriptionId, [
     'status' => 'dispensed',
     'batch_number' => $batch,
     'dispense_notes' => $notes,
-    'dispensed_by' => $u['id']
+    'dispensed_by' => $u['id'],
+    'dispensed_at' => date('Y-m-d H:i:s')
 ], true);
 
 header('Location: /dashboard_staff.php?dispensed=1');

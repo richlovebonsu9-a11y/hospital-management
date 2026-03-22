@@ -21,7 +21,11 @@ $weight = $_POST['weight'] ?? null;
 $pulse = $_POST['pulse'] ?? null;
 $notes = $_POST['notes'] ?? '';
 $diagnosis = $_POST['diagnosis'] ?? '';
-$meds = $_POST['medication_details'] ?? '';
+$meds = $_POST['medication_details'] ?? ''; // Legacy fallback
+$drugId = $_POST['drug_id'] ?? '';
+$dosage = $_POST['dosage'] ?? '';
+$frequency = $_POST['frequency'] ?? '';
+$duration = $_POST['duration'] ?? '';
 $admission = isset($_POST['recommend_admission']) ? 'yes' : 'no';
 
 if (!$patientId) {
@@ -70,15 +74,30 @@ if ($role === 'doctor') {
         'recommend_admission' => $admission
     ], true); // useServiceKey = true
 
-    if ($consultRes['status'] === 201 && !empty($consultRes['data']) && !empty($meds)) {
+    if ($consultRes['status'] === 201 && !empty($consultRes['data'])) {
         $consultId = $consultRes['data'][0]['id'];
-        // Save Prescription linked to this consultation
-        $sb->request('POST', '/rest/v1/prescriptions', [
-            'consultation_id' => $consultId,
-            'patient_id' => $patientId, // Added for direct visibility
-            'medication_name' => $meds, 
-            'status' => 'pending'
-        ], true); // useServiceKey = true
+        
+        $medName = $meds; // fallback
+        if ($drugId) {
+            $drugRes = $sb->request('GET', '/rest/v1/drug_inventory?id=eq.' . $drugId . '&select=drug_name', null, true);
+            if ($drugRes['status'] === 200 && !empty($drugRes['data'])) {
+                $medName = $drugRes['data'][0]['drug_name'];
+            }
+        }
+
+        if (!empty($medName)) {
+            // Save Prescription linked to this consultation
+            $sb->request('POST', '/rest/v1/prescriptions', [
+                'consultation_id' => $consultId,
+                'patient_id' => $patientId,
+                'drug_id' => $drugId ?: null,
+                'medication_name' => $medName,
+                'dosage' => $dosage,
+                'frequency' => $frequency,
+                'duration' => $duration,
+                'status' => 'pending'
+            ], true);
+        }
     }
     
     // Conclude formal appointment queue representation

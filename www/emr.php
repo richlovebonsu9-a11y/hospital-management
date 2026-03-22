@@ -43,6 +43,10 @@ if (!$canView) {
 $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . urlencode($targetPatientId) . '&select=*', null, true);
 $patient = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : null;
 
+// Fetch Drugs for Prescription
+$drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
+$availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
+
 if (!$patient) {
     ?>
     <!DOCTYPE html>
@@ -373,6 +377,37 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                             <label class="small fw-bold text-muted mb-1">Diagnosis</label>
                             <input type="text" name="diagnosis" class="form-control rounded-4" placeholder="Primary diagnosis..." required>
                         </div>
+                        
+                        <div class="card bg-light border-0 rounded-4 mb-3">
+                            <div class="card-body p-3">
+                                <h6 class="fw-bold mb-3"><i class="bi bi-capsule me-2"></i> Prescribe Medication</h6>
+                                <div class="row g-2 mb-3">
+                                    <div class="col-md-7">
+                                        <select name="drug_id" class="form-select rounded-4">
+                                            <option value="">-- Select Medication from Stock --</option>
+                                            <?php foreach ($availableDrugs as $drug): ?>
+                                                <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
+                                                    <?php echo htmlspecialchars($drug['drug_name']); ?> 
+                                                    (<?php echo $drug['stock_count']; ?> in stock)
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <input type="text" name="dosage" class="form-control rounded-4" placeholder="Dosage (e.g. 500mg)">
+                                    </div>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-md-6">
+                                        <input type="text" name="frequency" class="form-control rounded-4" placeholder="Frequency (e.g. 2x Daily)">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="text" name="duration" class="form-control rounded-4" placeholder="Duration (e.g. 7 Days)">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="small fw-bold text-muted mb-1">Clinical Notes</label>
                             <textarea name="notes" class="form-control rounded-4" rows="4" placeholder="Detailed symptoms and observations..." required></textarea>
