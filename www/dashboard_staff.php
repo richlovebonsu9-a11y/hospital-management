@@ -36,13 +36,36 @@ $assignedTasks = ($assignedApptsRes['status'] === 200) ? $assignedApptsRes['data
 // 4. Role-specific items (Prescriptions for Pharmacists, Lab for Techs)
 $roleTasks = [];
 if ($role === 'pharmacist') {
-    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,patient:patient_id(name)&order=created_at.asc', null, true);
-    $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
+    // Fetch pending prescriptions WITHOUT join (FK may not be registered in Supabase)
+    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*&order=created_at.asc', null, true);
+    $roleTasks = ($res['status'] === 200) ? ($res['data'] ?? []) : [];
+
+    // Enrich each prescription with the patient name via a separate lookup
+    foreach ($roleTasks as &$rx) {
+        if (!empty($rx['patient_id'])) {
+            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $rx['patient_id'] . '&select=name', null, true);
+            $rx['patient_name'] = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
+        } else {
+            $rx['patient_name'] = 'Patient';
+        }
+    }
+    unset($rx);
+
     $invRes = $sb->request('GET', '/rest/v1/drug_inventory?select=*&order=drug_name.asc', null, true);
     $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
 } elseif ($role === 'technician') {
-    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*,patient:patient_id(name)&order=created_at.asc', null, true);
-    $roleTasks = ($res['status'] === 200) ? $res['data'] : [];
+    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*&order=created_at.asc', null, true);
+    $roleTasks = ($res['status'] === 200) ? ($res['data'] ?? []) : [];
+    // Enrich with patient name
+    foreach ($roleTasks as &$lr) {
+        if (!empty($lr['patient_id'])) {
+            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $lr['patient_id'] . '&select=name', null, true);
+            $lr['patient_name'] = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
+        } else {
+            $lr['patient_name'] = 'Patient';
+        }
+    }
+    unset($lr);
 }
 
 $vitalsPatients = [];
@@ -54,11 +77,10 @@ if ($role === 'nurse') {
     }
 }
 
-// Combine all tasks. Use ID as key to deduplicate (assigned tasks override dept ones)
+// Combine appointment-based tasks. Prescriptions/lab tasks are kept in $roleTasks separately.
 $tasksMap = [];
 foreach ($deptTasks as $t) $tasksMap[$t['id']] = $t;
 foreach ($assignedTasks as $t) $tasksMap[$t['id']] = $t;
-foreach ($roleTasks as $t) $tasksMap[$t['id']] = $t;
 
 $tasks = array_values($tasksMap);
 // Sort by date/created_at
@@ -198,9 +220,15 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                             </tr>
                         </thead>
                         <tbody>
-                            <?php if (empty($tasks)): ?>
+                            <?php 
+                            // Show role-specific tasks (prescriptions / lab requests) first for pharmacists/technicians
+                            $allDisplayTasks = (in_array($role, ['pharmacist', 'technician'])) ? $roleTasks : $tasks;
+
+                            if (empty($allDisplayTasks) && empty($tasks)): ?>
                                 <tr><td colspan="4" class="text-center py-4 text-muted">No pending tasks in your queue.</td></tr>
-                            <?php endif; foreach ($tasks as $t): 
+                            <?php endif; 
+
+                            foreach ($allDisplayTasks as $t):
                                 $isAssigned = (($t['assigned_to'] ?? '') === $user['id']);
                                 $isUnassignedNurseTask = ($role === 'nurse' && empty($t['assigned_to']) && isset($t['department']) && $t['department'] === ($user['user_metadata']['department'] ?? 'General OPD'));
                                 $canProcess = ($isAssigned || $isUnassignedNurseTask || in_array($role, ['pharmacist', 'technician']));
@@ -210,7 +238,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                 <td>
                                     <?php 
                                     if (isset($t['appointment_date'])) {
-                                        // It's an appointment
+                                        // Appointment task (nurse)
                                         if ($isAssigned) {
                                             echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . htmlspecialchars($t['patient']['name'] ?? 'Patient');
                                             echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
@@ -222,13 +250,15 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                             echo "<div class='extra-small text-muted'>Awaiting admin assignment for full details.</div>";
                                         }
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
-                                        $pName = $t['patient']['name'] ?? 'Patient';
+                                        // Prescription task — use patient_name from server-side enrichment
+                                        $pName = $t['patient_name'] ?? ($t['patient']['name'] ?? 'Patient');
                                         $priority = ($t['is_ordered'] ?? false) ? "<span class='badge bg-warning text-dark me-2 small'><i class='bi bi-megaphone-fill me-1'></i> ORDERED</span>" : "";
-                                        echo $priority . "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> x <span class='badge bg-primary rounded-pill'>" . ($t['quantity'] ?? 1) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
+                                        $drugLabel = !empty($t['medication_name']) ? htmlspecialchars($t['medication_name']) : 'Medication';
+                                        echo $priority . "Dispense: <span class='fw-bold'>{$drugLabel}</span> &times; <span class='badge bg-primary rounded-pill'>" . ($t['quantity'] ?? 1) . "</span> for <span class='fw-bold text-primary'>{$pName}</span>";
                                         echo "<div class='extra-small text-muted'>" . htmlspecialchars(($t['dosage'] ?? '') . " | " . ($t['frequency'] ?? '') . " | " . ($t['duration'] ?? '')) . "</div>";
                                     } elseif ($role === 'technician') {
-                                        $pName = $t['patient']['name'] ?? 'Patient';
-                                        echo "Test: <span class='fw-bold'>" . htmlspecialchars($t['test_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
+                                        $pName = $t['patient_name'] ?? ($t['patient']['name'] ?? 'Patient');
+                                        echo "Test: <span class='fw-bold'>" . htmlspecialchars($t['test_name'] ?? 'Lab Test') . "</span> for <span class='fw-bold text-primary'>{$pName}</span>";
                                     }
                                     ?>
                                 </td>
