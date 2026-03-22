@@ -39,7 +39,7 @@ $healthTips = [
                                 </div>
                                 <div>
                                     <h6 class="fw-bold text-white mb-1" style="font-size: 1rem;"><?php echo htmlspecialchars($item['title']); ?></h6>
-                                    <p class="mb-0 text-white-50" style="font-size: 0.8rem; line-height: 1.4;"><?php echo htmlspecialchars($item['tip']); ?></p>
+                                    <p class="mb-0 text-white" style="font-size: 0.9rem; line-height: 1.5; font-weight: 500; opacity: 0.95;"><?php echo htmlspecialchars($item['tip']); ?></p>
                                 </div>
                             </div>
                         </div>
