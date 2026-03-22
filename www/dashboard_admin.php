@@ -1099,10 +1099,6 @@ foreach ($pendingAdmissionsRaw as $c) {
             }
         }
 
-            const assignModal = new bootstrap.Modal(document.getElementById('assignStaffModal'));
-            assignModal.show();
-        }
-
         function openAssignModal(apptId, department) {
             document.getElementById('assign_appt_id').value = apptId;
             document.getElementById('assign_dept_display').value = department;
