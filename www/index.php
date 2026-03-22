@@ -39,7 +39,7 @@ $title = "Kobby Moore Hospital - " . ucfirst($page);
                         </div>
                     </div>
                     <div class="col-lg-7 text-center">
-                        <img src="https://images.unsplash.com/photo-1559839734-2b71f1536783?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80" alt="Doctor" class="img-fluid rounded-4 shadow-lg" style="max-height: 500px; width: auto;">
+                        <img src="/assets/img/doctor_hero.png" alt="Doctor" class="img-fluid rounded-4 shadow-lg" style="max-height: 500px; object-fit: cover; width: auto;">
                     </div>
                 </div>
             </div>
