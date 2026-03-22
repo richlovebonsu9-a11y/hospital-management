@@ -14,8 +14,9 @@ session_start();
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .emergency-header { background: #dc3545; color: white; padding: 40px 0; }
-        .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; min-width: 130px; }
+        .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; min-width: 140px; }
         .severity-btn:hover { transform: translateY(-5px); }
+        .severity-btn.active { border-color: white; transform: scale(1.1); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
         input[name="severity"]:checked + .severity-btn { border-color: white; transform: scale(1.1); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
     </style>
 </head>
@@ -36,25 +37,25 @@ session_start();
                             <label class="form-label fw-bold h5 mb-3">Select Severity</label>
                             <div class="d-flex justify-content-center gap-3">
                                 <div class="severity-option">
-                                    <input type="radio" name="severity" value="medium" id="sev_medium" class="opacity-0 position-absolute" style="width:0; height:0;" required>
-                                    <label for="sev_medium" class="severity-btn bg-warning p-3 rounded-4 text-white text-center d-block">
+                                    <input type="radio" name="severity" value="medium" id="sev_medium" class="d-none" required>
+                                    <div onclick="selectSeverity('medium', this)" class="severity-btn bg-warning p-3 rounded-4 text-white text-center d-block">
                                         <i class="bi bi-heart-pulse h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">Medium</div>
-                                    </label>
+                                    </div>
                                 </div>
                                 <div class="severity-option">
-                                    <input type="radio" name="severity" value="high" id="sev_high" class="opacity-0 position-absolute" style="width:0; height:0;">
-                                    <label for="sev_high" class="severity-btn bg-orange p-3 rounded-4 text-white text-center d-block" style="background: #fd7e14;">
+                                    <input type="radio" name="severity" value="high" id="sev_high" class="d-none">
+                                    <div onclick="selectSeverity('high', this)" class="severity-btn bg-orange p-3 rounded-4 text-white text-center d-block" style="background: #fd7e14;">
                                         <i class="bi bi-activity h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">High</div>
-                                    </label>
+                                    </div>
                                 </div>
                                 <div class="severity-option">
-                                    <input type="radio" name="severity" value="critical" id="sev_critical" class="opacity-0 position-absolute" style="width:0; height:0;">
-                                    <label for="sev_critical" class="severity-btn bg-danger p-3 rounded-4 text-white text-center d-block">
+                                    <input type="radio" name="severity" value="critical" id="sev_critical" class="d-none">
+                                    <div onclick="selectSeverity('critical', this)" class="severity-btn bg-danger p-3 rounded-4 text-white text-center d-block">
                                         <i class="bi bi-shield-fill-exclamation h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">Critical</div>
-                                    </label>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -84,5 +85,25 @@ session_start();
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function selectSeverity(val, el) {
+            // Check the hidden radio
+            const radio = document.querySelector(`input[value="${val}"]`);
+            if (radio) radio.checked = true;
+            
+            // Update UI
+            document.querySelectorAll('.severity-btn').forEach(btn => btn.classList.remove('active'));
+            el.classList.add('active');
+        }
+
+        // Initialize if any is checked (e.g. after validation error)
+        document.addEventListener('DOMContentLoaded', () => {
+            const checked = document.querySelector('input[name="severity"]:checked');
+            if (checked) {
+                const btn = checked.nextElementSibling;
+                if (btn) btn.classList.add('active');
+            }
+        });
+    </script>
 </body>
 </html>

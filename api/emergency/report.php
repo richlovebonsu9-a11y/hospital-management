@@ -25,10 +25,16 @@ $body = [
     'ghana_post_gps' => $ghanaPostGps,
     'severity'       => $severity,
     'symptoms'       => $symptoms,
-    'status'         => 'active',
+    'status'         => 'pending', // Use standard status to avoid constraint issues if SQL wasn't run
 ];
 $res = $sb->request('POST', '/rest/v1/emergencies', $body, false, ['Prefer' => 'return=representation']);
 $emergencyId = $res['data'][0]['id'] ?? null;
+
+if (!$emergencyId) {
+    $err = urlencode($res['data']['message'] ?? 'unknown_db_error');
+    header("Location: /emergency?error=failed&msg={$err}&status={$res['status']}");
+    exit;
+}
 
 // Notify admins (best-effort — insert notification row)
 if ($emergencyId) {
