@@ -98,6 +98,32 @@ if ($role === 'doctor') {
                 'status' => 'pending'
             ], true);
         }
+
+        // TRIGGER ADMISSION NOTIFICATION
+        if ($admission === 'yes') {
+            $msg = "Admission Recommended: Dr. " . ($u['user_metadata']['name'] ?? 'Staff') . " has recommended your admission. Please check your dashboard to approve and secure a bed.";
+            
+            // 1. Notify Patient
+            $sb->request('POST', '/rest/v1/notifications', [
+                'user_id' => $patientId,
+                'message' => $msg,
+                'type' => 'admission_request',
+                'related_id' => $consultId
+            ], true);
+
+            // 2. Notify Guardians
+            $gLinksRes = $sb->request('GET', '/rest/v1/guardians?patient_id=eq.' . $patientId . '&status=eq.approved', null, true);
+            if ($gLinksRes['status'] === 200) {
+                foreach ($gLinksRes['data'] as $link) {
+                    $sb->request('POST', '/rest/v1/notifications', [
+                        'user_id' => $link['guardian_id'],
+                        'message' => "Medical Alert: Admission has been recommended for your ward. Please coordinate for approval.",
+                        'type' => 'admission_request',
+                        'related_id' => $consultId
+                    ], true);
+                }
+            }
+        }
     }
     
     // Conclude formal appointment queue representation

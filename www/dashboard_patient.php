@@ -38,8 +38,12 @@ $pendingLinksRes = $sb->request('GET', '/rest/v1/guardians?patient_id=eq.' . $us
 $pendingLinks = ($pendingLinksRes['status'] === 200) ? $pendingLinksRes['data'] : [];
 
 // 6. Fetch System Notifications (New Assignments, etc.)
-$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=5', null, true);
+$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=10', null, true);
 $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
+
+// 7. Fetch Available Wards for Admission
+$wardsRes = $sb->request('GET', '/rest/v1/wards?select=*', null, true);
+$wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
 
 // Find next appointment for the overview card
 $nextAppt = null;
@@ -137,7 +141,15 @@ foreach ($appointments as $a) {
                             <?php foreach($notifications as $n): ?>
                                 <div class="p-2 border-bottom border-light mb-2">
                                     <p class="small mb-1"><?php echo htmlspecialchars($n['message']); ?></p>
-                                    <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                                        <?php if (($n['type'] ?? '') === 'admission_request' && !($n['is_read'] ?? false)): ?>
+                                            <button class="btn btn-primary btn-sm rounded-pill extra-small py-0 px-2" 
+                                                    onclick="openAdmissionModal('<?php echo $n['related_id']; ?>')">
+                                                Secure Bed
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
                             <?php endforeach; ?>
                         </div>
@@ -537,9 +549,62 @@ foreach ($appointments as $a) {
         </div>
     </div>
 
+    <!-- Admission Approval Modal -->
+    <div class="modal fade" id="admissionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Hospital Admission Approval</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/admission/approve.php" method="POST">
+                        <input type="hidden" name="consultation_id" id="modal_consultation_id">
+                        <p class="text-muted small mb-4">You have been recommended for admission. Please select a ward to secure your bed and finalize the process.</p>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Available Wards</label>
+                            <?php foreach ($wards as $w): 
+                                $isFull = ($w['occupied_beds'] >= $w['total_beds']);
+                                $free = $w['total_beds'] - $w['occupied_beds'];
+                            ?>
+                                <div class="form-check border rounded-3 p-3 mb-2 <?php echo $isFull ? 'opacity-50' : ''; ?>" 
+                                     style="cursor: <?php echo $isFull ? 'not-allowed' : 'pointer'; ?>">
+                                    <input class="form-check-input ms-0 me-3" type="radio" name="ward_id" 
+                                           id="ward_<?php echo $w['id']; ?>" value="<?php echo $w['id']; ?>" 
+                                           <?php echo $isFull ? 'disabled' : 'required'; ?>>
+                                    <label class="form-check-label w-100" for="ward_<?php echo $w['id']; ?>">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <span class="fw-bold d-block"><?php echo htmlspecialchars($w['ward_name']); ?></span>
+                                                <small class="text-muted"><?php echo $free; ?> beds free</small>
+                                            </div>
+                                            <span class="fw-bold text-primary">₵ <?php echo number_format($w['admission_fee'] ?? 0, 2); ?></span>
+                                        </div>
+                                    </label>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+
+                        <div class="alert alert-info border-0 shadow-sm rounded-3 py-2 px-3 extra-small">
+                            <i class="bi bi-info-circle-fill me-2"></i> Initial bed fee will be added to your current invoice upon approval.
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-2 shadow-sm">Confirm & Secure Bed</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        function openAdmissionModal(consultId) {
+            document.getElementById('modal_consultation_id').value = consultId;
+            new bootstrap.Modal(document.getElementById('admissionModal')).show();
+        }
+
         function navigateTo(sectionId) {
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');

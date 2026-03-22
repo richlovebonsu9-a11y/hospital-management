@@ -91,6 +91,10 @@ $allAppointments = ($appointmentsRes['status'] === 200) ? $appointmentsRes['data
 // Emergency Status Calc
 $highSeverityCount = 0;
 foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'] ?? '') !== 'resolved') $highSeverityCount++;
+
+// 6. Fetch Ward Data for Bed Management
+$wardsRes = $sb->request('GET', '/rest/v1/wards?select=*&order=ward_name.asc', null, true);
+$wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -465,15 +469,34 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
         <!-- BED MANAGEMENT SECTION -->
         <div id="section-beds" class="dashboard-section d-none">
             <div class="row g-4">
-                <div class="col-md-6 mb-4">
-                    <div class="card border-0 shadow-sm p-4">
-                        <h5 class="fw-bold mb-4">Ward Management</h5>
-                        <div class="d-flex justify-content-between mb-2"><span>ICU Occupancy</span><span class="fw-bold text-danger">18 / 20</span></div>
-                        <div class="progress mb-4" style="height: 10px;"><div class="progress-bar bg-danger" style="width: 90%"></div></div>
-                        <div class="d-flex justify-content-between mb-2"><span>Maternity Occupancy</span><span class="fw-bold text-primary">32 / 40</span></div>
-                        <div class="progress" style="height: 10px;"><div class="progress-bar bg-primary" style="width: 80%"></div></div>
+                <?php foreach ($wards as $w): 
+                    $occupied = $w['occupied_beds'];
+                    $total = $w['total_beds'];
+                    $perc = ($total > 0) ? ($occupied / $total) * 100 : 0;
+                    $colorClass = ($perc > 85) ? 'bg-danger' : (($perc > 60) ? 'bg-warning' : 'bg-primary');
+                ?>
+                <div class="col-md-4 mb-4">
+                    <div class="card border-0 shadow-sm p-4 h-100">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($w['ward_name']); ?></h6>
+                            <span class="badge <?php echo str_replace('bg-', 'text-', $colorClass); ?> bg-light rounded-pill">
+                                ₵ <?php echo number_format($w['admission_fee'], 0); ?>/bed
+                            </span>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 small">
+                            <span>Occupancy</span>
+                            <span class="fw-bold"><?php echo $occupied; ?> / <?php echo $total; ?></span>
+                        </div>
+                        <div class="progress mb-3" style="height: 8px;">
+                            <div class="progress-bar <?php echo $colorClass; ?>" style="width: <?php echo $perc; ?>%"></div>
+                        </div>
+                        <div class="d-flex justify-content-between extra-small text-muted">
+                            <span><?php echo $total - $occupied; ?> Beds Available</span>
+                            <span><?php echo round($perc); ?>% Full</span>
+                        </div>
                     </div>
                 </div>
+                <?php endforeach; ?>
             </div>
         </div>
 
