@@ -27,7 +27,7 @@ $body = [
     'symptoms'       => $symptoms,
     'status'         => 'pending', // Use standard status to avoid constraint issues if SQL wasn't run
 ];
-$res = $sb->request('POST', '/rest/v1/emergencies', $body, false, ['Prefer' => 'return=representation']);
+$res = $sb->request('POST', '/rest/v1/emergencies', $body, true, ['Prefer' => 'return=representation']);
 $emergencyId = $res['data'][0]['id'] ?? null;
 
 if (!$emergencyId) {
