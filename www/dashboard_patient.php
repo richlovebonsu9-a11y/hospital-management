@@ -142,7 +142,7 @@ foreach ($appointments as $a) {
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar p-4">
         <div class="d-flex align-items-center mb-5">
-            <div class="bg-primary rounded-circle me-2" style="width: 32px; height: 32px;"></div>
+            <img src="/assets/img/logo.png" alt="KM Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
             <h4 class="fw-bold mb-0 text-secondary">Kobby Moore Hospital</h4>
         </div>
 
