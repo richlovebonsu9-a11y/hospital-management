@@ -404,13 +404,17 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                             <input type="text" name="meds[0][dosage]" class="form-control rounded-4" placeholder="Dosage (e.g. 500mg)">
                                         </div>
                                     </div>
-                                    <div class="row g-2">
+                                    <div class="row g-2 mb-2">
                                         <div class="col-md-6">
                                             <input type="text" name="meds[0][frequency]" class="form-control rounded-4" placeholder="Frequency (e.g. 2x Daily)">
                                         </div>
                                         <div class="col-md-6">
                                             <input type="text" name="meds[0][duration]" class="form-control rounded-4" placeholder="Duration (e.g. 7 Days)">
                                         </div>
+                                    </div>
+                                    <div>
+                                        <label class="small text-muted mb-1 d-block">Total Quantity to Dispense</label>
+                                        <input type="number" name="meds[0][quantity]" class="form-control rounded-4" placeholder="e.g. 10" min="1" value="1">
                                     </div>
                                 </div>
                             </div>
@@ -496,16 +500,16 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
             // Show remove button
             newItem.querySelector('.remove-med-btn').classList.remove('d-none');
             
-            // Clear inputs
-            newItem.querySelectorAll('input').forEach(input => input.value = '');
+            // Clear inputs but keep quantity default at 1
             newItem.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+            newItem.querySelectorAll('input[type="text"]').forEach(input => input.value = '');
+            const qtyInput = newItem.querySelector('input[type="number"]');
+            if (qtyInput) qtyInput.value = '1';
             
-            // Update names
-            const inputs = newItem.querySelectorAll('[name^="meds[0]"]');
-            inputs.forEach(input => {
-                const oldName = input.getAttribute('name');
-                const newName = oldName.replace('meds[0]', `meds[${medCount}]`);
-                input.setAttribute('name', newName);
+            // Rename all named fields from meds[0] to meds[N]
+            newItem.querySelectorAll('[name^="meds["]').forEach(el => {
+                const newName = el.getAttribute('name').replace(/meds\[\d+\]/, `meds[${medCount}]`);
+                el.setAttribute('name', newName);
             });
             
             container.appendChild(newItem);

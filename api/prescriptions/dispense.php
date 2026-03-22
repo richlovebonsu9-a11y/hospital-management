@@ -38,69 +38,74 @@ if ($drugId && $patientId) {
 
         if ($stock > 0) {
             $qty = (int)($prescription['quantity'] ?? 1);
-            if ($qty > $stock) { $qty = $stock; } // Cap at available stock if something went wrong
+            if ($qty > $stock) { $qty = $stock; } // Cap at available stock
 
-            // A. Decrement Stock
+            // A. Decrement Stock (always done on dispense)
             $sb->request('PATCH', '/rest/v1/drug_inventory?id=eq.' . $drugId, ['stock_count' => $stock - $qty], true);
 
-            // B. NHIS DISCOUNT CHECK
-            $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
-            $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
-            $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
-            $discountMultiplier = $hasNHIS ? 0.5 : 1.0;
-            $chargedPrice = ($basePrice * $qty) * $discountMultiplier;
+            // B. Billing: only add invoice item if prescription was NOT from a consultation
+            // (consultation-linked prescriptions are billed immediately in save.php to avoid double-charging)
+            $wasConsultationPrescription = !empty($prescription['consultation_id']);
 
-            // C. Find or Create Unpaid Invoice
-            $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
-            
-            $isNewInvoice = false;
-            if ($invRes['status'] === 200 && !empty($invRes['data'])) {
-                $invoiceId = $invRes['data'][0]['id'];
-                $currentTotal = (float)$invRes['data'][0]['total_amount'];
-            } else {
-                // Create new invoice
-                $newInv = $sb->request('POST', '/rest/v1/invoices', [
-                    'patient_id' => $patientId, 
-                    'total_amount' => 0, 
-                    'status' => 'unpaid'
-                ], true, ['Prefer' => 'return=representation']);
+            if (!$wasConsultationPrescription) {
+                // NHIS DISCOUNT CHECK
+                $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
+                $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
+                $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
+                $discountMultiplier = $hasNHIS ? 0.5 : 1.0;
+                $chargedPrice = ($basePrice * $qty) * $discountMultiplier;
+
+                // Find or Create Unpaid Invoice
+                $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
                 
-                if ($newInv['status'] === 201 && !empty($newInv['data'])) {
-                    $invoiceId = $newInv['data'][0]['id'];
-                    $currentTotal = 0;
-                    $isNewInvoice = true;
+                $isNewInvoice = false;
+                if ($invRes['status'] === 200 && !empty($invRes['data'])) {
+                    $invoiceId = $invRes['data'][0]['id'];
+                    $currentTotal = (float)$invRes['data'][0]['total_amount'];
+                } else {
+                    $newInv = $sb->request('POST', '/rest/v1/invoices', [
+                        'patient_id' => $patientId, 
+                        'total_amount' => 0, 
+                        'status' => 'unpaid'
+                    ], true, ['Prefer' => 'return=representation']);
+                    
+                    if ($newInv['status'] === 201 && !empty($newInv['data'])) {
+                        $invoiceId = $newInv['data'][0]['id'];
+                        $currentTotal = 0;
+                        $isNewInvoice = true;
+                    }
                 }
-            }
 
-            if (isset($invoiceId)) {
-                $addedTotal = 0;
-                
-                // D. Add Hospital Service Fee (₵50) if it's a new invoice
-                if ($isNewInvoice) {
-                    $hospFeeBase = 50.00;
-                    $hospFeeCharged = $hospFeeBase * $discountMultiplier;
+                if (isset($invoiceId)) {
+                    $addedTotal = 0;
+                    
+                    // Add Hospital Service Fee (₵50) if it's a brand new invoice
+                    if ($isNewInvoice) {
+                        $hospFeeBase = 50.00;
+                        $hospFeeCharged = $hospFeeBase * $discountMultiplier;
+                        $sb->request('POST', '/rest/v1/invoice_items', [
+                            'invoice_id' => $invoiceId,
+                            'description' => 'Hospital Service Fee (Standard)' . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+                            'quantity' => 1,
+                            'unit_price' => $hospFeeBase,
+                            'amount' => $hospFeeCharged
+                        ], true);
+                        $addedTotal += $hospFeeCharged;
+                    }
+
+                    // Add Medication Item
                     $sb->request('POST', '/rest/v1/invoice_items', [
                         'invoice_id' => $invoiceId,
-                        'description' => 'Hospital Service Fee (Standard)',
-                        'quantity' => 1,
-                        'unit_price' => $hospFeeBase,
-                        'amount' => $hospFeeCharged
+                        'description' => 'Medication (Walk-in): ' . $drug['drug_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+                        'quantity' => $qty,
+                        'unit_price' => $basePrice,
+                        'amount' => $chargedPrice
                     ], true);
-                    $addedTotal += $hospFeeCharged;
+                    $addedTotal += $chargedPrice;
+
+                    // Update Invoice Total
+                    $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $addedTotal], true);
                 }
-
-                // E. Add Medication Item
-                $sb->request('POST', '/rest/v1/invoice_items', [
-                    'invoice_id' => $invoiceId,
-                    'description' => 'Medication: ' . $drug['drug_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
-                    'quantity' => $qty,
-                    'unit_price' => $basePrice,
-                    'amount' => $chargedPrice
-                ], true);
-                $addedTotal += $chargedPrice;
-
-                // F. Update Invoice Total
-                $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $addedTotal], true);
             }
         } else {
              header('Location: /dashboard_staff.php?error=out_of_stock'); exit;

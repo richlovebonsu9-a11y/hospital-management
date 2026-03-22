@@ -75,18 +75,42 @@ if ($role === 'doctor') {
     if ($consultRes['status'] === 201 && !empty($consultRes['data'])) {
         $consultId = $consultRes['data'][0]['id'];
         
+        // For billing, fetch NHIS status once before the prescription loop
+        $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
+        $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
+        $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
+        $discountMultiplier = $hasNHIS ? 0.5 : 1.0;
+
+        // Find or create unpaid invoice
+        $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
+        if ($invRes['status'] === 200 && !empty($invRes['data'])) {
+            $invoiceId = $invRes['data'][0]['id'];
+            $currentInvoiceTotal = (float)$invRes['data'][0]['total_amount'];
+        } else {
+            $newInv = $sb->request('POST', '/rest/v1/invoices', [
+                'patient_id' => $patientId, 'total_amount' => 0, 'status' => 'unpaid'
+            ], true, ['Prefer' => 'return=representation']);
+            $invoiceId = ($newInv['status'] === 201 && !empty($newInv['data'])) ? $newInv['data'][0]['id'] : null;
+            $currentInvoiceTotal = 0;
+        }
+
+        $addedMedTotal = 0;
+
         if (is_array($meds)) {
             foreach ($meds as $m) {
                 $mDrugId = $m['drug_id'] ?? '';
                 $mDosage = $m['dosage'] ?? '';
                 $mFreq = $m['frequency'] ?? '';
                 $mDuration = $m['duration'] ?? '';
+                $mQty = (int)($m['quantity'] ?? 1);
                 $mMedName = '';
+                $mUnitPrice = 0;
 
                 if ($mDrugId) {
-                    $drugRes = $sb->request('GET', '/rest/v1/drug_inventory?id=eq.' . $mDrugId . '&select=drug_name', null, true);
+                    $drugRes = $sb->request('GET', '/rest/v1/drug_inventory?id=eq.' . $mDrugId . '&select=drug_name,unit_price', null, true);
                     if ($drugRes['status'] === 200 && !empty($drugRes['data'])) {
                         $mMedName = $drugRes['data'][0]['drug_name'];
+                        $mUnitPrice = (float)($drugRes['data'][0]['unit_price'] ?? 0);
                     }
                 }
 
@@ -100,11 +124,29 @@ if ($role === 'doctor') {
                         'dosage' => $mDosage,
                         'frequency' => $mFreq,
                         'duration' => $mDuration,
-                        'quantity' => (int)($m['quantity'] ?? 1),
+                        'quantity' => $mQty,
                         'status' => 'pending'
                     ], true);
+
+                    // Add to billing invoice immediately if drug has a price
+                    if ($invoiceId && $mUnitPrice > 0) {
+                        $chargedMedAmount = ($mUnitPrice * $mQty) * $discountMultiplier;
+                        $sb->request('POST', '/rest/v1/invoice_items', [
+                            'invoice_id' => $invoiceId,
+                            'description' => 'Medication (Prescribed): ' . $mMedName . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+                            'quantity' => $mQty,
+                            'unit_price' => $mUnitPrice,
+                            'amount' => $chargedMedAmount
+                        ], true);
+                        $addedMedTotal += $chargedMedAmount;
+                    }
                 }
             }
+        }
+
+        // Update invoice total with new medication charges
+        if ($invoiceId && $addedMedTotal > 0) {
+            $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentInvoiceTotal + $addedMedTotal], true);
         }
 
         // TRIGGER ADMISSION NOTIFICATION OR AUTO-ASSIGNMENT
