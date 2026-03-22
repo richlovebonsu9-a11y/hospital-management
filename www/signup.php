@@ -11,7 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="d-flex align-items-center py-5 min-vh-100" style="background-color: var(--bg-light); position: relative; overflow: hidden;">
+<body class="d-flex align-items-center py-5 min-vh-100" style="background-color: var(--bg-light); position: relative; overflow-x: hidden;">
     <!-- Vibrant Background Elements -->
     <div class="position-absolute" style="top: -15%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, var(--theme-blue-soft) 0%, transparent 70%); z-index: 0; animation: pulse-blue 15s infinite alternate;"></div>
     <div class="position-absolute" style="bottom: -20%; left: -10%; width: 70vw; height: 70vw; background: radial-gradient(circle, var(--theme-green-soft) 0%, transparent 70%); z-index: 0; animation: pulse-blue 12s infinite alternate-reverse;"></div>

@@ -49,6 +49,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'role' => $role,
                 'department' => $department
             ], true);
+            
+            $sb->request('POST', '/rest/v1/audit_log', [
+                'user_id' => $user['id'] ?? null,
+                'user_role' => 'admin',
+                'action' => 'ADD_STAFF',
+                'details' => "Added new $role ($name) to $department",
+                'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+            ], true);
         }
         echo json_encode(['success' => true]);
     } else {

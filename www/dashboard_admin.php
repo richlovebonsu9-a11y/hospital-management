@@ -415,6 +415,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                                 <?php if ($l['status'] === 'pending'): ?>
                                                     <button class="btn btn-xs btn-outline-success py-0 px-2 ms-1" style="font-size: 0.7rem;" onclick="approveLink('<?php echo $l['id']; ?>')">Approve</button>
                                                 <?php endif; ?>
+                                                <button class="btn btn-xs btn-outline-danger py-0 px-2 ms-1" style="font-size: 0.7rem;" onclick="removeGuardianLink('<?php echo $l['id']; ?>')"><i class="bi bi-x"></i> Unlink</button>
                                             </div>
                                         <?php endforeach; endif; ?>
                                     </td>
@@ -826,6 +827,36 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     <td>
                                         <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick='openInventoryModal("edit", <?php echo json_encode($drug); ?>)'>Update</button>
                                     </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- AUDIT LOGS SECTION -->
+        <div id="section-audit" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">System Audit Logs</h5>
+                    <span class="badge bg-light text-muted border rounded-pill px-3 py-2">Viewing last 20 events</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Timestamp</th><th>User Role</th><th>Action</th><th>Details</th><th>IP Address</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($auditLogs)): ?>
+                                <tr><td colspan="5" class="text-center py-5 text-muted"><i class="bi bi-shield-check fs-2 d-block mb-2"></i>No audit events recorded yet.</td></tr>
+                            <?php endif; foreach($auditLogs as $log): ?>
+                                <tr>
+                                    <td class="small text-muted fw-bold"><?php echo date('M d, H:i:s', strtotime($log['created_at'])); ?></td>
+                                    <td><span class="badge bg-secondary-soft text-secondary rounded-pill px-2"><?php echo htmlspecialchars(ucfirst($log['user_role'] ?? 'System')); ?></span></td>
+                                    <td class="fw-bold text-dark"><?php echo htmlspecialchars($log['action']); ?></td>
+                                    <td class="small text-muted"><?php echo htmlspecialchars($log['details'] ?? '—'); ?></td>
+                                    <td class="extra-small font-monospace text-muted"><?php echo htmlspecialchars($log['ip_address'] ?? '—'); ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -1338,6 +1369,22 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 location.reload();
             } else {
                 alert("Error: " + data.error);
+            }
+        }
+
+        async function removeGuardianLink(linkId) {
+            if (!confirm("Are you sure you want to remove this guardian-patient link? This cannot be undone.")) return;
+            const res = await fetch('/api/admin/remove_guardian_link.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ link_id: linkId })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("Link removed successfully.");
+                location.reload();
+            } else {
+                alert("Error removing link: " + (data.message || 'Unknown error'));
             }
         }
 

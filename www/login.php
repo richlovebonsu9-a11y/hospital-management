@@ -16,7 +16,7 @@ if (isset($_SESSION['user'])) {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="bg-primary d-flex align-items-center min-vh-100" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%) !important;">
+<body class="d-flex align-items-center min-vh-100" style="background-color: var(--bg-light); position: relative; overflow-x: hidden;">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-md-5">

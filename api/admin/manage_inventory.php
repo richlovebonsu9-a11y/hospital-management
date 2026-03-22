@@ -33,14 +33,20 @@ if ($action === 'add') {
         'drug_name' => $name,
         'stock_count' => (int)$stock,
         'unit_price' => (float)$price,
-        'category' => $category,
-        'last_updated' => date('c')
+        'category' => $category
     ], true);
 } elseif ($action === 'delete' && $id) {
     $res = $sb->request('DELETE', '/rest/v1/drug_inventory?id=eq.' . $id, null, true);
 }
 
 if ($res && ($res['status'] === 201 || $res['status'] === 204 || $res['status'] === 200)) {
+    $sb->request('POST', '/rest/v1/audit_log', [
+        'user_id' => $u['id'] ?? null,
+        'user_role' => 'admin',
+        'action' => 'MANAGE_INVENTORY',
+        'details' => strtoupper($action) . " drug: $name" . ($action === 'update' ? " (Stock: $stock)" : ""),
+        'ip_address' => $_SERVER['REMOTE_ADDR'] ?? 'Unknown'
+    ], true);
     header('Location: ' . $_SERVER['HTTP_REFERER']);
 } else {
     echo "Error processing request: ";
