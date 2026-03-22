@@ -144,6 +144,13 @@ foreach ($pendingAdmissionsRaw as $c) {
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
         .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
         .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
+        .transition-all { transition: all 0.4s ease-in-out; }
+        .pulse-highlight { animation: pulse-yellow 1.5s infinite; }
+        @keyframes pulse-yellow {
+            0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+        }
     </style>
 </head>
 <body>
@@ -285,7 +292,9 @@ foreach ($pendingAdmissionsRaw as $c) {
                                 <div>
                                     <div class="fw-bold"><?php echo htmlspecialchars($e['status'] ?? 'Active'); ?> Emergency</div>
                                     <small><?php echo htmlspecialchars($e['symptoms'] ?? 'No symptoms reported'); ?></small>
-                                    <div class="mt-2 text-decoration-underline small cursor-pointer" onclick="navigateTo('section-emergencies')">Respond</div>
+                                     <button class="btn btn-sm btn-white shadow-sm rounded-pill mt-3 px-3 fw-bold border-0" onclick="respondToEmergency('<?php echo $e['id']; ?>')">
+                                        <i class="bi bi-arrow-right-circle me-1"></i> Respond
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -479,7 +488,7 @@ foreach ($pendingAdmissionsRaw as $c) {
                             <?php if (empty($emergencies)): ?>
                                 <tr><td colspan="7" class="text-muted py-5 text-center">No emergencies currently active in the queue.</td></tr>
                             <?php endif; foreach($emergencies as $e): ?>
-                                <tr>
+                                <tr id="emerg-row-<?php echo $e['id']; ?>" class="transition-all">
                                     <td>
                                         <div class="fw-bold"><?php echo date('H:i', strtotime($e['created_at'])); ?></div>
                                         <small class="text-muted extra-small"><?php echo date('M d, Y', strtotime($e['created_at'])); ?></small>
@@ -1406,6 +1415,36 @@ foreach ($pendingAdmissionsRaw as $c) {
                 btn.innerHTML = originalHtml;
             }
         }
+
+        function navigateTo(targetId) {
+            document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
+            document.getElementById(targetId).classList.remove('d-none');
+            document.querySelectorAll('.nav-link-custom').forEach(l => {
+                if(l.getAttribute('data-target') === targetId) l.classList.add('active');
+                else l.classList.remove('active');
+            });
+        }
+
+        function respondToEmergency(id) {
+            // Simulate clicking the sidebar link for emergencies
+            const emergencyLink = document.querySelector('#sidebarMenu .nav-link-custom[data-target="section-emergencies"]');
+            if (emergencyLink) {
+                emergencyLink.click(); // This will trigger the section navigation
+            }
+            
+            // Close sidebar if open (for mobile)
+            toggleSidebar();
+
+            setTimeout(() => {
+                const row = document.getElementById('emerg-row-' + id);
+                if (row) {
+                    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    row.classList.add('bg-primary-soft', 'pulse-highlight');
+                    setTimeout(() => row.classList.remove('bg-primary-soft', 'pulse-highlight'), 3000);
+                }
+            }, 300);
+        }
+
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('show');
             document.querySelector('.sidebar-overlay').classList.toggle('show');
