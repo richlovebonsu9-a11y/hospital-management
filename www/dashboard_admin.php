@@ -578,6 +578,7 @@ foreach ($pendingAdmissionsRaw as $c) {
                                             <td class="fw-bold"><?php echo htmlspecialchars($adm['bed_number'] ?: 'N/A'); ?></td>
                                             <td class="small"><?php echo date('M d, H:i', strtotime($adm['admission_date'])); ?></td>
                                             <td>
+                                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3 me-2" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'>Edit</button>
                                                 <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')">Discharge</button>
                                             </td>
                                         </tr>
@@ -965,6 +966,39 @@ foreach ($pendingAdmissionsRaw as $c) {
         </div>
     </div>
 
+    <!-- EDIT ADMISSION MODAL -->
+    <div class="modal fade" id="editAdmissionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Edit Admission: <span id="edit_adm_patient_name"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="editAdmissionForm">
+                        <input type="hidden" name="admission_id" id="edit_adm_id">
+                        <input type="hidden" name="old_ward_id" id="edit_adm_old_ward">
+                        <div class="mb-3">
+                            <label class="small text-muted">Ward</label>
+                            <select name="ward_id" id="edit_adm_ward_select" class="form-select rounded-pill px-3" required>
+                                <?php foreach($wards as $w): ?>
+                                    <option value="<?php echo $w['id']; ?>">
+                                        <?php echo htmlspecialchars($w['ward_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted">Bed Number</label>
+                            <input type="text" name="bed_number" id="edit_adm_bed_number" class="form-control rounded-pill px-3" required>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill mt-3" onclick="submitBedUpdate()">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- PATIENT SEARCH MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -1260,12 +1294,33 @@ foreach ($pendingAdmissionsRaw as $c) {
             fd.append('patient_id', ptId);
             fd.append('ward_id', wardId);
             fd.append('bed_number', bedNum);
-            // We can reuse consultation save if we wanted but better use a specific admission API
-            // For now, I'll create a small dedicated API or use consultation save parameters
+            
             const res = await fetch('/api/admission/finalize_assignment.php', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Bed assigned successfully.");
+                location.reload();
+            } else {
+                alert("Error: " + data.error);
+                if (data.debug) console.error("API Debug Info:", data.debug);
+            }
+        }
+
+        function openEditAdmissionModal(adm) {
+            document.getElementById('edit_adm_id').value = adm.id;
+            document.getElementById('edit_adm_old_ward').value = adm.ward_id;
+            document.getElementById('edit_adm_patient_name').innerText = adm.patient ? adm.patient.name : 'Patient';
+            document.getElementById('edit_adm_ward_select').value = adm.ward_id;
+            document.getElementById('edit_adm_bed_number').value = adm.bed_number;
+            new bootstrap.Modal(document.getElementById('editAdmissionModal')).show();
+        }
+
+        async function submitBedUpdate() {
+            const fd = new FormData(document.getElementById('editAdmissionForm'));
+            const res = await fetch('/api/admission/update_assignment.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Admission details updated.");
                 location.reload();
             } else {
                 alert("Error: " + data.error);
