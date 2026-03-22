@@ -88,24 +88,44 @@ $name = trim($_POST['name'] ?? '');
 $phone = trim($_POST['phone'] ?? '');
 $dob = trim($_POST['dob'] ?? '');
 $gps = trim($_POST['ghana_post_gps'] ?? '');
+$ghanaCard = trim($_POST['ghana_card'] ?? '');
+$nhis = trim($_POST['nhis_membership_number'] ?? '');
 
 if (!$name || !$phone) {
     header('Location: /dashboard_patient.php?error=missing_fields'); exit;
 }
 
-$metadata = array_merge($u['user_metadata'], [
+$metadata = array_merge($u['user_metadata'] ?? [], [
     'name' => $name,
     'phone' => $phone,
     'dob' => $dob,
-    'ghana_post_gps' => $gps
+    'ghana_post_gps' => $gps,
+    'ghana_card' => $ghanaCard,
+    'nhis_membership_number' => $nhis
 ]);
 
+// 1. Update Auth Metadata
 $res = $sb->request('PUT', '/auth/v1/admin/users/' . $userId, ['user_metadata' => $metadata], true);
+
+// 2. Update Profiles Table (This is what the EMR and Dashboards actually read)
+$profileUpdate = [
+    'name' => $name,
+    'phone' => $phone,
+    'dob' => $dob,
+    'ghana_post_gps' => $gps,
+    'ghana_card' => $ghanaCard,
+    'nhis_membership_number' => $nhis
+];
+$sb->request('PATCH', '/rest/v1/profiles?id=eq.' . $userId, $profileUpdate, true);
 
 if ($res['status'] >= 200 && $res['status'] < 300) {
     $u['user_metadata'] = $metadata;
     setcookie('sb_user', json_encode($u), time() + (86400 * 30), "/");
-    header('Location: ' . ($_SESSION['user']['user_metadata']['role'] === 'guardian' ? '/dashboard_guardian.php' : '/dashboard_patient.php') . '?success=1');
+    $_SESSION['user'] = $u; // Sync session as well
+    
+    $role = $u['user_metadata']['role'] ?? 'patient';
+    $target = ($role === 'guardian') ? '/dashboard_guardian.php' : '/dashboard_patient.php';
+    header('Location: ' . $target . '?success=1');
 } else {
     header('Location: /dashboard_patient.php?error=update_failed');
 }
