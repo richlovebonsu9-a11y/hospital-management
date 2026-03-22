@@ -23,6 +23,10 @@ $vitalsRes = $sb->request('GET', '/rest/v1/vitals?patient_id=eq.' . $patient_id 
 $latestVitals = ($vitalsRes['status'] === 200 && !empty($vitalsRes['data'])) ? $vitalsRes['data'][0] : null;
 
 $patient_name = "Patient " . substr($patient_id, 0, 8);
+
+// Fetch available drugs for the prescription list
+$drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
+$availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -54,7 +58,7 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
         <div class="row g-4">
             <div class="col-lg-8">
                 <!-- Vitals & Notes -->
-                <form id="consultationForm" action="/api/consultation/save" method="POST" class="card border-0 shadow-sm rounded-5 p-4 mb-4">
+                <form id="consultationForm" action="/api/consultation/save.php" method="POST" class="card border-0 shadow-sm rounded-5 p-4 mb-4">
                     <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
                     
                     <?php if (isset($_GET['vitals_requested'])): ?>
@@ -151,12 +155,52 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
 
             <div class="col-lg-4">
                 <!-- E-Prescription -->
-                    <div class="mt-4">
-                        <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-capsule me-2"></i>E-Prescription</h5>
-                        <p class="text-muted small mb-3">Describe medications, dosage, and frequency below. This will be transmitted to the pharmacy immediately.</p>
-                        <textarea name="medication_details" form="consultationForm" class="form-control rounded-4 p-4 border-light bg-light small" rows="5" placeholder="Enter medication details... e.g. Amoxicillin 500mg, 1x3 daily for 5 days"></textarea>
+                <div class="card border-0 shadow-sm rounded-5 p-4 sticky-top" style="top: 20px;">
+                    <h5 class="fw-bold mb-3 text-primary"><i class="bi bi-capsule me-2"></i>E-Prescription</h5>
+                    <p class="text-muted small mb-3">Select medications from live inventory. You can add multiple drugs below.</p>
+                    
+                    <div id="medication-list-consult">
+                        <div class="card bg-light border-0 rounded-4 mb-3 medication-item">
+                            <div class="card-body p-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6 class="fw-bold mb-0 small"><i class="bi bi-plus-circle-fill text-primary"></i> Med 01</h6>
+                                    <button type="button" class="btn btn-sm btn-outline-danger border-0 rounded-circle remove-med-btn d-none" onclick="this.closest('.medication-item').remove()">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                                <div class="mb-2">
+                                    <select name="meds[0][drug_id]" form="consultationForm" class="form-select form-select-sm rounded-4 border-0 shadow-sm">
+                                        <option value="">-- Select Drug --</option>
+                                        <?php 
+                                        // We need to fetch drugs in consultation.php too or assume they are available if we add the fetch
+                                        foreach ($availableDrugs as $drug): ?>
+                                            <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
+                                                <?php echo htmlspecialchars($drug['drug_name']); ?> (<?php echo $drug['stock_count']; ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-12"><input type="text" name="meds[0][dosage]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Dosage (500mg)"></div>
+                                    <div class="col-6"><input type="text" name="meds[0][frequency]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Freq (2x)"></div>
+                                    <div class="col-6"><input type="text" name="meds[0][duration]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Dur (7d)"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </form>
+
+                    <button type="button" id="add-med-consult-btn" class="btn btn-outline-primary w-100 rounded-pill btn-sm mb-3">
+                        <i class="bi bi-plus-lg me-1"></i> Add Another
+                    </button>
+                    
+                    <hr>
+                    <button type="submit" form="consultationForm" class="btn btn-primary w-100 rounded-pill py-2 shadow-sm">
+                        <i class="bi bi-check-circle-fill me-2"></i> Submit Visit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Add Lab Request Modal -->
     <div class="modal fade" id="addLabModal" tabindex="-1" aria-hidden="true">
@@ -166,7 +210,7 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
                     <h5 class="modal-title fw-bold">Order Lab Test</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <form action="/api/lab/create" method="POST">
+                <form action="/api/lab/create.php" method="POST">
                     <input type="hidden" name="patient_id" value="<?php echo htmlspecialchars($patient_id); ?>">
                     <div class="modal-body p-4">
                         <div class="mb-3">
@@ -195,5 +239,30 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let medCount = 1;
+
+        document.getElementById('add-med-consult-btn').addEventListener('click', function() {
+            const container = document.getElementById('medication-list-consult');
+            const firstItem = container.querySelector('.medication-item');
+            const newItem = firstItem.cloneNode(true);
+            
+            newItem.querySelector('.remove-med-btn').classList.remove('d-none');
+            newItem.querySelectorAll('input').forEach(input => input.value = '');
+            newItem.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+            
+            const inputs = newItem.querySelectorAll('[name^="meds[0]"]');
+            inputs.forEach(input => {
+                const oldName = input.getAttribute('name');
+                const newName = oldName.replace('meds[0]', `meds[${medCount}]`);
+                input.setAttribute('name', newName);
+            });
+            
+            newItem.querySelector('h6').innerHTML = `<i class="bi bi-plus-circle-fill text-primary"></i> Med ${String(medCount + 1).padStart(2, '0')}`;
+            
+            container.appendChild(newItem);
+            medCount++;
+        });
+    </script>
 </body>
 </html>
