@@ -37,7 +37,8 @@ if ($drugId && $patientId) {
         $stock = (int)($drug['stock_count'] ?? 0);
 
         if ($stock > 0) {
-            $qty = (int)($prescription['quantity'] ?? 1);
+            // A. Fetch the actual prescribed quantity (Fallback to 1 if missing)
+            $qty = (int)($prescription['quantity'] ?? 1); 
             if ($qty > $stock) { $qty = $stock; } // Cap at available stock
 
             // A. Decrement Stock (always done on dispense)

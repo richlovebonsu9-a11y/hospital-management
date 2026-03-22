@@ -116,7 +116,7 @@ if ($role === 'doctor') {
 
                 if (!empty($mMedName) || !empty($mDosage)) {
                     // Save Prescription linked to this consultation
-                    $sb->request('POST', '/rest/v1/prescriptions', [
+                    $prescData = [
                         'consultation_id' => $consultId,
                         'patient_id' => $patientId,
                         'drug_id' => $mDrugId ?: null,
@@ -124,9 +124,10 @@ if ($role === 'doctor') {
                         'dosage' => $mDosage,
                         'frequency' => $mFreq,
                         'duration' => $mDuration,
-                        'quantity' => $mQty,
+                        'quantity' => $mQty, // Standardized column
                         'status' => 'pending'
-                    ], true);
+                    ];
+                    $prescRes = $sb->request('POST', '/rest/v1/prescriptions', $prescData, true);
 
                     // Add to billing invoice immediately if drug has a price
                     if ($invoiceId && $mUnitPrice > 0) {
