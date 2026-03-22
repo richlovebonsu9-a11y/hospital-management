@@ -378,35 +378,46 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                             <input type="text" name="diagnosis" class="form-control rounded-4" placeholder="Primary diagnosis..." required>
                         </div>
                         
-                        <div class="card bg-light border-0 rounded-4 mb-3">
-                            <div class="card-body p-3">
-                                <h6 class="fw-bold mb-3"><i class="bi bi-capsule me-2"></i> Prescribe Medication</h6>
-                                <div class="row g-2 mb-3">
-                                    <div class="col-md-7">
-                                        <select name="drug_id" class="form-select rounded-4">
-                                            <option value="">-- Select Medication from Stock --</option>
-                                            <?php foreach ($availableDrugs as $drug): ?>
-                                                <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
-                                                    <?php echo htmlspecialchars($drug['drug_name']); ?> 
-                                                    (<?php echo $drug['stock_count']; ?> in stock)
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
+                        <div id="medication-list">
+                            <div class="card bg-light border-0 rounded-4 mb-3 medication-item">
+                                <div class="card-body p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-bold mb-0"><i class="bi bi-capsule me-2"></i> Prescribe Medication</h6>
+                                        <button type="button" class="btn btn-sm btn-outline-danger border-0 rounded-circle remove-med-btn d-none" onclick="this.closest('.medication-item').remove()">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
                                     </div>
-                                    <div class="col-md-5">
-                                        <input type="text" name="dosage" class="form-control rounded-4" placeholder="Dosage (e.g. 500mg)">
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-md-7">
+                                            <select name="meds[0][drug_id]" class="form-select rounded-4">
+                                                <option value="">-- Select Medication from Stock --</option>
+                                                <?php foreach ($availableDrugs as $drug): ?>
+                                                    <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
+                                                        <?php echo htmlspecialchars($drug['drug_name']); ?> 
+                                                        (<?php echo $drug['stock_count']; ?> in stock)
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-5">
+                                            <input type="text" name="meds[0][dosage]" class="form-control rounded-4" placeholder="Dosage (e.g. 500mg)">
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="row g-2">
-                                    <div class="col-md-6">
-                                        <input type="text" name="frequency" class="form-control rounded-4" placeholder="Frequency (e.g. 2x Daily)">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <input type="text" name="duration" class="form-control rounded-4" placeholder="Duration (e.g. 7 Days)">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <input type="text" name="meds[0][frequency]" class="form-control rounded-4" placeholder="Frequency (e.g. 2x Daily)">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <input type="text" name="meds[0][duration]" class="form-control rounded-4" placeholder="Duration (e.g. 7 Days)">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        <button type="button" class="btn btn-outline-primary w-100 rounded-pill mb-4" id="add-medication-btn">
+                            <i class="bi bi-plus-circle me-2"></i> Add Another Medication
+                        </button>
 
                         <div class="mb-3">
                             <label class="small fw-bold text-muted mb-1">Clinical Notes</label>
@@ -457,6 +468,32 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let medCount = 1;
+
+        document.getElementById('add-medication-btn').addEventListener('click', function() {
+            const container = document.getElementById('medication-list');
+            const firstItem = container.querySelector('.medication-item');
+            const newItem = firstItem.cloneNode(true);
+            
+            // Show remove button
+            newItem.querySelector('.remove-med-btn').classList.remove('d-none');
+            
+            // Clear inputs
+            newItem.querySelectorAll('input').forEach(input => input.value = '');
+            newItem.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+            
+            // Update names
+            const inputs = newItem.querySelectorAll('[name^="meds[0]"]');
+            inputs.forEach(input => {
+                const oldName = input.getAttribute('name');
+                const newName = oldName.replace('meds[0]', `meds[${medCount}]`);
+                input.setAttribute('name', newName);
+            });
+            
+            container.appendChild(newItem);
+            medCount++;
+        });
+    </script>
 </body>
 </html>

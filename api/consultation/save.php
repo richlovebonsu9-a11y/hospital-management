@@ -21,11 +21,7 @@ $weight = $_POST['weight'] ?? null;
 $pulse = $_POST['pulse'] ?? null;
 $notes = $_POST['notes'] ?? '';
 $diagnosis = $_POST['diagnosis'] ?? '';
-$meds = $_POST['medication_details'] ?? ''; // Legacy fallback
-$drugId = $_POST['drug_id'] ?? '';
-$dosage = $_POST['dosage'] ?? '';
-$frequency = $_POST['frequency'] ?? '';
-$duration = $_POST['duration'] ?? '';
+$meds = $_POST['meds'] ?? []; // Array of medications
 $admission = isset($_POST['recommend_admission']) ? 'yes' : 'no';
 
 if (!$patientId) {
@@ -77,26 +73,35 @@ if ($role === 'doctor') {
     if ($consultRes['status'] === 201 && !empty($consultRes['data'])) {
         $consultId = $consultRes['data'][0]['id'];
         
-        $medName = $meds; // fallback
-        if ($drugId) {
-            $drugRes = $sb->request('GET', '/rest/v1/drug_inventory?id=eq.' . $drugId . '&select=drug_name', null, true);
-            if ($drugRes['status'] === 200 && !empty($drugRes['data'])) {
-                $medName = $drugRes['data'][0]['drug_name'];
-            }
-        }
+        if (is_array($meds)) {
+            foreach ($meds as $m) {
+                $mDrugId = $m['drug_id'] ?? '';
+                $mDosage = $m['dosage'] ?? '';
+                $mFreq = $m['frequency'] ?? '';
+                $mDuration = $m['duration'] ?? '';
+                $mMedName = '';
 
-        if (!empty($medName)) {
-            // Save Prescription linked to this consultation
-            $sb->request('POST', '/rest/v1/prescriptions', [
-                'consultation_id' => $consultId,
-                'patient_id' => $patientId,
-                'drug_id' => $drugId ?: null,
-                'medication_name' => $medName,
-                'dosage' => $dosage,
-                'frequency' => $frequency,
-                'duration' => $duration,
-                'status' => 'pending'
-            ], true);
+                if ($mDrugId) {
+                    $drugRes = $sb->request('GET', '/rest/v1/drug_inventory?id=eq.' . $mDrugId . '&select=drug_name', null, true);
+                    if ($drugRes['status'] === 200 && !empty($drugRes['data'])) {
+                        $mMedName = $drugRes['data'][0]['drug_name'];
+                    }
+                }
+
+                if (!empty($mMedName) || !empty($mDosage)) {
+                    // Save Prescription linked to this consultation
+                    $sb->request('POST', '/rest/v1/prescriptions', [
+                        'consultation_id' => $consultId,
+                        'patient_id' => $patientId,
+                        'drug_id' => $mDrugId ?: null,
+                        'medication_name' => $mMedName ?: 'Custom Medication',
+                        'dosage' => $mDosage,
+                        'frequency' => $mFreq,
+                        'duration' => $mDuration,
+                        'status' => 'pending'
+                    ], true);
+                }
+            }
         }
 
         // TRIGGER ADMISSION NOTIFICATION
