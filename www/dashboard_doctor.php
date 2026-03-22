@@ -45,9 +45,13 @@ $notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $
 $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
 $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
 
+// Fetch Drugs for Emergency Prescription
+$drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
+$availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
+
 // 6. Fetch Assigned Emergencies
 $myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=neq.resolved&select=*,reporter:reporter_id(name)', null, true);
-$myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
+$myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergencies['data'] : [];
 
 // Stats
 $waitingCount = 0;
@@ -394,9 +398,49 @@ $seenToday = count($mySchedule); // Simplification
                                 <option value="rider" selected>🏍️ Dispatch Rider (Meds/Supplies Only)</option>
                             </select>
                         </div>
-                        <div id="riderMedicationSection" class="mb-3">
-                            <label class="small text-muted fw-bold text-primary">Prescribed Medications for Delivery</label>
-                            <textarea name="medication_notes" id="medication_notes_field" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Enter drugs, dosage, and usage instructions..."></textarea>
+                        <div id="riderMedicationSection" class="mb-3 d-none">
+                            <h6 class="fw-bold text-primary small mb-3"><i class="bi bi-capsule me-2"></i>Prescribe Medications (for Rider)</h6>
+                            <div id="emergency-med-list" class="mb-3">
+                                <div class="card bg-light border-0 rounded-4 mb-3 med-item">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="small fw-bold text-muted">Medication #1</span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger border-0 rounded-circle remove-med-btn d-none" onclick="this.closest('.med-item').remove()">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-7">
+                                                <select name="meds[0][drug_id]" class="form-select form-select-sm rounded-4">
+                                                    <option value="">-- Select Drug --</option>
+                                                    <?php foreach ($availableDrugs as $drug): ?>
+                                                        <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
+                                                            <?php echo htmlspecialchars($drug['drug_name']); ?> (<?php echo $drug['stock_count']; ?>)
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <input type="text" name="meds[0][dosage]" class="form-control form-select-sm rounded-4" placeholder="Dosage">
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-md-5">
+                                                <input type="text" name="meds[0][frequency]" class="form-control form-select-sm rounded-4" placeholder="Freq">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input type="text" name="meds[0][duration]" class="form-control form-select-sm rounded-4" placeholder="Duration">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="number" name="meds[0][quantity]" class="form-control form-select-sm rounded-4" value="1" min="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary-soft btn-sm w-100 rounded-pill mb-3" onclick="addEmergencyMedication()">
+                                <i class="bi bi-plus-circle me-1"></i> Add Medication
+                            </button>
                         </div>
                         <div class="mb-4">
                             <label class="small text-muted fw-bold">Dispatch Instructions</label>
@@ -559,6 +603,28 @@ $seenToday = count($mySchedule); // Simplification
             if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
 
             new bootstrap.Modal(dispatchModalEl).show();
+        }
+
+        let emergMedCount = 1;
+        function addEmergencyMedication() {
+            const container = document.getElementById('emergency-med-list');
+            const firstItem = container.querySelector('.med-item');
+            const newItem = firstItem.cloneNode(true);
+            
+            newItem.querySelector('.remove-med-btn').classList.remove('d-none');
+            newItem.querySelector('.small.fw-bold.text-muted').innerText = 'Medication #' + (container.querySelectorAll('.med-item').length + 1);
+            
+            newItem.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+            newItem.querySelectorAll('input[type="text"]').forEach(input => input.value = '');
+            newItem.querySelectorAll('input[type="number"]').forEach(input => input.value = '1');
+            
+            newItem.querySelectorAll('[name^="meds["]').forEach(el => {
+                const newName = el.getAttribute('name').replace(/meds\[\d+\]/, `meds[${emergMedCount}]`);
+                el.setAttribute('name', newName);
+            });
+            
+            container.appendChild(newItem);
+            emergMedCount++;
         }
 
         async function submitEmergencyDispatch() {

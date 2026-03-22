@@ -21,6 +21,9 @@ $patientList = [];
 $guardianList = [];
 $profilesMap = []; // global map for ID -> Name lookups
 $totalPatients = 0;
+// Fetch Drugs for Emergency Prescription
+$drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
+$availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
 if ($profilesRes['status'] === 200) {
     foreach ($profilesRes['data'] as $u) {
         $profilesMap[$u['id']] = $u['name'] ?? 'Unknown';
@@ -280,8 +283,8 @@ foreach ($pendingAdmissionsRaw as $c) {
                             <div class="d-flex">
                                 <i class="bi <?php echo ($e['severity'] === 'high') ? 'bi-exclamation-circle-fill' : 'bi-info-circle-fill'; ?> me-2"></i>
                                 <div>
-                                    <div class="fw-bold"><?php echo htmlspecialchars($e['status']); ?> Emergency</div>
-                                    <small><?php echo htmlspecialchars($e['description']); ?></small>
+                                    <div class="fw-bold"><?php echo htmlspecialchars($e['status'] ?? 'Active'); ?> Emergency</div>
+                                    <small><?php echo htmlspecialchars($e['symptoms'] ?? 'No symptoms reported'); ?></small>
                                     <div class="mt-2 text-decoration-underline small cursor-pointer" onclick="navigateTo('section-emergencies')">Respond</div>
                                 </div>
                             </div>
@@ -1069,8 +1072,48 @@ foreach ($pendingAdmissionsRaw as $c) {
                             </select>
                         </div>
                         <div id="riderMedicationSection" class="mb-3 d-none">
-                            <label class="small text-muted">Prescribed Medications (for Rider)</label>
-                            <textarea name="medication_notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Enter drugs and dosage to be delivered..."></textarea>
+                            <h6 class="fw-bold text-primary small mb-3"><i class="bi bi-capsule me-2"></i>Prescribe Medications (for Rider)</h6>
+                            <div id="emergency-med-list" class="mb-3">
+                                <div class="card bg-light border-0 rounded-4 mb-3 med-item">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="small fw-bold text-muted">Medication #1</span>
+                                            <button type="button" class="btn btn-sm btn-outline-danger border-0 rounded-circle remove-med-btn d-none" onclick="this.closest('.med-item').remove()">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-md-7">
+                                                <select name="meds[0][drug_id]" class="form-select form-select-sm rounded-4">
+                                                    <option value="">-- Select Drug --</option>
+                                                    <?php foreach ($availableDrugs as $drug): ?>
+                                                        <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
+                                                            <?php echo htmlspecialchars($drug['drug_name']); ?> (<?php echo $drug['stock_count']; ?>)
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-5">
+                                                <input type="text" name="meds[0][dosage]" class="form-control form-select-sm rounded-4" placeholder="Dosage">
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-md-5">
+                                                <input type="text" name="meds[0][frequency]" class="form-control form-select-sm rounded-4" placeholder="Freq">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <input type="text" name="meds[0][duration]" class="form-control form-select-sm rounded-4" placeholder="Duration">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <input type="number" name="meds[0][quantity]" class="form-control form-select-sm rounded-4" value="1" min="1">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-primary-soft btn-sm w-100 rounded-pill mb-3" onclick="addEmergencyMedication()">
+                                <i class="bi bi-plus-circle me-1"></i> Add Medication
+                            </button>
                         </div>
                         <div class="mb-4">
                             <label class="small text-muted">Dispatch Notes / Instructions</label>
@@ -1469,11 +1512,39 @@ foreach ($pendingAdmissionsRaw as $c) {
             const medSection = document.getElementById('riderMedicationSection');
             
             typeSelect.onchange = () => {
-                if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
-                else medSection.classList.add('d-none');
+                if(typeSelect.value === 'rider') {
+                    medSection.classList.remove('d-none');
+                } else {
+                    medSection.classList.add('d-none');
+                }
             };
+            // Trigger once for initial state
+            if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
+            else medSection.classList.add('d-none');
 
             new bootstrap.Modal(dispatchModalEl).show();
+        }
+
+        let emergMedCount = 1;
+        function addEmergencyMedication() {
+            const container = document.getElementById('emergency-med-list');
+            const firstItem = container.querySelector('.med-item');
+            const newItem = firstItem.cloneNode(true);
+            
+            newItem.querySelector('.remove-med-btn').classList.remove('d-none');
+            newItem.querySelector('.small.fw-bold.text-muted').innerText = 'Medication #' + (container.querySelectorAll('.med-item').length + 1);
+            
+            newItem.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+            newItem.querySelectorAll('input[type="text"]').forEach(input => input.value = '');
+            newItem.querySelectorAll('input[type="number"]').forEach(input => input.value = '1');
+            
+            newItem.querySelectorAll('[name^="meds["]').forEach(el => {
+                const newName = el.getAttribute('name').replace(/meds\[\d+\]/, `meds[${emergMedCount}]`);
+                el.setAttribute('name', newName);
+            });
+            
+            container.appendChild(newItem);
+            emergMedCount++;
         }
 
         async function submitEmergencyDispatch() {
