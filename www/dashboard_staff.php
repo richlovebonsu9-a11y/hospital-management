@@ -339,12 +339,12 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                         ?>
                                             <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Vitals Recorded</span>
                                         <?php else: ?>
-                                            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
+                                            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>', this)">Process Vitals</button>
                                         <?php endif; ?>
                                         <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
-                                            <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
+                                            <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>', this)">Dispense</button>
                                         <?php elseif (isset($t['test_name']) && $role === 'technician'): ?>
-                                            <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>')">Result</button>
+                                            <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>', this)">Result</button>
                                         <?php else: ?>
                                             <span class="text-muted extra-small">View Details Only</span>
                                         <?php endif; ?>
@@ -510,7 +510,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
     <?php if ($role === 'nurse'): ?>
     <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/consultation/save.php" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/consultation/save.php" method="POST" class="modal-content border-0 shadow" id="vitalsForm" onsubmit="submitAjaxForm(event, 'vitalsForm', 'vitalsModal')">
                 <input type="hidden" name="patient_id" id="patient_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
@@ -675,7 +675,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
     <?php if ($role === 'pharmacist'): ?>
     <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/prescriptions/dispense.php" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/prescriptions/dispense.php" method="POST" class="modal-content border-0 shadow" id="dispenseForm" onsubmit="submitAjaxForm(event, 'dispenseForm', 'dispenseModal')">
                 <input type="hidden" name="prescription_id" id="prescription_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4 text-center">
@@ -694,7 +694,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
     <?php if ($role === 'technician'): ?>
     <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/lab/submit.php" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/lab/submit.php" method="POST" class="modal-content border-0 shadow" id="labResultForm" onsubmit="submitAjaxForm(event, 'labResultForm', 'labResultModal')">
                 <input type="hidden" name="request_id" id="request_id_field">
                 <div class="modal-header border-0"><h5 class="fw-bold">Submit Lab Result</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
@@ -835,9 +835,43 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                 l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
             });
         }
-        function setPatientId(id) { document.getElementById('patient_id_field').value = id; }
-        function setPrescriptionId(id) { document.getElementById('prescription_id_field').value = id; }
-        function setRequestId(id) { document.getElementById('request_id_field').value = id; }
+        let currentTaskRow = null;
+        function setPatientId(id, btn) { document.getElementById('patient_id_field').value = id; currentTaskRow = btn ? btn.closest('tr') : null; }
+        function setPrescriptionId(id, btn) { document.getElementById('prescription_id_field').value = id; currentTaskRow = btn ? btn.closest('tr') : null; }
+        function setRequestId(id, btn) { document.getElementById('request_id_field').value = id; currentTaskRow = btn ? btn.closest('tr') : null; }
+
+        async function submitAjaxForm(event, formId, modalId) {
+            event.preventDefault();
+            const form = document.getElementById(formId);
+            const btn = form.querySelector('button[type="submit"]');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
+
+            try {
+                const fd = new FormData(form);
+                fd.append('is_ajax', '1');
+                const res = await fetch(form.action, { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
+                    if (currentTaskRow) {
+                        currentTaskRow.style.transition = 'opacity 0.4s';
+                        currentTaskRow.style.opacity = '0';
+                        setTimeout(() => currentTaskRow.remove(), 400);
+                    }
+                    form.reset();
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to process task.'));
+                }
+            } catch (e) {
+                alert('Request failed. Check console for details.');
+                console.error(e);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
 
         function markNotificationRead(el, id) {
             if (el.classList.contains('bg-light')) {

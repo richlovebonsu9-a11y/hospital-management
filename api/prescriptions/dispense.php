@@ -13,7 +13,10 @@ $prescriptionId = $_POST['prescription_id'] ?? '';
 $batch = $_POST['batch_number'] ?? '';
 $notes = $_POST['notes'] ?? '';
 
+$isAjax = !empty($_POST['is_ajax']);
+
 if (!$prescriptionId) {
+    if ($isAjax) { echo json_encode(['success' => false, 'error' => 'no_prescription']); exit; }
     header('Location: /dashboard_staff.php?error=no_prescription'); exit;
 }
 
@@ -22,6 +25,7 @@ $sb = new Supabase();
 // 1. Fetch Prescription Details
 $preRes = $sb->request('GET', '/rest/v1/prescriptions?id=eq.' . $prescriptionId . '&select=*,patient:patient_id(id)', null, true);
 if ($preRes['status'] !== 200 || empty($preRes['data'])) {
+    if ($isAjax) { echo json_encode(['success' => false, 'error' => 'prescription_not_found']); exit; }
     header('Location: /dashboard_staff.php?error=prescription_not_found'); exit;
 }
 $prescription = $preRes['data'][0];
@@ -109,7 +113,8 @@ if ($drugId && $patientId) {
                 }
             }
         } else {
-             header('Location: /dashboard_staff.php?error=out_of_stock'); exit;
+            if ($isAjax) { echo json_encode(['success' => false, 'error' => 'out_of_stock']); exit; }
+            header('Location: /dashboard_staff.php?error=out_of_stock'); exit;
         }
     }
 }
@@ -122,6 +127,11 @@ $res = $sb->request('PATCH', '/rest/v1/prescriptions?id=eq.' . $prescriptionId, 
     'dispensed_by' => $u['id'],
     'dispensed_at' => date('Y-m-d H:i:s')
 ], true);
+
+if ($isAjax) {
+    echo json_encode(['success' => true]);
+    exit;
+}
 
 header('Location: /dashboard_staff.php?dispensed=1');
 exit;

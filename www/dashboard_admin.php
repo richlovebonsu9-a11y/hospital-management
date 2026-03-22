@@ -1679,12 +1679,18 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         }
 
         async function submitEmergencyDispatch() {
+            const emergId = document.getElementById('dispatch_emerg_id').value;
             const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
             const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Help has been dispatched!");
-                location.reload();
+                bootstrap.Modal.getInstance(document.getElementById('dispatchEmergencyModal')).hide();
+                const row = document.getElementById('emerg-row-' + emergId);
+                if (row) {
+                    row.style.transition = 'opacity 0.4s';
+                    row.style.opacity = '0';
+                    setTimeout(() => row.remove(), 400);
+                }
             } else {
                 alert("Error: " + data.error);
             }
@@ -1698,8 +1704,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const res = await fetch('/api/emergency/resolve.php', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Emergency resolved.");
-                location.reload();
+                const row = document.getElementById('emerg-row-' + id);
+                if (row) {
+                    row.style.transition = 'opacity 0.4s';
+                    row.style.opacity = '0';
+                    setTimeout(() => row.remove(), 400);
+                }
             } else {
                 alert("Error: " + data.error);
             }

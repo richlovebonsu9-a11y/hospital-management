@@ -12,7 +12,10 @@ if (($u['user_metadata']['role'] ?? '') !== 'technician') { header('Location: /d
 $requestId = trim($_POST['request_id'] ?? '');
 $result = trim($_POST['result_text'] ?? '');
 
+$isAjax = !empty($_POST['is_ajax']);
+
 if (!$requestId || !$result) {
+    if ($isAjax) { echo json_encode(['success' => false, 'error' => 'missing_result']); exit; }
     header('Location: /dashboard_staff.php?error=missing_result'); exit;
 }
 
@@ -50,9 +53,12 @@ if ($res['status'] >= 200 && $res['status'] < 300) {
             'message' => "Lab results for Patient " . substr($patientId, 0, 8) . " have been processed and are ready for review."
         ], true);
     }
+    
+    if ($isAjax) { echo json_encode(['success' => true]); exit; }
     header('Location: /dashboard_staff.php?result_submitted=1');
 } else {
     // Inject visible error tag for debugging
+    if ($isAjax) { echo json_encode(['success' => false, 'error' => 'patch_failed', 'code' => $res['status']]); exit; }
     header('Location: /dashboard_staff.php?error=patch_failed&code=' . $res['status']);
 }
 exit;

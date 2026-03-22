@@ -266,12 +266,31 @@ if ($role === 'doctor') {
             'status' => 'completed'
         ], true);
 
+        if (!empty($_POST['is_ajax'])) {
+            echo json_encode(['success' => true]);
+            exit;
+        }
+
         $redirect = ($role === 'doctor') ? '/dashboard_doctor.php' : '/dashboard_staff.php';
         header('Location: ' . $redirect . '?visit_finished=1');
     } else {
         $errMsg = urlencode($consultRes['data']['message'] ?? 'Database consultation record failed');
+        if (!empty($_POST['is_ajax'])) {
+            echo json_encode(['success' => false, 'error' => 'save_failed', 'details' => $errMsg]);
+            exit;
+        }
         $redirect = ($role === 'doctor') ? '/dashboard_doctor.php' : '/dashboard_staff.php';
         header('Location: ' . $redirect . '?error=save_failed&details=' . $errMsg);
     }
+    exit;
+}
+
+// If it's just a nurse recording vitals and dropping through
+if ($role === 'nurse') {
+    if (!empty($_POST['is_ajax'])) {
+        echo json_encode(['success' => true]);
+        exit;
+    }
+    header('Location: /dashboard_staff.php?vitals_recorded=1');
     exit;
 }
