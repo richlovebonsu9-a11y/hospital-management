@@ -149,6 +149,37 @@ if ($role === 'doctor') {
             $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentInvoiceTotal + $addedMedTotal], true);
         }
 
+        // --- NOTIFY PHARMACISTS ---
+        // If any prescriptions were created, notify all pharmacist users to dispense them
+        if (!empty($meds)) {
+            $hasPrescriptions = false;
+            foreach ($meds as $m) {
+                if (!empty($m['drug_id']) || !empty($m['dosage'])) { $hasPrescriptions = true; break; }
+            }
+            if ($hasPrescriptions) {
+                $doctorName = $u['user_metadata']['name'] ?? 'A Doctor';
+                $pharmacistsRes = $sb->request('GET', '/rest/v1/profiles?role=eq.pharmacist&select=id', null, true);
+                if ($pharmacistsRes['status'] === 200) {
+                    foreach ($pharmacistsRes['data'] as $ph) {
+                        $sb->request('POST', '/rest/v1/notifications', [
+                            'user_id'    => $ph['id'],
+                            'message'    => "New prescription from Dr. {$doctorName} for Patient " . substr($patientId, 0, 8) . ". Please review and dispense.",
+                            'type'       => 'pharmacy_order',
+                            'related_id' => $consultId
+                        ], true);
+                    }
+                }
+
+                // Also notify the patient about their prescriptions
+                $sb->request('POST', '/rest/v1/notifications', [
+                    'user_id' => $patientId,
+                    'message' => "Your consultation with Dr. {$doctorName} is complete. Medications have been prescribed and sent to the pharmacy for dispensing.",
+                    'type'    => 'prescription_ready',
+                    'related_id' => $consultId
+                ], true);
+            }
+        }
+
         // TRIGGER ADMISSION NOTIFICATION OR AUTO-ASSIGNMENT
         if ($admission === 'yes') {
             if ($wardId) {

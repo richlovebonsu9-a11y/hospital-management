@@ -47,6 +47,10 @@ $patient = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $pro
 $drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
 $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
 
+// Fetch Wards for Admission Selector
+$wardsRes = $sb->request('GET', '/rest/v1/wards?select=id,ward_name,total_beds,occupied_beds,admission_fee&order=ward_name.asc', null, true);
+$availableWards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
+
 if (!$patient) {
     ?>
     <!DOCTYPE html>
@@ -429,9 +433,42 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                             <textarea name="notes" class="form-control rounded-4" rows="4" placeholder="Detailed symptoms and observations..." required></textarea>
                         </div>
                         
-                        <div class="form-check form-switch mb-4">
-                            <input class="form-check-input" type="checkbox" name="recommend_admission" id="admCheck">
-                            <label class="form-check-label ms-2" for="admCheck">Recommend Immediate Admission</label>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="recommend_admission" id="admCheck" onchange="toggleAdmissionPanel()">
+                            <label class="form-check-label ms-2 fw-bold" for="admCheck">Recommend Immediate Admission</label>
+                        </div>
+
+                        <div id="admission-panel" class="d-none mb-4 p-3 bg-light rounded-4 border border-primary-subtle">
+                            <h6 class="fw-bold text-primary mb-3"><i class="bi bi-hospital me-2"></i>Ward & Bed Assignment</h6>
+                            <div class="row g-3">
+                                <div class="col-md-7">
+                                    <label class="small fw-bold text-muted mb-1">Select Ward</label>
+                                    <select name="ward_id" id="wardSelect" class="form-select rounded-4" onchange="updateBedsAvailable()">
+                                        <option value="">-- Select a Ward --</option>
+                                        <?php foreach ($availableWards as $w):
+                                            $freeBeds = (int)$w['total_beds'] - (int)$w['occupied_beds'];
+                                            $isFull = $freeBeds <= 0;
+                                        ?>
+                                        <option value="<?php echo $w['id']; ?>"
+                                            data-free="<?php echo $freeBeds; ?>"
+                                            data-fee="<?php echo number_format((float)$w['admission_fee'], 2); ?>"
+                                            <?php echo $isFull ? 'disabled' : ''; ?>>
+                                            <?php echo htmlspecialchars($w['ward_name']); ?>
+                                            — <?php echo $freeBeds; ?> bed<?php echo $freeBeds != 1 ? 's' : ''; ?> free
+                                            (₵<?php echo number_format((float)$w['admission_fee'], 0); ?>/night)
+                                        </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <div id="ward-info" class="small text-muted mt-1 d-none">
+                                        <i class="bi bi-info-circle me-1"></i><span id="ward-info-text"></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="small fw-bold text-muted mb-1">Bed Number</label>
+                                    <input type="text" name="bed_number" class="form-control rounded-4" placeholder="e.g. BED-A1" id="bedNumberInput">
+                                    <div class="extra-small text-muted mt-1">Leave blank for auto-assignment</div>
+                                </div>
+                            </div>
                         </div>
 
                         <button type="submit" class="btn btn-success w-100 rounded-pill">Complete Consultation & Save Record</button>
@@ -515,6 +552,31 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
             container.appendChild(newItem);
             medCount++;
         });
+
+        function toggleAdmissionPanel() {
+            const checked = document.getElementById('admCheck').checked;
+            const panel = document.getElementById('admission-panel');
+            if (checked) {
+                panel.classList.remove('d-none');
+            } else {
+                panel.classList.add('d-none');
+            }
+        }
+
+        function updateBedsAvailable() {
+            const sel = document.getElementById('wardSelect');
+            const opt = sel.options[sel.selectedIndex];
+            const infoDiv = document.getElementById('ward-info');
+            const infoText = document.getElementById('ward-info-text');
+            if (opt && opt.value) {
+                const free = opt.getAttribute('data-free');
+                const fee = opt.getAttribute('data-fee');
+                infoText.textContent = `${free} bed(s) available · Admission fee: ₵${fee}`;
+                infoDiv.classList.remove('d-none');
+            } else {
+                infoDiv.classList.add('d-none');
+            }
+        }
     </script>
 </body>
 </html>

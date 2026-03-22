@@ -373,10 +373,23 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                     </div>
                 <?php else: ?>
                     <div class="list-group list-group-flush">
-                        <?php foreach ($notifications as $n): ?>
-                            <div class="list-group-item border-0 border-start border-4 border-primary ps-3 mb-3 bg-light rounded-3">
-                                <p class="mb-1 fw-bold small text-dark"><?php echo htmlspecialchars($n['message']); ?></p>
-                                <small class="text-muted"><i class="bi bi-clock me-1"></i><?php echo date('M d, Y \a\t H:i', strtotime($n['created_at'])); ?></small>
+                        <?php foreach ($notifications as $n):
+                            $nType = $n['type'] ?? '';
+                            if ($nType === 'pharmacy_order') {
+                                $borderColor = 'border-warning'; $iconClass = 'bi-capsule text-warning'; $bgClass = 'bg-warning-soft';
+                            } elseif ($nType === 'admission_request') {
+                                $borderColor = 'border-danger'; $iconClass = 'bi-hospital text-danger'; $bgClass = 'bg-danger-soft';
+                            } else {
+                                $borderColor = 'border-primary'; $iconClass = 'bi-info-circle text-primary'; $bgClass = 'bg-light';
+                            }
+                        ?>
+                            <div class="list-group-item border-0 border-start border-4 <?php echo $borderColor; ?> <?php echo $bgClass; ?> ps-3 mb-3 rounded-3 d-flex align-items-start gap-3"
+                                 <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor:pointer;"' ?>>
+                                <i class="bi <?php echo $iconClass; ?> fs-5 mt-1 flex-shrink-0"></i>
+                                <div>
+                                    <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                    <small class="text-muted"><i class="bi bi-clock me-1"></i><?php echo date('M d, Y \a\t H:i', strtotime($n['created_at'])); ?></small>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>

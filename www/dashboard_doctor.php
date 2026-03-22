@@ -139,6 +139,22 @@ $seenToday = count($mySchedule); // Simplification
             </div>
         </header>
 
+        <?php if (isset($_GET['visit_finished'])): ?>
+        <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4 d-flex align-items-center gap-3">
+            <i class="bi bi-check-circle-fill fs-4"></i>
+            <div>
+                <strong>Consultation Complete!</strong> The patient record has been saved, prescriptions sent to pharmacy, and billing updated.
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+        </div>
+        <?php endif; ?>
+        <?php if (isset($_GET['error'])): ?>
+        <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4">
+            <i class="bi bi-exclamation-circle-fill me-2"></i>
+            <strong>Error:</strong> <?php echo htmlspecialchars($_GET['details'] ?? 'Could not save the consultation. Please try again.'); ?>
+        </div>
+        <?php endif; ?>
+
         <!-- QUEUE SECTION -->
         <div id="section-queue" class="dashboard-section">
             <div class="row g-4 mb-5">
