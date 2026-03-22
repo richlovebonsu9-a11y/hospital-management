@@ -115,6 +115,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </head>
 <body class="bg-light">
     <div class="container py-5 mt-5">
@@ -163,16 +164,16 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                     <hr>
                     <div class="d-grid gap-2">
                         <?php if ($role === 'nurse'): ?>
-                            <button class="btn btn-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#vitalsModal">
+                            <button type="button" class="btn btn-primary rounded-pill" data-bs-toggle="modal" data-bs-target="#vitalsModal">
                                 <i class="bi bi-thermometer-half me-2"></i> Log Daily Vitals
                             </button>
                         <?php elseif ($role === 'doctor'): ?>
-                            <button class="btn btn-success rounded-pill mb-2" data-bs-toggle="modal" data-bs-target="#consultationModal">
+                            <button type="button" class="btn btn-success rounded-pill mb-2" data-bs-toggle="modal" data-bs-target="#consultationModal">
                                 <i class="bi bi-journal-medical me-2"></i> Start Consultation
                             </button>
                         <?php endif; ?>
                         <?php if (in_array($role, ['doctor', 'patient', 'guardian'])): ?>
-                            <button class="btn btn-outline-info rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#labRequestModal">
+                            <button type="button" class="btn btn-outline-info rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#labRequestModal">
                                 <i class="bi bi-droplet-half me-2"></i> Request Lab Test
                             </button>
                         <?php endif; ?>
@@ -307,7 +308,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
         </div>
     </div>
     <!-- VITALS MODAL (For Nurses) -->
-    <div class="modal fade" id="vitalsModal" tabindex="-1">
+    <div class="modal" id="vitalsModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-header bg-primary text-white border-0 py-3">
@@ -343,7 +344,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
     </div>
 
     <!-- CONSULTATION MODAL (For Doctors) -->
-    <div class="modal fade" id="consultationModal" tabindex="-1">
+    <div class="modal" id="consultationModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-header bg-success text-white border-0 py-3">
@@ -437,7 +438,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
     </div>
 
     <!-- LAB REQUEST MODAL -->
-    <div class="modal fade" id="labRequestModal" tabindex="-1">
+    <div class="modal" id="labRequestModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-header bg-info text-dark border-0 py-3">
@@ -468,7 +469,23 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
         </div>
     </div>
 
+
     <script>
+        // Use JS directly to ensure modals open across all environments
+        document.addEventListener('DOMContentLoaded', function() {
+            const modalTriggers = document.querySelectorAll('[data-bs-toggle="modal"]');
+            modalTriggers.forEach(btn => {
+                btn.onclick = function(e) {
+                    const targetId = this.getAttribute('data-bs-target').replace('#', '');
+                    const modalEl = document.getElementById(targetId);
+                    if (modalEl && typeof bootstrap !== 'undefined') {
+                        const modalObj = new bootstrap.Modal(modalEl);
+                        modalObj.show();
+                    }
+                };
+            });
+        });
+
         let medCount = 1;
 
         document.getElementById('add-medication-btn').addEventListener('click', function() {
