@@ -14,7 +14,7 @@ session_start();
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .emergency-header { background: #dc3545; color: white; padding: 40px 0; }
-        .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; }
+        .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; min-width: 130px; }
         .severity-btn:hover { transform: translateY(-5px); }
         input[name="severity"]:checked + .severity-btn { border-color: white; transform: scale(1.1); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
     </style>
@@ -35,27 +35,27 @@ session_start();
                         <div class="mb-5 text-center">
                             <label class="form-label fw-bold h5 mb-3">Select Severity</label>
                             <div class="d-flex justify-content-center gap-3">
-                                <label>
-                                    <input type="radio" name="severity" value="medium" class="opacity-0 position-absolute" style="width:0; height:0;" required>
-                                    <div class="severity-btn bg-warning p-4 rounded-4 text-white text-center" style="width: 120px;">
+                                <div class="severity-option">
+                                    <input type="radio" name="severity" value="medium" id="sev_medium" class="opacity-0 position-absolute" style="width:0; height:0;" required>
+                                    <label for="sev_medium" class="severity-btn bg-warning p-3 rounded-4 text-white text-center d-block">
                                         <i class="bi bi-heart-pulse h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">Medium</div>
-                                    </div>
-                                </label>
-                                <label>
-                                    <input type="radio" name="severity" value="high" class="opacity-0 position-absolute" style="width:0; height:0;">
-                                    <div class="severity-btn bg-orange p-4 rounded-4 text-white text-center" style="width: 120px; background: #fd7e14;">
+                                    </label>
+                                </div>
+                                <div class="severity-option">
+                                    <input type="radio" name="severity" value="high" id="sev_high" class="opacity-0 position-absolute" style="width:0; height:0;">
+                                    <label for="sev_high" class="severity-btn bg-orange p-3 rounded-4 text-white text-center d-block" style="background: #fd7e14;">
                                         <i class="bi bi-activity h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">High</div>
-                                    </div>
-                                </label>
-                                <label>
-                                    <input type="radio" name="severity" value="critical" class="opacity-0 position-absolute" style="width:0; height:0;">
-                                    <div class="severity-btn bg-danger p-4 rounded-4 text-white text-center" style="width: 120px;">
+                                    </label>
+                                </div>
+                                <div class="severity-option">
+                                    <input type="radio" name="severity" value="critical" id="sev_critical" class="opacity-0 position-absolute" style="width:0; height:0;">
+                                    <label for="sev_critical" class="severity-btn bg-danger p-3 rounded-4 text-white text-center d-block">
                                         <i class="bi bi-shield-fill-exclamation h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">Critical</div>
-                                    </div>
-                                </label>
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
