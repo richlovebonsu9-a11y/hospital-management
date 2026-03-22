@@ -9,8 +9,12 @@ $status = 'pending'; // Default if not found
 
 if ($emergency_id) {
     $supabase = new Supabase();
-    $result = $supabase->from('emergencies')->select('*')->where('id', 'eq', $emergency_id);
-    // Note: My Supabase helper 'where' is not implemented yet, but for the UI mockup, I'll just show the state.
+    // Use direct request with filter as the fluent 'where' isn't implemented in the helper
+    $res = $supabase->request('GET', "/rest/v1/emergencies?id=eq.{$emergency_id}&select=*");
+    $emergency = $res['data'][0] ?? null;
+    if ($emergency) {
+        $status = $emergency['status'];
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -40,25 +44,48 @@ if ($emergency_id) {
                     </div>
                     <div class="card-body p-5">
                         <div class="status-tracker mb-5">
-                            <div class="d-flex align-items-center mb-4 text-success">
-                                <div class="bg-success rounded-circle p-2 me-3"><i class="bi bi-check-lg text-white"></i></div>
+                            <!-- Step 1: Pending -->
+                            <div class="d-flex align-items-center mb-4 <?php echo ($status === 'pending' || $status === 'active') ? 'text-danger fw-bold' : 'text-success'; ?>">
+                                <div class="bg-<?php echo ($status === 'pending' || $status === 'active') ? 'danger' : 'success'; ?> rounded-circle p-2 me-3 <?php echo ($status === 'pending' || $status === 'active') ? 'dot-pulse' : ''; ?>">
+                                    <i class="bi bi-<?php echo ($status === 'pending' || $status === 'active') ? 'exclamation-circle' : 'check-lg'; ?> text-white"></i>
+                                </div>
                                 <div>
                                     <h6 class="fw-bold mb-0">Report Received</h6>
-                                    <small>Help is being coordinated.</small>
+                                    <small><?php echo ($status === 'pending' || $status === 'active') ? 'Help is being coordinated.' : 'Report verified and logged.'; ?></small>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center mb-4 text-primary">
-                                <div class="bg-primary rounded-circle p-2 me-3 dot-pulse"><i class="bi bi-truck text-white"></i></div>
+
+                            <!-- Step 2: Dispatched / Assigned -->
+                            <?php $isDispatched = in_array($status, ['assigned', 'dispatched']); ?>
+                            <div class="d-flex align-items-center mb-4 <?php echo $isDispatched ? 'text-primary fw-bold' : (in_array($status, ['on_site', 'resolved']) ? 'text-success' : 'text-muted opacity-50'); ?>">
+                                <div class="bg-<?php echo $isDispatched ? 'primary' : (in_array($status, ['on_site', 'resolved']) ? 'success' : 'secondary'); ?> rounded-circle p-2 me-3 <?php echo $isDispatched ? 'dot-pulse' : ''; ?>">
+                                    <i class="bi bi-truck text-white"></i>
+                                </div>
                                 <div>
                                     <h6 class="fw-bold mb-0">Dispatch in Progress</h6>
-                                    <small>Rapid response team or National Ambulance Service notified.</small>
+                                    <small><?php echo $isDispatched ? 'Assigned Responder is en route.' : 'Responder has been assigned.'; ?></small>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center mb-4 text-muted opacity-50">
-                                <div class="bg-secondary rounded-circle p-2 me-3"><i class="bi bi-geo-alt-fill text-white"></i></div>
+
+                            <!-- Step 3: On Scene -->
+                            <div class="d-flex align-items-center mb-4 <?php echo $status === 'on_site' ? 'text-warning fw-bold' : ($status === 'resolved' ? 'text-success' : 'text-muted opacity-50'); ?>">
+                                <div class="bg-<?php echo $status === 'on_site' ? 'warning' : ($status === 'resolved' ? 'success' : 'secondary'); ?> rounded-circle p-2 me-3 <?php echo $status === 'on_site' ? 'dot-pulse' : ''; ?>">
+                                    <i class="bi bi-geo-alt-fill text-white"></i>
+                                </div>
                                 <div>
                                     <h6 class="fw-bold mb-0">On Scene</h6>
-                                    <small>Estimated Arrival: 12-15 mins</small>
+                                    <small><?php echo $status === 'on_site' ? 'Responder has arrived at your location.' : 'Help is arriving soon.'; ?></small>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Resolved -->
+                            <div class="d-flex align-items-center mb-0 <?php echo $status === 'resolved' ? 'text-success fw-bold' : 'text-muted opacity-50'; ?>">
+                                <div class="bg-<?php echo $status === 'resolved' ? 'success' : 'secondary'; ?> rounded-circle p-2 me-3">
+                                    <i class="bi bi-heart-fill text-white"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-0">Emergency Resolved</h6>
+                                    <small><?php echo $status === 'resolved' ? 'Situation cleared. Stay safe.' : 'Service completion.'; ?></small>
                                 </div>
                             </div>
                         </div>
