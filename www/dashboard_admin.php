@@ -104,8 +104,6 @@ $allInvoices = ($allInvoicesRes['status'] === 200) ? $allInvoicesRes['data'] : [
 $inventoryRes = $sb->request('GET', '/rest/v1/drug_inventory?select=*&order=drug_name.asc', null, true);
 $inventory = ($inventoryRes['status'] === 200) ? $inventoryRes['data'] : [];
 
-}
-
 // 9. Fetch Active Admissions for Bed Management
 $admissionsRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=*,patient:patient_id(name),ward:ward_id(ward_name)', null, true);
 $activeAdmissions = ($admissionsRes['status'] === 200) ? $admissionsRes['data'] : [];
@@ -117,6 +115,11 @@ $pendingAdmissionsRaw = ($consultsRes['status'] === 200) ? $consultsRes['data'] 
 // Filter out those who already have an active admission
 $pendingAdmissions = [];
 $admittedPatientIds = array_column($activeAdmissions, 'patient_id');
+
+$totalRevenue = 0;
+foreach($allInvoices as $inv) {
+    if($inv['status'] === 'paid') $totalRevenue += (float)$inv['total_amount'];
+}
 foreach ($pendingAdmissionsRaw as $c) {
     if (!in_array($c['patient_id'], $admittedPatientIds)) {
         $pendingAdmissions[] = $c;
