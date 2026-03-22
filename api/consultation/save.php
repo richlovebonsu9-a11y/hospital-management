@@ -129,14 +129,18 @@ if ($role === 'doctor') {
                 }
             }
         }
-    }
-    
-    // Conclude formal appointment queue representation
-    $sb->request('PATCH', '/rest/v1/appointments?patient_id=eq.' . $patientId . '&assigned_to=eq.' . $u['id'] . '&status=eq.scheduled', [
-        'status' => 'completed'
-    ], true);
-}
+        
+        // Conclude formal appointment queue
+        $sb->request('PATCH', '/rest/v1/appointments?patient_id=eq.' . $patientId . '&assigned_to=eq.' . $u['id'] . '&status=eq.scheduled', [
+            'status' => 'completed'
+        ], true);
 
-$redirect = ($role === 'doctor') ? '/dashboard_doctor.php' : '/dashboard_staff.php';
-header('Location: ' . $redirect . '?visit_finished=1');
-exit;
+        $redirect = ($role === 'doctor') ? '/dashboard_doctor.php' : '/dashboard_staff.php';
+        header('Location: ' . $redirect . '?visit_finished=1');
+    } else {
+        $errMsg = urlencode($consultRes['data']['message'] ?? 'Database consultation record failed');
+        $redirect = ($role === 'doctor') ? '/dashboard_doctor.php' : '/dashboard_staff.php';
+        header('Location: ' . $redirect . '?error=save_failed&details=' . $errMsg);
+    }
+    exit;
+}
