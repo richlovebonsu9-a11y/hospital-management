@@ -60,7 +60,7 @@ if ($profilesRes['status'] === 200) {
 $apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, true);
 $totalAppointments = ($apptCountRes['status'] === 200) ? count($apptCountRes['data']) : 0;
 
-$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter_id,assigned_to&order=created_at.desc', null, true);
+$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?status=in.(active,pending,assigned)&select=*,reporter_id,assigned_to&order=created_at.desc', null, true);
 $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [];
 $emergError = ($emergenciesRes['status'] !== 200) ? ($emergenciesRes['error'] ?? 'Unknown Error') : null;
 

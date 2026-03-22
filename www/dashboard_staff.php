@@ -96,7 +96,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
 $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
 
 // 6. Fetch Assigned Emergencies
-$myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=neq.resolved&select=*,reporter:reporter_id(name)', null, true);
+$myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=in.(active,pending,assigned)&select=*,reporter:reporter_id(name)', null, true);
 $myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
 
 // Fetch Drugs for Emergency Prescription

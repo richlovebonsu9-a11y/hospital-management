@@ -50,7 +50,7 @@ $drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,sto
 $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
 
 // 6. Fetch Assigned Emergencies
-$myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=neq.resolved&select=*,reporter:reporter_id(name)', null, true);
+$myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=in.(active,pending,assigned)&select=*,reporter:reporter_id(name)', null, true);
 $myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
 
 // Stats
