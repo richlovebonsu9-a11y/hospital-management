@@ -753,7 +753,21 @@ foreach ($appointments as $a) {
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+        async function silentRefresh() {
+            try {
+                const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
+                if (activeSection) {
+                    const html = await fetch(location.href).then(r => r.text());
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const newSection = doc.getElementById(activeSection.id);
+                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
+                } else {
+                    location.reload();
+                }
+            } catch (e) { location.reload(); }
+        }
+    </script>
     <script>
         function openAdmissionModal(consultId) {
             document.getElementById('modal_consultation_id').value = consultId;

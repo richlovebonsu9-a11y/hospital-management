@@ -485,7 +485,21 @@ $seenToday = count($mySchedule); // Simplification
     </div>
 
     <!-- Bootstrap 5 JS Bundle -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+        async function silentRefresh() {
+            try {
+                const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
+                if (activeSection) {
+                    const html = await fetch(location.href).then(r => r.text());
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const newSection = doc.getElementById(activeSection.id);
+                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
+                } else {
+                    location.reload();
+                }
+            } catch (e) { location.reload(); }
+        }
+    </script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
@@ -677,7 +691,7 @@ $seenToday = count($mySchedule); // Simplification
             const data = await res.json();
             if (data.success) {
                 alert("Dispatch initiated successfully!");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Dispatch Error: " + data.error);
             }

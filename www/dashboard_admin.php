@@ -1259,7 +1259,21 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+        async function silentRefresh() {
+            try {
+                const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
+                if (activeSection) {
+                    const html = await fetch(location.href).then(r => r.text());
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const newSection = doc.getElementById(activeSection.id);
+                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
+                } else {
+                    location.reload();
+                }
+            } catch (e) { location.reload(); }
+        }
+    </script>
     <script>
         // Tab Navigation & Search Logic
         document.addEventListener('DOMContentLoaded', () => {
@@ -1366,7 +1380,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 alert("Link approved successfully!");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error: " + data.error);
             }
@@ -1382,7 +1396,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 alert("Link removed successfully.");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error removing link: " + (data.message || 'Unknown error'));
             }
@@ -1489,7 +1503,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                     if (result.logs && result.logs.length > 10) logSummary += "\n...and more.";
                     
                     alert(`Sync Complete!\nReconciled: ${result.reconciled_count}\nSkipped: ${result.skipped_count}\nTotal Checked: ${result.total_checked}${logSummary}`);
-                    window.location.reload();
+                    silentRefresh();
                 } else {
                     alert("Sync failed: " + (result.error || "Unknown error"));
                 }
@@ -1610,7 +1624,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 alert("Patient discharged and bed freed.");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error: " + data.error);
             }
@@ -1639,7 +1653,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 alert("Bed assigned successfully.");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error: " + data.error);
                 if (data.debug) console.error("API Debug Info:", data.debug);
@@ -1661,7 +1675,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 alert("Admission details updated.");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error: " + data.error);
             }
@@ -1679,7 +1693,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 alert("Staff assigned to emergency.");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error: " + data.error);
             }

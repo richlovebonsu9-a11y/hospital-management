@@ -16,13 +16,13 @@ if (isset($_SESSION['user'])) {
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="d-flex align-items-center min-vh-100" style="background-color: var(--bg-light); position: relative; overflow-x: hidden;">
+<body class="d-flex align-items-center justify-content-center py-5 min-vh-100 w-100" style="background-color: var(--bg-light); position: relative; overflow-x: hidden;">
     <!-- Vibrant Background Elements -->
     <div class="position-absolute" style="top: -15%; right: -10%; width: 60vw; height: 60vw; background: radial-gradient(circle, var(--theme-blue-soft) 0%, transparent 70%); z-index: 0; animation: pulse-blue 15s infinite alternate;"></div>
     <div class="position-absolute" style="bottom: -20%; left: -10%; width: 70vw; height: 70vw; background: radial-gradient(circle, var(--theme-green-soft) 0%, transparent 70%); z-index: 0; animation: pulse-blue 12s infinite alternate-reverse;"></div>
 
-    <div class="container position-relative" style="z-index: 1;">
-        <div class="row justify-content-center">
+    <div class="container position-relative w-100" style="z-index: 1;">
+        <div class="row justify-content-center w-100 mx-0">
             <div class="col-lg-10 col-xl-9">
                 
                 <!-- Split Login Card -->
@@ -52,6 +52,13 @@ if (isset($_SESSION['user'])) {
                             <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Sign In</h3>
                             <p class="text-muted small">Access your Kobby Moore Hospital account.</p>
                         </div>
+                        
+                        <?php if (isset($_GET['error'])): ?>
+                            <div class="alert alert-danger bg-danger text-white border-0 rounded-4 mb-4 small fw-bold shadow-sm d-flex align-items-center">
+                                <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i> 
+                                <?php echo htmlspecialchars($_GET['error'] === 'invalid_grant' ? 'Invalid email or password.' : $_GET['error']); ?>
+                            </div>
+                        <?php endif; ?>
                         
                         <form action="/api/auth/login" method="POST" autocomplete="off">
                             <div class="row g-3 g-md-4">

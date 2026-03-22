@@ -598,6 +598,20 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                 delBtn.classList.remove('d-none');
             }
         }
+    
+        async function silentRefresh() {
+            try {
+                const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
+                if (activeSection) {
+                    const html = await fetch(location.href).then(r => r.text());
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const newSection = doc.getElementById(activeSection.id);
+                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
+                } else {
+                    location.reload();
+                }
+            } catch (e) { location.reload(); }
+        }
     </script>
     <?php endif; ?>
 
@@ -982,7 +996,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             const data = await res.json();
             if (data.success) {
                 alert("Help has been dispatched!");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Error: " + data.error);
             }
@@ -1022,7 +1036,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             const data = await res.json();
             if (data.success) {
                 alert("Dispatch initiated successfully!");
-                location.reload();
+                silentRefresh();
             } else {
                 alert("Dispatch Error: " + data.error);
             }
