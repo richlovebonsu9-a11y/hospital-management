@@ -54,7 +54,7 @@
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Full Name</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-person"></i></span>
-                                        <input type="text" name="name" class="form-control border-0 bg-white" required placeholder="John Doe" autocomplete="off" style="box-shadow: none;">
+                                        <input type="text" name="name" class="form-control border-0 bg-white" required placeholder="" autocomplete="off" style="box-shadow: none;">
                                     </div>
                                 </div>
                                 
@@ -73,15 +73,15 @@
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Phone Number</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-telephone"></i></span>
-                                        <input type="tel" name="phone" class="form-control border-0 bg-white" required placeholder="+233 ..." autocomplete="off" style="box-shadow: none;">
+                                        <input type="tel" name="phone" class="form-control border-0 bg-white" required placeholder="" autocomplete="off" style="box-shadow: none;">
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-6">
-                                    <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">GhanaPostGPS</label>
+                                    <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">GHANA POST GPS</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-geo-alt"></i></span>
-                                        <input type="text" name="ghana_post_gps" class="form-control border-0 bg-white" required placeholder="AK-485-9323" autocomplete="off" style="box-shadow: none;">
+                                        <input type="text" name="ghana_post_gps" class="form-control border-0 bg-white" required placeholder="" autocomplete="off" style="box-shadow: none;">
                                     </div>
                                 </div>
                                 
@@ -89,7 +89,7 @@
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Email Address</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-envelope"></i></span>
-                                        <input type="email" name="email" class="form-control border-0 bg-white" required placeholder="name@example.com" autocomplete="off" style="box-shadow: none;">
+                                        <input type="email" name="email" class="form-control border-0 bg-white" required placeholder="" autocomplete="off" style="box-shadow: none;">
                                     </div>
                                 </div>
                                 
@@ -97,7 +97,7 @@
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Password</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-shield-lock"></i></span>
-                                        <input type="password" name="password" class="form-control border-0 bg-white" required placeholder="••••••••" autocomplete="new-password" style="box-shadow: none;">
+                                        <input type="password" name="password" class="form-control border-0 bg-white" required placeholder="" autocomplete="new-password" style="box-shadow: none;">
                                     </div>
                                 </div>
                                 
@@ -105,7 +105,7 @@
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Confirm Password</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-shield-check"></i></span>
-                                        <input type="password" name="password_confirm" class="form-control border-0 bg-white" required placeholder="••••••••" autocomplete="new-password" style="box-shadow: none;">
+                                        <input type="password" name="password_confirm" class="form-control border-0 bg-white" required placeholder="" autocomplete="new-password" style="box-shadow: none;">
                                     </div>
                                 </div>
                             </div>

@@ -66,14 +66,14 @@ if (isset($_SESSION['user'])) {
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Email Address</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-envelope"></i></span>
-                                        <input type="email" name="email" class="form-control border-0 bg-white" required placeholder="name@example.com" autocomplete="off" style="box-shadow: none;">
+                                        <input type="email" name="email" class="form-control border-0 bg-white" required placeholder="" autocomplete="off" style="box-shadow: none;">
                                     </div>
                                 </div>
                                 <div class="col-12">
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Password</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-shield-lock"></i></span>
-                                        <input type="password" name="password" class="form-control border-0 bg-white" required placeholder="••••••••" autocomplete="new-password" style="box-shadow: none;">
+                                        <input type="password" name="password" class="form-control border-0 bg-white" required placeholder="" autocomplete="new-password" style="box-shadow: none;">
                                     </div>
                                 </div>
                             </div>
