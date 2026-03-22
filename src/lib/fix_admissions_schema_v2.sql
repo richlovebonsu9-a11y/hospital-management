@@ -23,6 +23,9 @@ BEGIN
     -- 4. Handle legacy 'ward' (text) column if it exists
     -- Migration: If 'ward_id' is null and 'ward' (text) exists, try to map it back to a ward ID if ward_name matches
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='admissions' AND column_name='ward') THEN
+        -- IMPORTANT: Make the old 'ward' column nullable so it doesn't block inserts that only use 'ward_id'
+        ALTER TABLE admissions ALTER COLUMN ward DROP NOT NULL;
+
         UPDATE admissions a
         SET ward_id = w.id
         FROM wards w
