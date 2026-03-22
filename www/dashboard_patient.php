@@ -769,7 +769,7 @@ foreach ($appointments as $a) {
                             <?php endif; ?>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-2 shadow-sm">Authorize Payment</button>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-2 shadow-sm">PAY</button>
                     </form>
                 </div>
             </div>

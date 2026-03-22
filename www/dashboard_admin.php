@@ -95,6 +95,15 @@ foreach($emergencies as $e) if(($e['severity'] ?? '') === 'high' && ($e['status'
 // 6. Fetch Ward Data for Bed Management
 $wardsRes = $sb->request('GET', '/rest/v1/wards?select=*&order=ward_name.asc', null, true);
 $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
+
+// 7. Fetch Billing & Invoices for Admin
+$allInvoicesRes = $sb->request('GET', '/rest/v1/invoices?select=*,patient:patient_id(name)&order=created_at.desc', null, true);
+$allInvoices = ($allInvoicesRes['status'] === 200) ? $allInvoicesRes['data'] : [];
+
+$totalRevenue = 0;
+foreach($allInvoices as $inv) {
+    if($inv['status'] === 'paid') $totalRevenue += (float)$inv['total_amount'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -129,6 +138,7 @@ $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
             <a href="#" class="nav-link-custom" data-target="section-appointments"><i class="bi bi-calendar-check"></i> Appointments</a>
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
+            <a href="#" class="nav-link-custom" data-target="section-billing"><i class="bi bi-credit-card-2-front"></i> Billing & Payments</a>
             <hr class="my-3">
             <div class="px-2 mb-3">
                 <button class="btn btn-primary-soft text-primary w-100 rounded-pill d-flex align-items-center justify-content-center py-2" data-bs-toggle="modal" data-bs-target="#searchModal">
@@ -497,6 +507,72 @@ $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
                     </div>
                 </div>
                 <?php endforeach; ?>
+            </div>
+        </div>
+
+        <!-- BILLING & PAYMENTS SECTION -->
+        <div id="section-billing" class="dashboard-section d-none">
+            <div class="row g-4 mb-4">
+                <div class="col-md-4">
+                    <div class="card p-4 border-0 shadow-sm bg-primary text-white">
+                        <h6 class="opacity-75 mb-3">Total Hospital Revenue</h6>
+                        <h2 class="fw-bold mb-1">₵ <?php echo number_format($totalRevenue, 2); ?></h2>
+                        <small class="opacity-75">All-time collected</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-4 border-0 shadow-sm">
+                        <h6 class="text-muted mb-3">Pending Invoices</h6>
+                        <?php 
+                        $pendingCount = 0; 
+                        foreach($allInvoices as $i) if($i['status'] === 'unpaid') $pendingCount++;
+                        ?>
+                        <h2 class="fw-bold mb-1 text-warning"><?php echo $pendingCount; ?></h2>
+                        <small class="text-muted">Awaiting payment</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card p-4 border-0 shadow-sm">
+                <h5 class="fw-bold mb-4">Invoice Ledger</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Patient</th>
+                                <th>Method</th>
+                                <th>Total Amount</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($allInvoices)): ?>
+                                <tr><td colspan="6" class="text-center py-4 text-muted">No financial records found.</td></tr>
+                            <?php endif; foreach($allInvoices as $inv): ?>
+                                <tr>
+                                    <td><?php echo date('M d, Y', strtotime($inv['created_at'])); ?></td>
+                                    <td class="fw-bold"><?php echo htmlspecialchars($inv['patient']['name'] ?? 'Guest'); ?></td>
+                                    <td>
+                                        <span class="badge bg-light text-dark border rounded-pill px-2">
+                                            <?php echo strtoupper($inv['payment_method'] ?? 'N/A'); ?>
+                                        </span>
+                                    </td>
+                                    <td class="fw-bold">₵ <?php echo number_format($inv['total_amount'], 2); ?></td>
+                                    <td>
+                                        <span class="badge <?php echo ($inv['status'] === 'paid') ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'; ?> rounded-pill px-3">
+                                            <?php echo htmlspecialchars($inv['status']); ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-light rounded-pill px-3">View Details</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
