@@ -1,7 +1,7 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
-// Shared Navbar - GGHMS
+// Shared Navbar - Kobby Moore Hospital
 $user_logged_in = isset($_SESSION['user']);
 $user_role = $_SESSION['user']['user_metadata']['role'] ?? 'patient';
 ?>
@@ -9,7 +9,7 @@ $user_role = $_SESSION['user']['user_metadata']['role'] ?? 'patient';
     <div class="container">
         <a class="navbar-brand fw-bold d-flex align-items-center" href="/">
             <div class="bg-primary rounded-circle me-2" style="width: 32px; height: 32px;"></div>
-            <span class="text-secondary">GGHMS</span>
+            <span class="text-secondary">Kobby Moore Hospital</span>
         </a>
         <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain">
             <span class="navbar-toggler-icon"></span>

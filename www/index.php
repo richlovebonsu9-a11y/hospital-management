@@ -3,7 +3,7 @@
 session_start();
 
 $page = $_GET['page'] ?? 'home';
-$title = "GGHMS - " . ucfirst($page);
+$title = "Kobby Moore Hospital - " . ucfirst($page);
 
 ?>
 <!DOCTYPE html>
@@ -32,7 +32,7 @@ $title = "GGHMS - " . ucfirst($page);
                         <div class="hero-card shadow-lg">
                             <span class="hero-badge">Health is Wealth</span>
                             <h1 class="display-4 fw-bold mb-4">The Best Medical and Treatment Center for You</h1>
-                            <p class="mb-4 opacity-75">Ghanaian General Hospital Management System (GGHMS) provides state-of-the-art care with automated emergency response and digital medical records.</p>
+                            <p class="mb-4 opacity-75">Kobby Moore Hospital (Kobby Moore Hospital) provides state-of-the-art care with automated emergency response and digital medical records.</p>
                             <div class="d-grid d-md-block">
                                 <a href="/signup" class="btn btn-light btn-lg rounded-pill px-5 py-3 fw-bold text-primary">Book online &rarr;</a>
                             </div>
@@ -54,7 +54,7 @@ $title = "GGHMS - " . ucfirst($page);
                     </div>
                     <div class="col-md-6 ps-lg-5">
                         <h6 class="text-primary fw-bold text-uppercase mb-3">About Our Center</h6>
-                        <h2 class="display-5 fw-bold mb-4">Ghanaian General Hospital</h2>
+                        <h2 class="display-5 fw-bold mb-4">Kobby Moore Hospital</h2>
                         <p class="text-muted mb-5">We are committed to providing the highest quality healthcare services in Ghana. Our system integrates digital addresses via GhanaPostGPS for rapid emergency response and offers optional NHIS membership management for seamless billing.</p>
                         
                         <div class="row g-4 text-center">
@@ -122,13 +122,13 @@ $title = "GGHMS - " . ucfirst($page);
 
     <footer class="bg-white py-5 mt-auto border-top">
         <div class="container text-center">
-            <h4 class="fw-bold text-primary mb-4">GGHMS</h4>
+            <h4 class="fw-bold text-primary mb-4">Kobby Moore Hospital</h4>
             <div class="mb-4">
                 <a href="#" class="nav-link d-inline mx-2 text-muted">Terms</a>
                 <a href="#" class="nav-link d-inline mx-2 text-muted">Privacy</a>
                 <a href="#" class="nav-link d-inline mx-2 text-muted">Contact</a>
             </div>
-            <p class="text-muted small mb-0">&copy; <?php echo date('Y'); ?> Ghanaian General Hospital Management System. Aligned with Data Protection Act 2012.</p>
+            <p class="text-muted small mb-0">&copy; <?php echo date('Y'); ?> Kobby Moore Hospital. Aligned with Data Protection Act 2012.</p>
         </div>
     </footer>
 

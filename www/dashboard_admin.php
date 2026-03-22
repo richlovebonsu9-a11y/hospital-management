@@ -1,5 +1,5 @@
 <?php
-// Admin Dashboard - GGHMS
+// Admin Dashboard - Kobby Moore Hospital
 session_start();
 require_once __DIR__ . '/../src/lib/Supabase.php';
 use App\Lib\Supabase;
@@ -139,7 +139,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - GGHMS</title>
+    <title>Admin Dashboard - Kobby Moore Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -162,7 +162,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <div class="sidebar p-4">
         <div class="d-flex align-items-center mb-5">
             <div class="bg-primary rounded-circle me-2" style="width: 32px; height: 32px;"></div>
-            <h4 class="fw-bold mb-0 text-secondary">GGHMS</h4>
+            <h4 class="fw-bold mb-0 text-secondary">Kobby Moore Hospital</h4>
         </div>
 
         <nav id="sidebarMenu">
@@ -194,13 +194,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm p-2 me-3" onclick="toggleSidebar()">
                 <i class="bi bi-list fs-4 text-primary"></i>
             </button>
-            <h4 class="fw-bold mb-0 text-primary">GGHMS</h4>
+            <h4 class="fw-bold mb-0 text-primary">Kobby Moore Hospital</h4>
         </div>
 
         <header class="d-flex justify-content-between align-items-center mb-5">
             <div>
                 <h2 class="fw-bold mb-1">Administrative Center</h2>
-                <p class="text-muted mb-0">Overview of Ghanaian General Hospital operations.</p>
+                <p class="text-muted mb-0">Overview of Kobby Moore Hospital operations.</p>
             </div>
             <div class="d-flex align-items-center">
                 <div class="dropdown me-4">

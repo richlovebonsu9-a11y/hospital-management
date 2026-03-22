@@ -11,7 +11,7 @@ if (isset($_SESSION['user'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - GGHMS</title>
+    <title>Login - Kobby Moore Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
@@ -27,7 +27,7 @@ if (isset($_SESSION['user'])) {
                                 <div class="bg-white rounded-circle" style="width: 20px; height: 20px;"></div>
                             </div>
                             <h2 class="fw-bold text-secondary">Welcome Back</h2>
-                            <p class="text-muted">Login to GGHMS Dashboard</p>
+                            <p class="text-muted">Login to Kobby Moore Hospital Dashboard</p>
                         </div>
                         <form action="/api/auth/login" method="POST" autocomplete="off">
                             <div class="mb-4">
@@ -41,7 +41,7 @@ if (isset($_SESSION['user'])) {
                             <button type="submit" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow">Sign In &rarr;</button>
                         </form>
                         <div class="text-center mt-5">
-                            <p class="text-muted mb-0">New to GGHMS? <a href="/signup" class="text-primary fw-bold text-decoration-none">Create Account</a></p>
+                            <p class="text-muted mb-0">New to Kobby Moore Hospital? <a href="/signup" class="text-primary fw-bold text-decoration-none">Create Account</a></p>
                         </div>
                     </div>
                 </div>

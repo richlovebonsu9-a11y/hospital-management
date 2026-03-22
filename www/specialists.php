@@ -1,5 +1,5 @@
 <?php
-// Specialists Directory - GGHMS
+// Specialists Directory - Kobby Moore Hospital
 session_start();
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 $loggedIn = isset($_SESSION['user']);
@@ -10,8 +10,8 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Our Specialist Doctors - GGHMS</title>
-    <meta name="description" content="Meet the expert specialist doctors at GGHMS — Cardiology, Pediatrics, Surgery, Maternity and more.">
+    <title>Our Specialist Doctors - Kobby Moore Hospital</title>
+    <meta name="description" content="Meet the expert specialist doctors at Kobby Moore Hospital — Cardiology, Pediatrics, Surgery, Maternity and more.">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -57,7 +57,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg bg-white shadow-sm sticky-top">
         <div class="container">
-            <a class="navbar-brand fw-bold text-primary fs-4" href="/">GGHMS</a>
+            <a class="navbar-brand fw-bold text-primary fs-4" href="/">Kobby Moore Hospital</a>
             <div class="d-flex gap-2 ms-auto">
                 <?php if ($loggedIn): ?>
                     <a href="/dashboard" class="btn btn-primary rounded-pill px-4">My Dashboard</a>
@@ -72,7 +72,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
     <!-- Hero -->
     <section class="hero-section">
         <div class="container text-center">
-            <h6 class="text-uppercase fw-bold opacity-75 mb-3 ls-wide">GGHMS Medical Team</h6>
+            <h6 class="text-uppercase fw-bold opacity-75 mb-3 ls-wide">Kobby Moore Hospital Medical Team</h6>
             <h1 class="display-4 fw-bold mb-3">Our Expert Specialists</h1>
             <p class="lead opacity-75 mb-0">World-class specialists dedicated to your health and wellbeing</p>
         </div>
@@ -205,7 +205,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
     <!-- Footer -->
     <footer class="bg-white py-4 border-top mt-5">
         <div class="container text-center text-muted small">
-            &copy; <?php echo date('Y'); ?> GGHMS &mdash; Greater Good Hospital Management System. All rights reserved.
+            &copy; <?php echo date('Y'); ?> Kobby Moore Hospital &mdash; Greater Good Hospital Management System. All rights reserved.
         </div>
     </footer>
 

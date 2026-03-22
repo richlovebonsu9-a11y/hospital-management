@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - GGHMS</title>
+    <title>Sign Up - Kobby Moore Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
@@ -18,28 +18,38 @@
 
     <div class="container position-relative" style="z-index: 1;">
         <div class="row justify-content-center">
-            <div class="col-md-9 col-lg-7">
+            <div class="col-lg-10 col-xl-9">
                 
-                <!-- Signup Card -->
-                <div class="card border-0 rounded-4 overflow-hidden shadow-lg bg-white" style="transform: translateY(0); transition: all 0.4s ease;">
-                    <!-- Elegant Top Color Bar -->
-                    <div class="d-flex" style="height: 6px;">
-                        <div class="w-50 bg-primary"></div>
-                        <div class="w-50 bg-success"></div>
-                    </div>
+                <!-- Split Signup Card -->
+                <div class="card border-0 rounded-5 overflow-hidden shadow-lg bg-white d-flex flex-column flex-lg-row" style="transform: translateY(0); transition: all 0.4s ease;">
                     
-                    <div class="card-body p-5">
-                        <div class="text-center mb-5">
-                            <!-- Logo Icon -->
-                            <div class="d-inline-flex align-items-center justify-content-center bg-success-soft text-success rounded-4 mb-3 shadow-sm" style="width: 72px; height: 72px; transform: rotate(10deg);">
-                                <i class="bi bi-person-plus-fill fs-1" style="transform: rotate(-10deg);"></i>
+                    <!-- Left Side: Promotional Message -->
+                    <div class="col-lg-5 text-white p-5 d-flex flex-column justify-content-center position-relative" style="background: linear-gradient(135deg, var(--theme-blue) 0%, var(--theme-green) 100%);">
+                        <!-- Subtle Pattern Overlay -->
+                        <div class="position-absolute top-0 start-0 w-100 h-100 opacity-25" style="background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.4) 1px, transparent 0); background-size: 24px 24px; pointer-events: none;"></div>
+                        
+                        <div class="position-relative z-1 pe-lg-4">
+                            <div class="d-inline-flex align-items-center justify-content-center bg-white bg-opacity-25 rounded-4 mb-4 shadow-sm" style="width: 72px; height: 72px; backdrop-filter: blur(8px);">
+                                <i class="bi bi-heart-pulse-fill fs-1 text-white"></i>
                             </div>
-                            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Join GGHMS</h3>
+                            <h2 class="fw-bold mb-4 display-6" style="line-height: 1.25; letter-spacing: -1px;">Looking For Premium & Quality Healthcare?</h2>
+                            <p class="fs-4 mb-0 opacity-100" style="font-weight: 300; letter-spacing: 0.5px;">Sign Up With Us.</p>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Signup Form -->
+                    <div class="col-lg-7 p-4 p-md-5">
+                        <div class="text-center mb-5 d-lg-none">
+                            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Join Kobby Moore Hospital</h3>
                             <p class="text-muted small">Register to experience modern healthcare.</p>
+                        </div>
+                        <div class="text-start mb-4 d-none d-lg-block">
+                            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Create an Account</h3>
+                            <p class="text-muted small">Join Kobby Moore Hospital today.</p>
                         </div>
                         
                         <form action="/api/auth/signup" method="POST" autocomplete="off">
-                            <div class="row g-4">
+                            <div class="row g-3 g-md-4">
                                 <div class="col-md-6">
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Full Name</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
@@ -75,7 +85,7 @@
                                     </div>
                                 </div>
                                 
-                                <div class="col-md-12">
+                                <div class="col-12">
                                     <label class="form-label small fw-bold text-muted text-uppercase" style="letter-spacing: 1px;">Email Address</label>
                                     <div class="input-group input-group-lg shadow-sm rounded-4 overflow-hidden border border-light">
                                         <span class="input-group-text bg-white border-0 text-muted px-3"><i class="bi bi-envelope"></i></span>
@@ -100,16 +110,15 @@
                                 </div>
                             </div>
                             
-                            <!-- Internal App Signup (Hidden by default unless query param specific, simplified here) -->
-                            <div class="mt-5">
+                            <div class="mt-4 pt-2">
                                 <button type="submit" class="btn btn-success w-100 py-3 fw-bold rounded-pill shadow-sm d-flex justify-content-center align-items-center gap-2" style="font-size: 1.05rem;">
                                     Create My Account <i class="bi bi-person-check fs-4"></i>
                                 </button>
                             </div>
                         </form>
 
-                        <div class="text-center mt-4 pt-4 border-top border-light">
-                            <p class="text-muted mb-0 small">Already a member? <br><a href="/login" class="text-primary fw-bold text-decoration-none fs-6 d-inline-block mt-1">Sign In</a></p>
+                        <div class="text-center mt-4 pt-3 border-top border-light">
+                            <p class="text-muted mb-0 small">Already a member? <a href="/login" class="text-primary fw-bold text-decoration-none ms-1">Sign In</a></p>
                         </div>
                     </div>
                 </div>

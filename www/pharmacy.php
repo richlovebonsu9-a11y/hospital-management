@@ -1,5 +1,5 @@
 <?php
-// Pharmacy Module - GGHMS
+// Pharmacy Module - Kobby Moore Hospital
 session_start();
 if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? '') !== 'pharmacist') {
     // Note: Staff role check might be broader in the router, but here we check specifically.
@@ -10,7 +10,7 @@ if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pharmacy - GGHMS</title>
+    <title>Pharmacy - Kobby Moore Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">

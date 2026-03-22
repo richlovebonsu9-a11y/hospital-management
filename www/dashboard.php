@@ -1,5 +1,5 @@
 <?php
-// Dashboard Router - GGHMS
+// Dashboard Router - Kobby Moore Hospital
 session_start();
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 if (!isset($_SESSION['user'])) {
