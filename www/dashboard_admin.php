@@ -100,6 +100,10 @@ $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
 $allInvoicesRes = $sb->request('GET', '/rest/v1/invoices?select=*,patient:patient_id(name)&order=created_at.desc', null, true);
 $allInvoices = ($allInvoicesRes['status'] === 200) ? $allInvoicesRes['data'] : [];
 
+// 8. Fetch Inventory for Admin
+$inventoryRes = $sb->request('GET', '/rest/v1/drug_inventory?select=*&order=drug_name.asc', null, true);
+$inventory = ($inventoryRes['status'] === 200) ? $inventoryRes['data'] : [];
+
 $totalRevenue = 0;
 foreach($allInvoices as $inv) {
     if($inv['status'] === 'paid') $totalRevenue += (float)$inv['total_amount'];
@@ -139,6 +143,7 @@ foreach($allInvoices as $inv) {
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
             <a href="#" class="nav-link-custom" data-target="section-billing"><i class="bi bi-credit-card-2-front"></i> Billing & Payments</a>
+            <a href="#" class="nav-link-custom" data-target="section-inventory"><i class="bi bi-box-seam"></i> Inventory Management</a>
             <hr class="my-3">
             <div class="px-2 mb-3">
                 <button class="btn btn-primary-soft text-primary w-100 rounded-pill d-flex align-items-center justify-content-center py-2" data-bs-toggle="modal" data-bs-target="#searchModal">
@@ -556,7 +561,15 @@ foreach($allInvoices as $inv) {
                                     <td class="fw-bold"><?php echo htmlspecialchars($inv['patient']['name'] ?? 'Guest'); ?></td>
                                     <td>
                                         <span class="badge bg-light text-dark border rounded-pill px-2">
-                                            <?php echo strtoupper($inv['payment_method'] ?? 'N/A'); ?>
+                                            <?php 
+                                            $method = $inv['payment_method'] ?? '';
+                                            if (!$method && str_starts_with($inv['nhis_note'] ?? '', 'PAYMENT_META:')) {
+                                                $metaStr = substr($inv['nhis_note'], 13);
+                                                $meta = json_decode($metaStr, true);
+                                                $method = $meta['method'] ?? 'N/A';
+                                            }
+                                            echo strtoupper($method ?: 'N/A'); 
+                                            ?>
                                         </span>
                                     </td>
                                     <td class="fw-bold">₵ <?php echo number_format($inv['total_amount'], 2); ?></td>
@@ -566,7 +579,52 @@ foreach($allInvoices as $inv) {
                                         </span>
                                     </td>
                                     <td>
-                                        <button class="btn btn-sm btn-light rounded-pill px-3">View Details</button>
+                                        <button class="btn btn-sm btn-light rounded-pill px-3" onclick="viewInvoiceDetails('<?php echo $inv['id']; ?>', '<?php echo htmlspecialchars($inv['patient']['name'] ?? 'Guest'); ?>')">View Details</button>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- INVENTORY MANAGEMENT SECTION -->
+        <div id="section-inventory" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Pharmacy Drug Inventory</h5>
+                    <button class="btn btn-primary rounded-pill px-4" onclick="openInventoryModal('add')"><i class="bi bi-plus-lg me-2"></i> Add Drug Stock</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr><th>Drug Name</th><th>Category</th><th>Unit Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($inventory)): ?>
+                                <tr><td colspan="6" class="text-center py-4 text-muted">Inventory is empty.</td></tr>
+                            <?php endif; foreach($inventory as $drug): ?>
+                                <tr>
+                                    <td class="fw-bold"><?php echo htmlspecialchars($drug['drug_name']); ?></td>
+                                    <td><span class="badge bg-light text-dark border rounded-pill px-2"><?php echo htmlspecialchars($drug['category'] ?: 'General'); ?></span></td>
+                                    <td>₵ <?php echo number_format($drug['unit_price'], 2); ?></td>
+                                    <td>
+                                        <span class="fw-bold <?php echo ($drug['stock_count'] < 10) ? 'text-danger' : ''; ?>">
+                                            <?php echo $drug['stock_count']; ?> units
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <?php if($drug['stock_count'] <= 0): ?>
+                                            <span class="badge bg-danger-soft text-danger">Out of Stock</span>
+                                        <?php elseif($drug['stock_count'] < 10): ?>
+                                            <span class="badge bg-warning-soft text-warning">Low Stock</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-success-soft text-success">In Stock</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick='openInventoryModal("edit", <?php echo json_encode($drug); ?>)'>Update</button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -721,6 +779,68 @@ foreach($allInvoices as $inv) {
         </div>
     </div>
 
+    <!-- Invoice Details Modal -->
+    <div class="modal fade" id="invoiceDetailsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Invoice Breakdown: <span id="detail_patient_name"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div id="invoice_items_container">
+                        <div class="text-center py-4"><div class="spinner-border text-primary"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Management Modal -->
+    <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold" id="invModalTitle">Add Drug Stock</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/admin/manage_inventory.php" method="POST">
+                        <input type="hidden" name="action" id="inv_action" value="add">
+                        <input type="hidden" name="id" id="inv_id">
+                        <div class="mb-3">
+                            <label class="small text-muted">Drug Name</label>
+                            <input type="text" name="drug_name" id="inv_name" class="form-control rounded-pill px-3" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <label class="small text-muted">Stock Count</label>
+                                <input type="number" name="stock_count" id="inv_stock" class="form-control rounded-pill px-3" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="small text-muted">Unit Price (₵)</label>
+                                <input type="number" step="0.01" name="unit_price" id="inv_price" class="form-control rounded-pill px-3" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted">Category</label>
+                            <select name="category" id="inv_category" class="form-select rounded-pill px-3">
+                                <option value="General">General</option>
+                                <option value="Antibiotics">Antibiotics</option>
+                                <option value="Painkillers">Painkillers</option>
+                                <option value="Antimalarials">Antimalarials</option>
+                                <option value="Injections">Injections</option>
+                                <option value="Surgical Supplies">Surgical Supplies</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Commit Changes</button>
+                        <button type="submit" name="action" value="delete" id="inv_delete_btn" class="btn btn-link text-danger w-100 mt-2 d-none">Delete Item</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- PATIENT SEARCH MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -855,6 +975,10 @@ foreach($allInvoices as $inv) {
             }
         }
 
+            const assignModal = new bootstrap.Modal(document.getElementById('assignStaffModal'));
+            assignModal.show();
+        }
+
         function openAssignModal(apptId, department) {
             document.getElementById('assign_appt_id').value = apptId;
             document.getElementById('assign_dept_display').value = department;
@@ -872,6 +996,71 @@ foreach($allInvoices as $inv) {
 
             const assignModal = new bootstrap.Modal(document.getElementById('assignStaffModal'));
             assignModal.show();
+        }
+
+        async function viewInvoiceDetails(id, name) {
+            document.getElementById('detail_patient_name').innerText = name;
+            const container = document.getElementById('invoice_items_container');
+            container.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+            
+            const modal = new bootstrap.Modal(document.getElementById('invoiceDetailsModal'));
+            modal.show();
+
+            try {
+                const res = await fetch(`/api/billing/get_invoice_details.php?id=${id}`);
+                const data = await res.json();
+                
+                if (data.items && data.items.length > 0) {
+                    let html = '<div class="list-group list-group-flush">';
+                    data.items.forEach(item => {
+                        html += `
+                            <div class="list-group-item d-flex justify-content-between align-items-center border-0 px-0 py-2">
+                                <div>
+                                    <h6 class="mb-0 small fw-bold">${item.description}</h6>
+                                    <small class="text-muted extra-small">${new Date(item.created_at).toLocaleDateString()}</small>
+                                </div>
+                                <span class="fw-bold text-primary">₵ ${parseFloat(item.amount).toFixed(2)}</span>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    container.innerHTML = html;
+                } else {
+                    container.innerHTML = '<p class="text-center text-muted py-4">No items found for this invoice.</p>';
+                }
+            } catch (e) {
+                container.innerHTML = '<p class="text-center text-danger py-4">Error loading details.</p>';
+            }
+        }
+
+        function openInventoryModal(action, drug = null) {
+            const modalTitle = document.getElementById('invModalTitle');
+            const actionInput = document.getElementById('inv_action');
+            const idInput = document.getElementById('inv_id');
+            const delBtn = document.getElementById('inv_delete_btn');
+
+            if (action === 'add') {
+                modalTitle.innerText = 'Add New Drug Stock';
+                actionInput.value = 'add';
+                idInput.value = '';
+                document.getElementById('inv_name').value = '';
+                document.getElementById('inv_stock').value = '';
+                document.getElementById('inv_price').value = '';
+                document.getElementById('inv_category').value = 'General';
+                delBtn.classList.add('d-none');
+            } else {
+                modalTitle.innerText = 'Update Drug: ' + drug.drug_name;
+                actionInput.value = 'update';
+                idInput.value = drug.id;
+                document.getElementById('inv_name').value = drug.drug_name;
+                document.getElementById('inv_stock').value = drug.stock_count;
+                document.getElementById('inv_price').value = drug.unit_price;
+                document.getElementById('inv_category').value = drug.category || 'General';
+                delBtn.classList.remove('d-none');
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('inventoryModal'));
+            modal.show();
         }
 
         async function syncStaffData() {
