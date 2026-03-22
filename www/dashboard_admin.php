@@ -57,8 +57,9 @@ if ($profilesRes['status'] === 200) {
 $apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, true);
 $totalAppointments = ($apptCountRes['status'] === 200) ? count($apptCountRes['data']) : 0;
 
-$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter:reporter_id(name),assigned_staff:assigned_to(name)&order=created_at.desc', null, true);
+$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter_id,assigned_to&order=created_at.desc', null, true);
 $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [];
+$emergError = ($emergenciesRes['status'] !== 200) ? ($emergenciesRes['error'] ?? 'Unknown Error') : null;
 
 $auditRes = $sb->request('GET', '/rest/v1/audit_log?order=created_at.desc&limit=20');
 $auditLogs = ($auditRes['status'] === 200) ? $auditRes['data'] : [];
@@ -451,7 +452,12 @@ foreach ($pendingAdmissionsRaw as $c) {
             <div class="card p-4 border-0 shadow-sm overflow-hidden">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="fw-bold mb-0">Emergency Response Queue</h5>
-                    <span class="badge bg-danger-soft text-danger rounded-pill px-3"><?php echo $highSeverityCount; ?> High Priority Active</span>
+                    <div class="d-flex align-items-center gap-3">
+                        <?php if ($emergError): ?>
+                            <span class="badge bg-danger rounded-pill px-3" title="<?php echo htmlspecialchars($emergError); ?>">Fetch Error: Check console</span>
+                        <?php endif; ?>
+                        <span class="badge bg-danger-soft text-danger rounded-pill px-3"><?php echo $highSeverityCount; ?> High Priority Active</span>
+                    </div>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
@@ -476,7 +482,7 @@ foreach ($pendingAdmissionsRaw as $c) {
                                         <small class="text-muted extra-small"><?php echo date('M d, Y', strtotime($e['created_at'])); ?></small>
                                     </td>
                                     <td>
-                                        <div class="fw-bold text-primary"><?php echo htmlspecialchars($e['reporter']['name'] ?? 'Guest Patient'); ?></div>
+                                        <div class="fw-bold text-primary"><?php echo htmlspecialchars($profilesMap[$e['reporter_id']] ?? 'Guest Patient'); ?></div>
                                         <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'] ?? 'N/A', 0, 8); ?></small>
                                     </td>
                                     <td>
@@ -494,7 +500,7 @@ foreach ($pendingAdmissionsRaw as $c) {
                                     </td>
                                     <td>
                                         <?php if(!empty($e['assigned_to'])): ?>
-                                            <span class="text-success fw-bold"><i class="bi bi-person-check-fill me-1"></i><?php echo htmlspecialchars($e['assigned_staff']['name'] ?? 'Staff Member'); ?></span>
+                                            <span class="text-success fw-bold"><i class="bi bi-person-check-fill me-1"></i><?php echo htmlspecialchars($profilesMap[$e['assigned_to']] ?? 'Staff Member'); ?></span>
                                         <?php else: ?>
                                             <span class="text-muted extra-small italic">Awaiting Assignment</span>
                                         <?php endif; ?>
