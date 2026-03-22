@@ -42,35 +42,66 @@ $admissionData = [
 $sb->request('POST', '/rest/v1/admissions', $admissionData, true);
 
 // 4. Automated Billing for Bed Fee
-// a. Find or create invoice
+// a. NHIS DISCOUNT CHECK
+$profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $userId . '&select=ghana_card,nhis_membership_number', null, true);
+$pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
+$hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
+$discountMultiplier = $hasNHIS ? 0.5 : 1.0;
+
+// b. Find or create invoice
 $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $userId . '&status=eq.unpaid&limit=1', null, true);
+$isNewInvoice = false;
 if ($invRes['status'] === 200 && !empty($invRes['data'])) {
     $invoiceId = $invRes['data'][0]['id'];
-    $currentTotal = $invRes['data'][0]['total_amount'];
+    $currentTotal = (float)$invRes['data'][0]['total_amount'];
 } else {
-    $newInv = $sb->request('POST', '/rest/v1/invoices?select=id', [
-        'patient_id' => $userId,
-        'total_amount' => 0,
+    $newInv = $sb->request('POST', '/rest/v1/invoices', [
+        'patient_id' => $userId, 
+        'total_amount' => 0, 
         'status' => 'unpaid'
-    ], true);
-    $invoiceId = $newInv['data'][0]['id'];
-    $currentTotal = 0;
+    ], true, ['Prefer' => 'return=representation']);
+    
+    if ($newInv['status'] === 201 && !empty($newInv['data'])) {
+        $invoiceId = $newInv['data'][0]['id'];
+        $currentTotal = 0;
+        $isNewInvoice = true;
+    }
 }
 
-// b. Add Bed Fee item
-$fee = $ward['admission_fee'] ?? 0;
-$sb->request('POST', '/rest/v1/invoice_items', [
-    'invoice_id' => $invoiceId,
-    'description' => 'Hospital Bed & Admission Fee (' . $ward['ward_name'] . ')',
-    'quantity' => 1,
-    'unit_price' => $fee,
-    'amount' => $fee
-], true);
+if (isset($invoiceId)) {
+    $addedTotal = 0;
+    
+    // c. Add Hospital Service Fee (₵50) if it's a new invoice
+    if ($isNewInvoice) {
+        $hospFeeBase = 50.00;
+        $hospFeeCharged = $hospFeeBase * $discountMultiplier;
+        $sb->request('POST', '/rest/v1/invoice_items', [
+            'invoice_id' => $invoiceId,
+            'description' => 'Hospital Service Fee (Standard)',
+            'quantity' => 1,
+            'unit_price' => $hospFeeBase,
+            'amount' => $hospFeeCharged
+        ], true);
+        $addedTotal += $hospFeeCharged;
+    }
 
-// c. Update Invoice total
-$sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, [
-    'total_amount' => $currentTotal + $fee
-], true);
+    // d. Add Bed Fee item
+    $baseFee = (float)($ward['admission_fee'] ?? 0);
+    $chargedFee = $baseFee * $discountMultiplier;
+    $sb->request('POST', '/rest/v1/invoice_items', [
+        'invoice_id' => $invoiceId,
+        'description' => 'Hospital Bed & Admission Fee (' . $ward['ward_name'] . ')' . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+        'quantity' => 1,
+        'unit_price' => $baseFee,
+        'amount' => $chargedFee
+    ], true);
+    $addedTotal += $chargedFee;
+
+    // e. Update Invoice total
+    $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, [
+        'total_amount' => $currentTotal + $addedTotal
+    ], true);
+}
 
 // 5. Mark notification as read if it exists
 $sb->request('PATCH', '/rest/v1/notifications?user_id=eq.' . $userId . '&related_id=eq.' . $consultId . '&type=eq.admission_request', [

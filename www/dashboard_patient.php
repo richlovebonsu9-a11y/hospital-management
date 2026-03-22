@@ -45,6 +45,10 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
 $wardsRes = $sb->request('GET', '/rest/v1/wards?select=*', null, true);
 $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
 
+// 8. Fetch Invoices and Items
+$invoicesRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $userId . '&status=eq.unpaid&select=*,invoice_items(*)', null, true);
+$pendingInvoice = ($invoicesRes['status'] === 200 && !empty($invoicesRes['data'])) ? $invoicesRes['data'][0] : null;
+
 // Find next appointment for the overview card
 $nextAppt = null;
 foreach ($appointments as $a) {
@@ -245,8 +249,10 @@ foreach ($appointments as $a) {
                             <i class="bi bi-wallet2"></i>
                         </div>
                         <h5 class="fw-bold">Pending Invoices</h5>
-                        <h3 class="fw-bold mt-2">₵ 0.00</h3>
-                        <p class="text-muted small">No outstanding payments at this time.</p>
+                        <h3 class="fw-bold mt-2">₵ <?php echo number_format($pendingInvoice['total_amount'] ?? 0, 2); ?></h3>
+                        <p class="text-muted small">
+                            <?php echo $pendingInvoice ? 'Outstanding payment required.' : 'No outstanding payments at this time.'; ?>
+                        </p>
                         <button class="btn btn-outline-primary w-100 mt-auto" onclick="navigateTo('section-invoices')">View Billing</button>
                     </div>
                 </div>
@@ -433,10 +439,66 @@ foreach ($appointments as $a) {
         </div>
 
         <div id="section-invoices" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-4 text-center">
-                <i class="bi bi-receipt display-4 text-muted mb-3"></i>
-                <h5 class="fw-bold">Billing & Invoices</h5>
-                <p class="text-muted">All clear. No pending invoices.</p>
+            <div class="row g-4">
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-sm p-4">
+                        <h5 class="fw-bold mb-4">Invoice Details</h5>
+                        <?php if ($pendingInvoice): ?>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-light border-0">
+                                        <tr>
+                                            <th class="border-0">Description</th>
+                                            <th class="border-0 text-end">Quantity</th>
+                                            <th class="border-0 text-end">Unit Price</th>
+                                            <th class="border-0 text-end">Amount</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php 
+                                        $items = $pendingInvoice['invoice_items'] ?? [];
+                                        foreach ($items as $item): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars($item['description']); ?></td>
+                                                <td class="text-end"><?php echo $item['quantity']; ?></td>
+                                                <td class="text-end">₵ <?php echo number_format($item['unit_price'], 2); ?></td>
+                                                <td class="text-end fw-bold">₵ <?php echo number_format($item['amount'], 2); ?></td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                    <tfoot class="border-top">
+                                        <tr>
+                                            <td colspan="3" class="text-end fw-bold py-3">Total Amount Due</td>
+                                            <td class="text-end fw-bold py-3 text-primary fs-5">₵ <?php echo number_format($pendingInvoice['total_amount'], 2); ?></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm">Proceed to Payment</button>
+                            </div>
+                        <?php else: ?>
+                            <div class="text-center py-5">
+                                <i class="bi bi-check2-circle display-4 text-success mb-3"></i>
+                                <h5 class="fw-bold">All Settled!</h5>
+                                <p class="text-muted">You have no pending invoices or outstanding balances.</p>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm p-4 bg-light">
+                        <h6 class="fw-bold mb-3">Billing Help</h6>
+                        <p class="small text-muted mb-4">If you have NHIS linked, a 50% discount is automatically applied to all eligible services and medications.</p>
+                        <div class="d-flex align-items-center p-3 bg-white rounded-3 shadow-sm mb-3">
+                            <i class="bi bi-telephone-outbound text-primary me-3 fs-4"></i>
+                            <div>
+                                <div class="fw-bold small">Call Billing Support</div>
+                                <div class="extra-small text-muted">+233 24 123 4567</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
