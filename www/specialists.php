@@ -226,5 +226,6 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
             });
         });
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

@@ -446,5 +446,6 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
             document.querySelector('.sidebar-overlay').classList.toggle('show');
         }
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

@@ -105,5 +105,6 @@ session_start();
             }
         });
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

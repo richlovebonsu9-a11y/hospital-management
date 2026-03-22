@@ -94,5 +94,6 @@ $metadata = $user['user_metadata'] ?? [];
             </div>
         </div>
     </div>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

@@ -697,5 +697,6 @@ $seenToday = count($mySchedule); // Simplification
             }
         }
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

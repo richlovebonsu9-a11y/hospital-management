@@ -99,5 +99,6 @@ if (isset($_SESSION['user'])) {
             </div>
         </div>
     </div>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

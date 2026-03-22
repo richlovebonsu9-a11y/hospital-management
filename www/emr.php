@@ -71,7 +71,8 @@ if (!$patient) {
             <p class="text-muted mb-4">We couldn't find a medical record for the requested patient ID. Please verify the link or contact administration.</p>
             <a href="<?php echo $dashboardLink; ?>" class="btn btn-primary rounded-pill px-5">Back to Dashboard</a>
         </div>
-    </body>
+        <script src="/assets/js/auto_dismiss.js"></script>
+</body>
     </html>
     <?php
     exit;

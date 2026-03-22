@@ -1042,5 +1042,6 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             }
         }
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

@@ -121,5 +121,6 @@ if ($emergency_id) {
             </div>
         </div>
     </div>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

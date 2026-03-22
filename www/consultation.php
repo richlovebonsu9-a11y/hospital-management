@@ -305,5 +305,6 @@ $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
             // Optional: Can add logic to suggest next available bed via API
         }
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

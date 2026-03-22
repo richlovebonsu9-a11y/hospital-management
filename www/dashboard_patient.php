@@ -833,5 +833,6 @@ foreach ($appointments as $a) {
             document.querySelector('.sidebar-overlay').classList.toggle('show');
         }
     </script>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

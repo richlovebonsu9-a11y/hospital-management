@@ -1828,5 +1828,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             </div>
         </div>
     </div>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>

@@ -97,5 +97,6 @@ if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? 
             </div>
         </div>
     </div>
+    <script src="/assets/js/auto_dismiss.js"></script>
 </body>
 </html>
