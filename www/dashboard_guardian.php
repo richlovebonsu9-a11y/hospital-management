@@ -39,7 +39,7 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Guardian Dashboard - GGHMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
@@ -87,15 +87,16 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                         <div class="dropdown me-4">
                             <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
                                 <i class="bi bi-bell fs-5 text-secondary"></i>
-                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" style="padding: 0.35em 0.5em;">
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
                                     <?php echo count($notifications); ?>
                                 </span>
                             </button>
                             <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
                                 <h6 class="fw-bold mb-3">Notifications</h6>
                                 <?php foreach($notifications as $n): ?>
-                                    <div class="p-2 border-bottom border-light mb-2">
-                                        <p class="small mb-1"><?php echo htmlspecialchars($n['message']); ?></p>
+                                    <div class="p-2 border-bottom border-light mb-2 notification-item"
+                                         onclick="markNotificationRead(this, '<?php echo $n['id']; ?>')" style="cursor:pointer;">
+                                        <p class="small mb-1 <?php echo ($n['is_read'] ?? false) ? 'text-muted' : 'fw-bold'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
                                         <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
                                     </div>
                                 <?php endforeach; ?>
@@ -401,6 +402,28 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                 });
             });
         });
+
+        async function markNotificationRead(el, id) {
+            try {
+                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                const text = el.querySelector('p');
+                if (text) {
+                    text.classList.remove('fw-bold');
+                    text.classList.add('text-muted');
+                }
+                el.style.pointerEvents = 'none';
+                el.onclick = null;
+
+                const badges = document.querySelectorAll('.top-notif-badge');
+                badges.forEach(badge => {
+                    let count = (parseInt(badge.innerText) || 0) - 1;
+                    if (count <= 0) badge.classList.add('d-none');
+                    else badge.innerText = count;
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('show');

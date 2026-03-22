@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap');
+
 :root {
     --primary-color: #33b0a0;
     --primary-hover: #2a9285;
@@ -5,7 +7,7 @@
     --secondary-color: #1e293b;
     --accent-color: #fca311;
     --bg-light: #f8fafc;
-    --font-family: 'Outfit', sans-serif;
+    --font-family: 'Montserrat', sans-serif;
     --border-radius-lg: 2.5rem;
     --border-radius-md: 1.5rem;
 }

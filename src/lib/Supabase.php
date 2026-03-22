@@ -67,6 +67,23 @@ class Supabase {
         };
     }
 
+    public function adminAuth() {
+        return new class($this) {
+            private $supabase;
+            public function __construct($supabase) { $this->supabase = $supabase; }
+
+            public function createUser($email, $password, $metadata = []) {
+                // Supabase Admin API to create user without signing them in
+                return $this->supabase->request('POST', '/auth/v1/admin/users', [
+                    'email' => $email,
+                    'password' => $password,
+                    'user_metadata' => $metadata,
+                    'email_confirm' => true
+                ], true);
+            }
+        };
+    }
+
     public function from($table) {
         return new class($this, $table) {
             private $supabase;

@@ -13,6 +13,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $ghana_post_gps = $_POST['ghana_post_gps'] ?? '';
     $department = $_POST['department'] ?? 'General OPD';
 
+    // Role validation: Only Patient or Guardian allowed via public signup
+    if (!in_array($role, ['patient', 'guardian'])) {
+        header('Location: /signup?error=' . urlencode('Invalid role. Staff accounts must be created by an Admin.'));
+        exit;
+    }
+
     $supabase = new Supabase();
     $result = $supabase->auth()->signUp($email, $password, [
         'name' => $name,

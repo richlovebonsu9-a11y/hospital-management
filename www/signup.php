@@ -8,7 +8,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sign Up - GGHMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
 </head>
 <body class="bg-primary d-flex align-items-center py-5" style="background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-hover) 100%) !important; min-vh-100">
@@ -32,15 +32,10 @@
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-600">Primary Role</label>
-                                    <select name="role" class="form-select rounded-pill px-4 py-3 border-light bg-light" required>
-                                        <option value="patient">Patient</option>
-                                        <option value="guardian">Guardian</option>
-                                        <option value="doctor">Doctor</option>
-                                        <option value="nurse">Nurse</option>
-                                        <option value="pharmacist">Pharmacist</option>
-                                        <option value="technician">Laboratory Tech</option>
-                                        <option value="admin">Hospital Admin</option>
-                                    </select>
+                                     <select name="role" class="form-select rounded-pill px-4 py-3 border-light bg-light" required>
+                                         <option value="patient">Patient</option>
+                                         <option value="guardian">Guardian</option>
+                                     </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-600">Phone Number</label>
@@ -53,20 +48,6 @@
                                 <div class="col-md-12">
                                     <label class="form-label fw-600">Email Address</label>
                                     <input type="email" name="email" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="name@example.com">
-                                </div>
-                                <div class="col-md-6" id="dept-container" style="display: none;">
-                                    <label class="form-label fw-600">Department</label>
-                                    <select name="department" class="form-select rounded-pill px-4 py-3 border-light bg-light">
-                                        <option value="General OPD">General OPD</option>
-                                        <option value="Cardiology">Cardiology</option>
-                                        <option value="Pediatrics">Pediatrics</option>
-                                        <option value="Laboratory">Laboratory</option>
-                                        <option value="Pharmacy">Pharmacy</option>
-                                        <option value="Radiology">Radiology</option>
-                                        <option value="Maternity">Maternity</option>
-                                        <option value="Orthopedics">Orthopedics</option>
-                                        <option value="Surgery">Surgery</option>
-                                    </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-600">Password</label>
@@ -82,17 +63,6 @@
                             </div>
                         </form>
 
-                        <script>
-                            document.querySelector('select[name="role"]').addEventListener('change', function() {
-                                const role = this.value;
-                                const deptContainer = document.getElementById('dept-container');
-                                if (['doctor', 'nurse', 'pharmacist', 'technician'].includes(role)) {
-                                    deptContainer.style.display = 'block';
-                                } else {
-                                    deptContainer.style.display = 'none';
-                                }
-                            });
-                        </script>
                         <div class="text-center mt-5">
                             <p class="text-muted mb-0">Already a member? <a href="/login" class="text-primary fw-bold text-decoration-none">Sign In</a></p>
                         </div>

@@ -129,6 +129,9 @@ foreach ($pendingAdmissionsRaw as $c) {
         $pendingAdmissions[] = $c;
     }
 }
+// 11. Fetch All Staff for Management
+$staffRes = $sb->request('GET', '/rest/v1/profiles?role=in.("doctor","nurse","pharmacist","technician")&select=*&order=name.asc', null, true);
+$allStaff = ($staffRes['status'] === 200) ? $staffRes['data'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -137,7 +140,7 @@ foreach ($pendingAdmissionsRaw as $c) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - GGHMS</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
@@ -171,7 +174,7 @@ foreach ($pendingAdmissionsRaw as $c) {
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
             <a href="#" class="nav-link-custom" data-target="section-billing"><i class="bi bi-credit-card-2-front"></i> Billing & Payments</a>
-            <a href="#" class="nav-link-custom" data-target="section-inventory"><i class="bi bi-box-seam"></i> Inventory Management</a>
+            <a href="#" class="nav-link-custom" data-target="section-inventory"><i class="bi bi-box-seam"></i> Inventory</a>
             <hr class="my-3">
             <div class="px-2 mb-3">
                 <button class="btn btn-primary-soft text-primary w-100 rounded-pill d-flex align-items-center justify-content-center py-2" data-bs-toggle="modal" data-bs-target="#searchModal">
@@ -1613,5 +1616,55 @@ foreach ($pendingAdmissionsRaw as $c) {
             }
         }
     </script>
+    <!-- Add Staff Modal -->
+    <div class="modal fade" id="addStaffModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <form id="addStaffForm">
+                    <div class="modal-header border-0 pb-0">
+                        <h5 class="fw-bold">Register New Staff Member</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4">
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted">Full Name</label>
+                            <input type="text" name="name" class="form-control rounded-pill px-3" required placeholder="Dr. Kwesi Appiah">
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted">Email Address (Login ID)</label>
+                            <input type="email" name="email" class="form-control rounded-pill px-3" required placeholder="kwesi@gghms.com">
+                        </div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-muted">Role</label>
+                                <select name="role" class="form-select rounded-pill px-3" required>
+                                    <option value="doctor">Doctor</option>
+                                    <option value="nurse">Nurse</option>
+                                    <option value="pharmacist">Pharmacist</option>
+                                    <option value="technician">Technician</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="small fw-bold text-muted">Department</label>
+                                <select name="department" class="form-select rounded-pill px-3">
+                                    <option value="General OPD">General OPD</option>
+                                    <option value="Cardiology">Cardiology</option>
+                                    <option value="Pediatrics">Pediatrics</option>
+                                    <option value="Pharmacy">Pharmacy</option>
+                                    <option value="Laboratory">Laboratory</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-4">
+                            <label class="small fw-bold text-muted">Initial Password</label>
+                            <input type="password" name="password" class="form-control rounded-pill px-3" required value="GghmsStaff!2024">
+                            <small class="text-muted extra-small">Password will be shared with the staff member.</small>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" onclick="submitAddStaff()">Create Staff Account</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </body>
 </html>
