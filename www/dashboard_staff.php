@@ -471,14 +471,22 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                 $borderColor = 'border-primary'; $iconClass = 'bi-info-circle text-primary'; $bgClass = 'bg-light';
                             }
                         ?>
-                            <div class="list-group-item border-0 border-start border-4 <?php echo $borderColor; ?> <?php echo $bgClass; ?> ps-3 mb-3 rounded-3 d-flex align-items-start gap-3"
-                                 <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor:pointer;"' ?>>
-                                <i class="bi <?php echo $iconClass; ?> fs-5 mt-1 flex-shrink-0"></i>
-                                <div>
-                                    <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
-                                    <small class="text-muted"><i class="bi bi-clock me-1"></i><?php echo date('M d, Y \a\t H:i', strtotime($n['created_at'])); ?></small>
+            <div class="list-group-item border-0 border-start border-4 <?php echo $borderColor; ?> <?php echo $bgClass; ?> ps-3 mb-3 rounded-3 d-flex align-items-start gap-3"
+                         <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor:pointer;"' ?>>
+                            <i class="bi <?php echo $iconClass; ?> fs-5 mt-1 flex-shrink-0"></i>
+                            <div class="flex-grow-1">
+                                <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                <small class="text-muted"><i class="bi bi-clock me-1"></i><?php echo date('M d, Y \a\t H:i', strtotime($n['created_at'])); ?></small>
+                                <?php if (($n['type'] ?? '') === 'emergency_handled_by_admin'): ?>
+                                <div class="mt-2">
+                                    <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold"
+                                            onclick="event.stopPropagation(); clearEmergencyTask('<?php echo $n['id']; ?>', this)">
+                                        <i class="bi bi-check2-circle me-1"></i> Clear Task
+                                    </button>
                                 </div>
+                                <?php endif; ?>
                             </div>
+                        </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
@@ -850,6 +858,39 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                 });
             }
         }
+
+        async function clearEmergencyTask(notificationId, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Clearing...';
+            try {
+                const fd = new FormData();
+                fd.append('notification_id', notificationId);
+                const res = await fetch('/api/emergency/clear_task.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    const item = btn.closest('.list-group-item');
+                    if (item) {
+                        item.style.transition = 'opacity 0.4s';
+                        item.style.opacity = '0';
+                        setTimeout(() => item.remove(), 400);
+                    }
+                    // Update badge count
+                    document.querySelectorAll('.nav-notif-badge, .top-notif-badge').forEach(badge => {
+                        let count = (parseInt(badge.innerText) || 0) - 1;
+                        if (count <= 0) badge.remove();
+                        else badge.innerText = count;
+                    });
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Clear Task';
+                    alert('Failed to clear task. Please try again.');
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Clear Task';
+            }
+        }
+
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('show');

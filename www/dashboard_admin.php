@@ -129,9 +129,10 @@ foreach ($pendingAdmissionsRaw as $c) {
         $pendingAdmissions[] = $c;
     }
 }
-// 11. Fetch All Staff for Management
-$staffRes = $sb->request('GET', '/rest/v1/profiles?role=in.("doctor","nurse","pharmacist","technician")&select=*&order=name.asc', null, true);
-$allStaff = ($staffRes['status'] === 200) ? $staffRes['data'] : [];
+// 12. Fetch Notifications
+$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $user['id'] . '&order=created_at.desc&limit=5', null, true);
+$notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
+$unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -202,6 +203,39 @@ $allStaff = ($staffRes['status'] === 200) ? $staffRes['data'] : [];
                 <p class="text-muted mb-0">Overview of Ghanaian General Hospital operations.</p>
             </div>
             <div class="d-flex align-items-center">
+                <div class="dropdown me-4">
+                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
+                        <i class="bi bi-bell fs-5 text-secondary"></i>
+                        <?php if ($unreadCount > 0): ?>
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
+                            <?php echo $unreadCount; ?>
+                        </span>
+                        <?php endif; ?>
+                    </button>
+                    <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
+                        <h6 class="fw-bold mb-3">System Alerts</h6>
+                        <?php if (empty($notifications)): ?>
+                            <p class="text-muted small mb-0">No alerts at this time.</p>
+                        <?php else: foreach ($notifications as $n): ?>
+                            <div class="p-2 mb-2 rounded-3 <?php echo empty($n['is_read']) ? 'bg-light' : ''; ?>" 
+                                 onclick="<?php echo empty($n['is_read']) ? 'markNotificationRead(this, \''.$n['id'].'\')' : ''; ?>"
+                                 style="<?php echo empty($n['is_read']) ? 'cursor: pointer;' : ''; ?>">
+                                <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>">
+                                    <?php echo htmlspecialchars($n['message']); ?>
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted extra-small"><?php echo date('H:i', strtotime($n['created_at'])); ?></small>
+                                    <?php if (($n['type'] ?? '') === 'emergency_handled_by_staff'): ?>
+                                        <button class="btn btn-success btn-xs py-0 px-2 rounded-pill fw-bold extra-small"
+                                                onclick="event.stopPropagation(); clearEmergencyTask('<?php echo $n['id']; ?>', this)">
+                                            Clear
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; endif; ?>
+                    </div>
+                </div>
                  <div class="me-4 text-end">
                     <p class="mb-0 fw-bold">Hospital Status</p>
                     <span class="badge bg-success-soft text-success rounded-pill px-3">Normal Operations</span>
@@ -1446,6 +1480,61 @@ $allStaff = ($staffRes['status'] === 200) ? $staffRes['data'] : [];
                     setTimeout(() => row.classList.remove('bg-primary-soft', 'pulse-highlight'), 3000);
                 }
             }, 300);
+        }
+
+        async function markNotificationRead(el, id) {
+            if (el.classList.contains('bg-light')) {
+                await fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                el.classList.remove('bg-light');
+                const p = el.querySelector('p');
+                if (p) {
+                    p.classList.remove('fw-bold', 'text-dark');
+                    p.classList.add('text-muted');
+                }
+                el.style.cursor = 'default';
+                el.onclick = null;
+                
+                // Update badge count
+                document.querySelectorAll('.top-notif-badge').forEach(badge => {
+                    let count = (parseInt(badge.innerText) || 0) - 1;
+                    if (count <= 0) badge.remove();
+                    else badge.innerText = count;
+                });
+            }
+        }
+
+        async function clearEmergencyTask(notificationId, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '...';
+            try {
+                const fd = new FormData();
+                fd.append('notification_id', notificationId);
+                const res = await fetch('/api/emergency/clear_task.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    const item = btn.closest('.p-2');
+                    if (item) {
+                        item.style.transition = 'opacity 0.4s';
+                        item.style.opacity = '0';
+                        setTimeout(() => item.remove(), 400);
+                    }
+                    // Update badge count if it was unread
+                    const isUnread = btn.closest('.bg-light');
+                    if (isUnread) {
+                        document.querySelectorAll('.top-notif-badge').forEach(badge => {
+                            let count = (parseInt(badge.innerText) || 0) - 1;
+                            if (count <= 0) badge.remove();
+                            else badge.innerText = count;
+                        });
+                    }
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Clear';
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = 'Clear';
+            }
         }
 
         function toggleSidebar() {

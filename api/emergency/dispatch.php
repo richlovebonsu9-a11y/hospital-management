@@ -8,8 +8,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') { exit; }
 if (!isset($_COOKIE['sb_user'])) { exit; }
 
 $u = json_decode($_COOKIE['sb_user'], true);
-$role = $u['user_metadata']['role'] ?? '';
-if (!in_array($role, ['admin', 'doctor', 'nurse'])) { 
+$actingUserId = $u['id'] ?? '';
+$actingRole = $u['user_metadata']['role'] ?? '';
+if (!in_array($actingRole, ['admin', 'doctor', 'nurse'])) { 
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit; 
 }
@@ -26,7 +27,7 @@ if (!$emergencyId || $dispatchType === 'none') {
 
 $sb = new Supabase();
 
-// 0. Fetch Emergency Details & Patient Profile
+// 0. Fetch Emergency Details & Patient Profile (include assigned_to)
 $emergRes = $sb->request('GET', '/rest/v1/emergencies?id=eq.' . $emergencyId . '&select=*,reporter:reporter_id(id,name,role,ghana_card,nhis_membership_number)', null, true);
 if ($emergRes['status'] !== 200 || empty($emergRes['data'])) {
     echo json_encode(['success' => false, 'error' => 'Emergency not found']);
@@ -35,6 +36,7 @@ if ($emergRes['status'] !== 200 || empty($emergRes['data'])) {
 $emergency = $emergRes['data'][0];
 $patientId = $emergency['reporter_id'];
 $pData = $emergency['reporter'] ?? [];
+$assignedToId = $emergency['assigned_to'] ?? null; // Staff assigned to this emergency
 
 // Apply NHIS Logic (50% discount)
 $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
@@ -128,29 +130,58 @@ if ($invoiceId && $addedBillTotal > 0) {
     $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentInvoiceTotal + $addedBillTotal], true);
 }
 
-// 4. Update Emergency Record
+// 4. Update Emergency Record (track who handled it)
 $medicationNotes = implode(", ", $medSummaryArray) ?: 'None prescribed';
 $updateData = [
     'dispatch_type' => $dispatchType,
     'dispatch_notes' => $dispatchNotes,
     'medication_notes' => $medicationNotes,
     'status' => 'dispatched',
-    'responded_at' => date('c')
+    'responded_at' => date('c'),
+    'handled_by' => $actingUserId  // track who actually handled it
 ];
 
 $updRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, $updateData, true);
 
 if ($updRes['status'] === 204 || $updRes['status'] === 200) {
-    // 5. Notify reporter
     $typeLabel = ucfirst($dispatchType);
+    $shortId = '#' . strtoupper(substr($emergencyId, 0, 5));
+    $actingName = $u['user_metadata']['name'] ?? ucfirst($actingRole);
+
+    // 5a. Notify patient
     $sb->request('POST', '/rest/v1/notifications', [
         'user_id' => $patientId,
-        'message' => "🚑 Emergency Update: A {$typeLabel} has been dispatched. Help is on the way. Check your billing for emergency fees.",
+        'message' => "🚑 Emergency {$shortId} Update: A {$typeLabel} has been dispatched. Check your billing for emergency fees.",
         'type' => 'emergency_update',
         'related_id' => $emergencyId
     ], true);
+
+    // 5b. Cross-notify: If admin handled it, notify the assigned staff. If staff handled it, notify all admins.
+    if ($actingRole === 'admin' && $assignedToId && $assignedToId !== $actingUserId) {
+        // Admin handled it — tell the assigned staff they can clear it
+        $sb->request('POST', '/rest/v1/notifications', [
+            'user_id' => $assignedToId,
+            'message' => "✅ Emergency {$shortId} has been handled by Admin {$actingName}. You can now clear this task from your queue.",
+            'type' => 'emergency_handled_by_admin',
+            'related_id' => $emergencyId
+        ], true);
+    } elseif ($actingRole !== 'admin') {
+        // Staff handled it — notify all admins
+        $adminsRes = $sb->request('GET', '/rest/v1/profiles?role=eq.admin&select=id', null, true);
+        if ($adminsRes['status'] === 200 && !empty($adminsRes['data'])) {
+            foreach ($adminsRes['data'] as $admin) {
+                $sb->request('POST', '/rest/v1/notifications', [
+                    'user_id' => $admin['id'],
+                    'message' => "✅ Emergency {$shortId} has been handled by {$actingName} ({$actingRole}). You can clear it from the queue.",
+                    'type' => 'emergency_handled_by_staff',
+                    'related_id' => $emergencyId
+                ], true);
+            }
+        }
+    }
 
     echo json_encode(['success' => true]);
 } else {
     echo json_encode(['success' => false, 'error' => 'Failed to finalize dispatch update']);
 }
+

@@ -132,7 +132,15 @@ $seenToday = count($mySchedule); // Simplification
                         <?php foreach($notifications as $n): ?>
                             <div class="p-2 border-bottom border-light mb-2 <?php echo empty($n['is_read']) ? 'bg-light rounded' : ''; ?>" <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor: pointer;"' ?>>
                                 <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
-                                <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
+                                    <?php if (($n['type'] ?? '') === 'emergency_handled_by_admin'): ?>
+                                        <button class="btn btn-success btn-xs py-0 px-2 rounded-pill fw-bold extra-small"
+                                                onclick="event.stopPropagation(); clearEmergencyTask('<?php echo $n['id']; ?>', this)">
+                                            Clear
+                                        </button>
+                                    <?php endif; ?>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -569,6 +577,40 @@ $seenToday = count($mySchedule); // Simplification
                     if (count <= 0) badge.classList.add('d-none');
                     else badge.innerText = count;
                 });
+            }
+        }
+
+        async function clearEmergencyTask(notificationId, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '...';
+            try {
+                const fd = new FormData();
+                fd.append('notification_id', notificationId);
+                const res = await fetch('/api/emergency/clear_task.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    const item = btn.closest('.p-2');
+                    if (item) {
+                        item.style.transition = 'opacity 0.4s';
+                        item.style.opacity = '0';
+                        setTimeout(() => item.remove(), 400);
+                    }
+                    // Update badge count if it was unread
+                    const isUnread = btn.closest('.bg-light');
+                    if (isUnread) {
+                        document.querySelectorAll('.top-notif-badge').forEach(badge => {
+                            let count = (parseInt(badge.innerText) || 0) - 1;
+                            if (count <= 0) badge.classList.add('d-none');
+                            else badge.innerText = count;
+                        });
+                    }
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = 'Clear';
+                }
+            } catch (e) {
+                btn.disabled = false;
+                btn.innerHTML = 'Clear';
             }
         }
 
