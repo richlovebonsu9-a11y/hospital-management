@@ -57,7 +57,7 @@ if ($profilesRes['status'] === 200) {
 $apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, true);
 $totalAppointments = ($apptCountRes['status'] === 200) ? count($apptCountRes['data']) : 0;
 
-$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?order=created_at.desc');
+$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter:reporter_id(name),assigned_staff:assigned_to(name)&order=created_at.desc');
 $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [];
 
 $auditRes = $sb->request('GET', '/rest/v1/audit_log?order=created_at.desc&limit=20');
@@ -448,24 +448,77 @@ foreach ($pendingAdmissionsRaw as $c) {
 
         <!-- EMERGENCIES SECTION -->
         <div id="section-emergencies" class="dashboard-section d-none">
-            <div class="card p-4 border-0 shadow-sm">
-                <h5 class="fw-bold mb-4">Live Emergency Response Queue</h5>
+            <div class="card p-4 border-0 shadow-sm overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Emergency Response Queue</h5>
+                    <span class="badge bg-danger-soft text-danger rounded-pill px-3"><?php echo $highSeverityCount; ?> High Priority Active</span>
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle">
                         <thead class="table-light">
-                            <tr><th>Time</th><th>Patient ID</th><th>Location</th><th>Severity</th><th>Status</th><th>Actions</th></tr>
+                            <tr>
+                                <th>Reported</th>
+                                <th>Patient/Reporter</th>
+                                <th>Location (GPS)</th>
+                                <th>Severity/Symptoms</th>
+                                <th>Assigned Staff</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($emergencies)): ?>
-                                <tr><td colspan="6" class="text-muted py-4 text-center">No emergencies reported.</td></tr>
+                                <tr><td colspan="7" class="text-muted py-5 text-center">No emergencies currently active in the queue.</td></tr>
                             <?php endif; foreach($emergencies as $e): ?>
                                 <tr>
-                                    <td><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
-                                    <td><?php echo substr($e['patient_id'], 0, 8); ?></td>
-                                    <td><code><?php echo htmlspecialchars($e['location']); ?></code></td>
-                                    <td><span class="badge <?php echo ($e['severity'] === 'high') ? 'bg-danger' : 'bg-warning'; ?>-soft text-<?php echo ($e['severity'] === 'high') ? 'danger' : 'warning'; ?> rounded-pill px-3"><?php echo htmlspecialchars($e['severity']); ?></span></td>
-                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($e['status']); ?></span></td>
-                                    <td><button class="btn btn-sm btn-outline-primary rounded-pill px-3">Assign Team</button></td>
+                                    <td>
+                                        <div class="fw-bold"><?php echo date('H:i', strtotime($e['created_at'])); ?></div>
+                                        <small class="text-muted extra-small"><?php echo date('M d, Y', strtotime($e['created_at'])); ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-primary"><?php echo htmlspecialchars($e['reporter']['name'] ?? 'Guest Patient'); ?></div>
+                                        <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'] ?? 'N/A', 0, 8); ?></small>
+                                    </td>
+                                    <td>
+                                        <a href="https://www.google.com/maps/search/<?php echo urlencode($e['ghana_post_gps'] ?? $e['location'] ?? ''); ?>" target="_blank" class="text-decoration-none">
+                                            <code class="bg-light px-2 py-1 rounded text-primary"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="badge <?php echo ($e['severity'] === 'high') ? 'bg-danger' : 'bg-warning'; ?>-soft text-<?php echo ($e['severity'] === 'high') ? 'danger' : 'warning'; ?> rounded-pill px-2 mb-1">
+                                            <?php echo strtoupper($e['severity']); ?>
+                                        </span>
+                                        <div class="small text-truncate" style="max-width: 150px;" title="<?php echo htmlspecialchars($e['symptoms'] ?? ''); ?>">
+                                            <?php echo htmlspecialchars($e['symptoms'] ?? 'No notes provided'); ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php if(!empty($e['assigned_to'])): ?>
+                                            <span class="text-success fw-bold"><i class="bi bi-person-check-fill me-1"></i><?php echo htmlspecialchars($e['assigned_staff']['name'] ?? 'Staff Member'); ?></span>
+                                        <?php else: ?>
+                                            <span class="text-muted extra-small italic">Awaiting Assignment</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <?php 
+                                        $s = $e['status'] ?? 'pending';
+                                        $cls = 'bg-secondary-soft text-secondary';
+                                        if($s === 'active') $cls = 'bg-danger text-white';
+                                        if($s === 'assigned') $cls = 'bg-warning text-dark';
+                                        if($s === 'dispatched') $cls = 'bg-info text-white';
+                                        if($s === 'resolved') $cls = 'bg-success text-white';
+                                        ?>
+                                        <span class="badge <?php echo $cls; ?> rounded-pill px-3 text-capitalize"><?php echo $s; ?></span>
+                                    </td>
+                                    <td>
+                                        <div class="btn-group shadow-sm rounded-pill overflow-hidden">
+                                            <button class="btn btn-sm btn-light border-end" onclick='openAssignEmergencyModal(<?php echo json_encode($e); ?>)' title="Assign Staff"><i class="bi bi-person-plus text-primary"></i></button>
+                                            <button class="btn btn-sm btn-light border-end" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)' title="Dispatch Help"><i class="bi bi-truck text-danger"></i></button>
+                                            <?php if($e['status'] !== 'resolved'): ?>
+                                                <button class="btn btn-sm btn-light" onclick="resolveEmergency('<?php echo $e['id']; ?>')" title="Resolve"><i class="bi bi-check-circle text-success"></i></button>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -966,6 +1019,64 @@ foreach ($pendingAdmissionsRaw as $c) {
         </div>
     </div>
 
+    <!-- ASSIGN EMERGENCY MODAL -->
+    <div class="modal fade" id="assignEmergencyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Assign Response Staff</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <form id="assignEmergencyForm">
+                        <input type="hidden" name="emergency_id" id="assign_emerg_id">
+                        <div class="mb-3">
+                            <label class="small text-muted">Select Medical Staff</label>
+                            <select name="assigned_to" class="form-select rounded-pill px-3" required id="assign_emerg_staff_select">
+                                <option value="">-- Choose Staff --</option>
+                                <?php foreach($staffMembers as $s): if($s['role'] === 'doctor' || $s['role'] === 'nurse'): ?>
+                                    <option value="<?php echo $s['id']; ?>">
+                                        <?php echo htmlspecialchars($s['name']); ?> (<?php echo htmlspecialchars($s['role']); ?>)
+                                    </option>
+                                <?php endif; endforeach; ?>
+                            </select>
+                        </div>
+                        <p class="extra-small text-muted mb-4"><i class="bi bi-info-circle me-1"></i> The assigned staff will receive an immediate notification to check the emergency details and coordinate response.</p>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill" onclick="submitEmergencyAssignment()">Confirm Assignment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISPATCH EMERGENCY MODAL -->
+    <div class="modal fade" id="dispatchEmergencyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Direct Help Dispatch</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <form id="dispatchEmergencyForm">
+                        <input type="hidden" name="emergency_id" id="dispatch_emerg_id">
+                        <div class="mb-3">
+                            <label class="small text-muted">Dispatch Type</label>
+                            <select name="dispatch_type" class="form-select rounded-pill px-3" required>
+                                <option value="ambulance">🚑 Ambulance (Critical Transfer)</option>
+                                <option value="team">🚑 Emergency Response Team (On-site Help)</option>
+                                <option value="rider">🏍️ Dispatch Rider (Meds/Supplies Only)</option>
+                            </select>
+                        </div>
+                        <div id="riderMedicationSection" class="mb-3 d-none">
+                            <label class="small text-muted">Prescribed Medications (for Rider)</label>
+                            <textarea name="medication_notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Enter drugs and dosage to be delivered..."></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="small text-muted">Dispatch Notes / Instructions</label>
+                            <textarea name="dispatch_notes" class="form-control rounded-4 px-3 py-2 small" rows="2" placeholder="e.g. Bring oxygen tank, or gate code is 1234..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-danger w-100 rounded-pill" onclick="submitEmergencyDispatch()">Execute Dispatch</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- EDIT ADMISSION MODAL -->
     <div class="modal fade" id="editAdmissionModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -1321,6 +1432,65 @@ foreach ($pendingAdmissionsRaw as $c) {
             const data = await res.json();
             if (data.success) {
                 alert("Admission details updated.");
+                location.reload();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
+        // EMERGENCY MANAGEMENT JS
+        function openAssignEmergencyModal(e) {
+            document.getElementById('assign_emerg_id').value = e.id;
+            new bootstrap.Modal(document.getElementById('assignEmergencyModal')).show();
+        }
+
+        async function submitEmergencyAssignment() {
+            const fd = new FormData(document.getElementById('assignEmergencyForm'));
+            const res = await fetch('/api/emergency/assign.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Staff assigned to emergency.");
+                location.reload();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
+        function openDispatchEmergencyModal(e) {
+            document.getElementById('dispatch_emerg_id').value = e.id;
+            const dispatchModalEl = document.getElementById('dispatchEmergencyModal');
+            const typeSelect = dispatchModalEl.querySelector('select[name="dispatch_type"]');
+            const medSection = document.getElementById('riderMedicationSection');
+            
+            typeSelect.onchange = () => {
+                if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
+                else medSection.classList.add('d-none');
+            };
+
+            new bootstrap.Modal(dispatchModalEl).show();
+        }
+
+        async function submitEmergencyDispatch() {
+            const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
+            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Help has been dispatched!");
+                location.reload();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
+        async function resolveEmergency(id) {
+            if(!confirm("Mark this emergency as resolved/completed?")) return;
+            const fd = new FormData();
+            fd.append('emergency_id', id);
+            fd.append('resolution_notes', 'Resolved by admin.');
+            const res = await fetch('/api/emergency/resolve.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Emergency resolved.");
                 location.reload();
             } else {
                 alert("Error: " + data.error);

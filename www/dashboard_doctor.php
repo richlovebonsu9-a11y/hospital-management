@@ -45,6 +45,10 @@ $notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $
 $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
 $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
 
+// 6. Fetch Assigned Emergencies
+$myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=neq.resolved&select=*,reporter:reporter_id(name)');
+$myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
+
 // Stats
 $waitingCount = 0;
 foreach($queue as $q) if($q['status'] === 'scheduled') $waitingCount++;
@@ -157,6 +161,56 @@ $seenToday = count($mySchedule); // Simplification
 
         <!-- QUEUE SECTION -->
         <div id="section-queue" class="dashboard-section">
+            <?php if (!empty($myEmergencies)): ?>
+                <div class="row g-4 mb-4">
+                    <div class="col-md-12">
+                        <div class="card border-0 shadow-sm bg-danger text-white p-4 rounded-4 animate-pulse">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-white text-danger rounded-circle p-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 54px; height: 54px;">
+                                        <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="fw-bold mb-1">Active Emergency Assigned!</h4>
+                                        <p class="mb-0 opacity-75 small">You have <?php echo count($myEmergencies); ?> urgent cases requiring immediate coordination.</p>
+                                    </div>
+                                </div>
+                                <button class="btn btn-light rounded-pill px-4 fw-bold" onclick="navigateTo('section-queue')">View My Emergencies</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 border-0 shadow-sm mb-5 border-start border-danger border-4">
+                    <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-lightning-charge-fill me-2"></i>My Emergency Assignments</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr><th>Time</th><th>Patient/Reporter</th><th>Location</th><th>Symptoms</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach($myEmergencies as $e): ?>
+                                    <tr class="table-danger-soft">
+                                        <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
+                                        <td>
+                                            <div class="fw-bold"><?php echo htmlspecialchars($e['reporter']['name'] ?? 'Patient'); ?></div>
+                                            <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
+                                        </td>
+                                        <td><code class="text-primary bg-light px-2 py-1 rounded"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
+                                        <td class="small"><?php echo htmlspecialchars($e['symptoms']); ?></td>
+                                        <td>
+                                            <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)'>
+                                                <i class="bi bi-truck me-1"></i> Dispatch help
+                                            </button>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <?php endif; ?>
+
             <div class="row g-4 mb-5">
                 <div class="col-md-3">
                     <div class="card p-3 border-0 shadow-sm text-center">
@@ -324,6 +378,37 @@ $seenToday = count($mySchedule); // Simplification
         
     </div>
 
+    <!-- DISPATCH EMERGENCY MODAL -->
+    <div class="modal fade" id="dispatchEmergencyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold text-danger"><i class="bi bi-lightning-fill me-2"></i>Emergency Dispatch Control</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body p-4">
+                    <form id="dispatchEmergencyForm">
+                        <input type="hidden" name="emergency_id" id="dispatch_emerg_id">
+                        <div class="mb-3">
+                            <label class="small text-muted fw-bold">Select Dispatch Asset</label>
+                            <select name="dispatch_type" class="form-select rounded-pill px-3" required id="doctor_dispatch_select">
+                                <option value="ambulance">🚑 Ambulance (Critical Life Support)</option>
+                                <option value="team">🚑 Response Team (Emergency Care)</option>
+                                <option value="rider" selected>🏍️ Dispatch Rider (Meds/Supplies Only)</option>
+                            </select>
+                        </div>
+                        <div id="riderMedicationSection" class="mb-3">
+                            <label class="small text-muted fw-bold text-primary">Prescribed Medications for Delivery</label>
+                            <textarea name="medication_notes" id="medication_notes_field" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Enter drugs, dosage, and usage instructions..."></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label class="small text-muted fw-bold">Dispatch Instructions</label>
+                            <textarea name="dispatch_notes" class="form-control rounded-4 px-3 py-2 small" rows="2" placeholder="Specific instructions for the dispatch team..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold py-2" onclick="submitEmergencyDispatch()">Execute Rapid Response</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- PATIENT SEARCH MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -457,6 +542,36 @@ $seenToday = count($mySchedule); // Simplification
                 }
             });
         });
+
+        // Emergency Dispatch JS
+        function openDispatchEmergencyModal(e) {
+            document.getElementById('dispatch_emerg_id').value = e.id;
+            const dispatchModalEl = document.getElementById('dispatchEmergencyModal');
+            const typeSelect = document.getElementById('doctor_dispatch_select');
+            const medSection = document.getElementById('riderMedicationSection');
+            
+            typeSelect.onchange = () => {
+                if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
+                else medSection.classList.add('d-none');
+            };
+
+            // Pre-fill if rider selected by default
+            if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
+
+            new bootstrap.Modal(dispatchModalEl).show();
+        }
+
+        async function submitEmergencyDispatch() {
+            const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
+            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Dispatch initiated successfully!");
+                location.reload();
+            } else {
+                alert("Dispatch Error: " + data.error);
+            }
+        }
     </script>
 </body>
 </html>
