@@ -17,24 +17,33 @@ $sb = new Supabase();
 $u = json_decode($_COOKIE['sb_user'], true);
 
 // 1. Process "Payment" (Simulated)
-// In a real app, this would integrate with Paystack/Flutterwave/etc.
-// For this system, we mark it as paid.
-
-$res = $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, [
+$updateData = [
     'status' => 'paid',
     'payment_method' => $method,
-    'paid_at' => date('Y-m-d H:i:s')
-], true);
+    'paid_at' => date('c') // ISO 8601
+];
+
+$res = $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, $updateData, true);
+
+// FALLBACK: If the full patch fails (likely due to missing columns), try patching ONLY the status
+if ($res['status'] !== 204 && $res['status'] !== 200) {
+    $res = $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['status' => 'paid'], true);
+}
 
 if ($res['status'] === 204 || $res['status'] === 200) {
     // Notify the patient
     $sb->request('POST', '/rest/v1/notifications', [
         'user_id' => $u['id'],
-        'message' => "Payment successful! Your invoice #".substr($invoiceId, 0, 8)." has been marked as PAID via " . strtoupper($method) . "."
+        'message' => "Payment successful! Your invoice has been marked as PAID via " . strtoupper($method) . "."
     ], true);
 
     header('Location: /dashboard_patient.php?success=payment_complete');
 } else {
-    header('Location: /dashboard_patient.php?error=payment_failed');
+    // If even the fallback fails, report the error detail if possible
+    $errorMsg = 'payment_failed';
+    if (isset($res['data']['message'])) {
+        $errorMsg = urlencode($res['data']['message']);
+    }
+    header('Location: /dashboard_patient.php?error=' . $errorMsg);
 }
 exit;

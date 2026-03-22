@@ -219,8 +219,10 @@ foreach ($appointments as $a) {
             <div class="alert alert-success border-0 rounded-4 shadow-sm mb-4">
                 <i class="bi bi-check-circle-fill me-2"></i>
                 <?php 
-                    echo ($_GET['success'] === 'link_approved') ? 'Relationship request approved successfully!' : 
-                         (($_GET['success'] === 'link_declined') ? 'Relationship request declined.' : 'Success!');
+                    if ($_GET['success'] === 'link_approved') echo 'Relationship request approved successfully!';
+                    elseif ($_GET['success'] === 'link_declined') echo 'Relationship request declined.';
+                    elseif ($_GET['success'] === 'payment_complete') echo 'Payment successful! Your invoice has been cleared.';
+                    else echo 'Success!';
                 ?>
             </div>
         <?php endif; ?>
@@ -228,7 +230,10 @@ foreach ($appointments as $a) {
             <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4">
                 <i class="bi bi-exclamation-circle-fill me-2"></i>
                 <?php 
-                    echo ($_GET['error'] === 'update_failed') ? 'Failed to update relationship status. Please try again.' : 'An error occurred.';
+                    if ($_GET['error'] === 'update_failed') echo 'Failed to update relationship status. Please try again.';
+                    elseif ($_GET['error'] === 'payment_failed') echo 'Payment failed. Please try again or contact support.';
+                    elseif ($_GET['error'] === 'invalid_payment') echo 'Invalid invoice or payment method selected.';
+                    else echo 'An error occurred: ' . htmlspecialchars($_GET['error']);
                 ?>
             </div>
         <?php endif; ?>
