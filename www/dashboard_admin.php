@@ -57,7 +57,7 @@ if ($profilesRes['status'] === 200) {
 $apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, true);
 $totalAppointments = ($apptCountRes['status'] === 200) ? count($apptCountRes['data']) : 0;
 
-$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter:reporter_id(name),assigned_staff:assigned_to(name)&order=created_at.desc');
+$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter:reporter_id(name),assigned_staff:assigned_to(name)&order=created_at.desc', null, true);
 $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [];
 
 $auditRes = $sb->request('GET', '/rest/v1/audit_log?order=created_at.desc&limit=20');
