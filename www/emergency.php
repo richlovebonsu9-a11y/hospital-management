@@ -14,9 +14,9 @@ session_start();
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         .emergency-header { background: #dc3545; color: white; padding: 40px 0; }
-        .severity-btn { transition: all 0.3s; border: 2px solid transparent; }
-        .severity-btn:hover { transform: scale(1.05); }
-        input[name="severity"]:checked + .severity-btn { border-color: white; box-shadow: 0 0 15px rgba(0,0,0,0.2); }
+        .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; }
+        .severity-btn:hover { transform: translateY(-5px); }
+        input[name="severity"]:checked + .severity-btn { border-color: white; transform: scale(1.1); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body class="bg-light">
@@ -31,29 +31,29 @@ session_start();
         <div class="row justify-content-center">
             <div class="col-md-6">
                 <div class="card border-0 shadow-lg rounded-5 p-4">
-                    <form action="/api/emergency/report" method="POST">
+                    <form action="/api/emergency/report.php" method="POST">
                         <div class="mb-5 text-center">
                             <label class="form-label fw-bold h5 mb-3">Select Severity</label>
                             <div class="d-flex justify-content-center gap-3">
                                 <label>
-                                    <input type="radio" name="severity" value="medium" class="d-none" required>
+                                    <input type="radio" name="severity" value="medium" class="opacity-0 position-absolute" style="width:0; height:0;" required>
                                     <div class="severity-btn bg-warning p-4 rounded-4 text-white text-center" style="width: 120px;">
                                         <i class="bi bi-heart-pulse h1"></i>
-                                        <div class="fw-bold mt-2">MEDIUM</div>
+                                        <div class="fw-bold mt-2 text-uppercase">Medium</div>
                                     </div>
                                 </label>
                                 <label>
-                                    <input type="radio" name="severity" value="high" class="d-none">
+                                    <input type="radio" name="severity" value="high" class="opacity-0 position-absolute" style="width:0; height:0;">
                                     <div class="severity-btn bg-orange p-4 rounded-4 text-white text-center" style="width: 120px; background: #fd7e14;">
                                         <i class="bi bi-activity h1"></i>
-                                        <div class="fw-bold mt-2">HIGH</div>
+                                        <div class="fw-bold mt-2 text-uppercase">High</div>
                                     </div>
                                 </label>
                                 <label>
-                                    <input type="radio" name="severity" value="critical" class="d-none">
+                                    <input type="radio" name="severity" value="critical" class="opacity-0 position-absolute" style="width:0; height:0;">
                                     <div class="severity-btn bg-danger p-4 rounded-4 text-white text-center" style="width: 120px;">
                                         <i class="bi bi-shield-fill-exclamation h1"></i>
-                                        <div class="fw-bold mt-2">CRITICAL</div>
+                                        <div class="fw-bold mt-2 text-uppercase">Critical</div>
                                     </div>
                                 </label>
                             </div>

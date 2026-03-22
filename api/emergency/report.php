@@ -27,7 +27,7 @@ $body = [
     'symptoms'       => $symptoms,
     'status'         => 'active',
 ];
-$res = $sb->request('POST', '/rest/v1/emergencies', $body);
+$res = $sb->request('POST', '/rest/v1/emergencies', $body, false, ['Prefer' => 'return=representation']);
 $emergencyId = $res['data'][0]['id'] ?? null;
 
 // Notify admins (best-effort — insert notification row)

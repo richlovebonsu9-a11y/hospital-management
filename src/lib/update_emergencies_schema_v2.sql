@@ -53,3 +53,12 @@ USING (auth.uid() = assigned_to);
 DROP POLICY IF EXISTS "Staff can view all active emergencies" ON emergencies;
 CREATE POLICY "Staff can view all active emergencies" ON emergencies FOR SELECT
 USING (auth.jwt() -> 'user_metadata' ->> 'role' IN ('doctor', 'nurse', 'pharmacist', 'admin'));
+
+-- 7. Patient Policies
+DROP POLICY IF EXISTS "Patients can report emergencies" ON emergencies;
+CREATE POLICY "Patients can report emergencies" ON emergencies FOR INSERT
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Patients can view own emergencies" ON emergencies;
+CREATE POLICY "Patients can view own emergencies" ON emergencies FOR SELECT
+USING (auth.uid() = reporter_id);
