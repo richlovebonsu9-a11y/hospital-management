@@ -49,6 +49,55 @@ $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
 $invoicesRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $userId . '&status=eq.unpaid&select=*,invoice_items(*)', null, true);
 $pendingInvoice = ($invoicesRes['status'] === 200 && !empty($invoicesRes['data'])) ? $invoicesRes['data'][0] : null;
 
+// 9. RECONCILE INVOICE (Added fix-up for existing items and missing hospital fee)
+$hasNHIS = (!empty($metadata['ghana_card']) && !empty($metadata['nhis_membership_number']));
+if ($pendingInvoice) {
+    $items = $pendingInvoice['invoice_items'] ?? [];
+    $needsUpdate = false;
+    $newTotal = 0;
+    $hasHospFee = false;
+    
+    foreach ($items as &$item) {
+        if (strpos($item['description'], 'Hospital Service Fee') !== false) {
+            $hasHospFee = true;
+        }
+        
+        // If patient has NHIS but item is still at 100% price (and not already marked as NHIS)
+        if ($hasNHIS && $item['amount'] == $item['unit_price'] && strpos($item['description'], 'NHIS') === false) {
+            $item['amount'] = $item['unit_price'] * 0.5;
+            $item['description'] = $item['description'] . ' (NHIS 50% Off)';
+            $sb->request('PATCH', '/rest/v1/invoice_items?id=eq.' . $item['id'], [
+                'amount' => $item['amount'],
+                'description' => $item['description']
+            ], true);
+            $needsUpdate = true;
+        }
+        $newTotal += (float)$item['amount'];
+    }
+    
+    // Add missing hospital fee
+    if (!$hasHospFee) {
+        $hospFeeBase = 50.00;
+        $hospFeeCharged = $hasNHIS ? 25.00 : 50.00;
+        $sb->request('POST', '/rest/v1/invoice_items', [
+            'invoice_id' => $pendingInvoice['id'],
+            'description' => 'Hospital Service Fee (Standard)' . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+            'quantity' => 1,
+            'unit_price' => $hospFeeBase,
+            'amount' => $hospFeeCharged
+        ], true);
+        $newTotal += $hospFeeCharged;
+        $needsUpdate = true;
+    }
+    
+    if ($needsUpdate) {
+        $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $pendingInvoice['id'], ['total_amount' => $newTotal], true);
+        // Refresh invoice data
+        $invoicesRes = $sb->request('GET', '/rest/v1/invoices?id=eq.' . $pendingInvoice['id'] . '&select=*,invoice_items(*)', null, true);
+        $pendingInvoice = ($invoicesRes['status'] === 200 && !empty($invoicesRes['data'])) ? $invoicesRes['data'][0] : null;
+    }
+}
+
 // Find next appointment for the overview card
 $nextAppt = null;
 foreach ($appointments as $a) {
@@ -475,7 +524,7 @@ foreach ($appointments as $a) {
                                 </table>
                             </div>
                             <div class="d-flex justify-content-end mt-3">
-                                <button class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm">Proceed to Payment</button>
+                                <button class="btn btn-primary rounded-pill px-5 py-2 fw-bold shadow-sm" data-bs-toggle="modal" data-bs-target="#paymentModal">Proceed to Payment</button>
                             </div>
                         <?php else: ?>
                             <div class="text-center py-5">
@@ -659,7 +708,73 @@ foreach ($appointments as $a) {
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
+    <!-- Payment Selection Modal -->
+    <div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Select Payment Method</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form action="/api/billing/process_payment.php" method="POST">
+                        <input type="hidden" name="invoice_id" value="<?php echo $pendingInvoice['id'] ?? ''; ?>">
+                        <p class="text-muted small mb-4">Total Amount Due: <span class="fw-bold text-primary">₵ <?php echo number_format($pendingInvoice['total_amount'] ?? 0, 2); ?></span></p>
+                        
+                        <div class="mb-4">
+                            <label class="form-label fw-bold small">Payment Options</label>
+                            
+                            <!-- Mobile Money -->
+                            <div class="form-check border rounded-3 p-3 mb-2 shadow-sm">
+                                <input class="form-check-input ms-0 me-3" type="radio" name="payment_method" id="pay_momo" value="momo" required>
+                                <label class="form-check-label w-100" for="pay_momo">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-phone text-warning me-3 fs-4"></i>
+                                        <div>
+                                            <span class="fw-bold d-block">Mobile Money (MTN, Vodafone)</span>
+                                            <small class="text-muted">Pay via your mobile wallet</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            
+                            <!-- Card -->
+                            <div class="form-check border rounded-3 p-3 mb-2 shadow-sm">
+                                <input class="form-check-input ms-0 me-3" type="radio" name="payment_method" id="pay_card" value="card">
+                                <label class="form-check-label w-100" for="pay_card">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-credit-card text-primary me-3 fs-4"></i>
+                                        <div>
+                                            <span class="fw-bold d-block">Visa / Mastercard</span>
+                                            <small class="text-muted">Pay with your debit or credit card</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- NHIS Subsidized Wallet -->
+                            <?php if ($hasNHIS): ?>
+                            <div class="form-check border rounded-3 p-3 mb-2 shadow-sm bg-light">
+                                <input class="form-check-input ms-0 me-3" type="radio" name="payment_method" id="pay_nhis" value="nhis">
+                                <label class="form-check-label w-100" for="pay_nhis">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-shield-check text-success me-3 fs-4"></i>
+                                        <div>
+                                            <span class="fw-bold d-block">NHIS Health Wallet</span>
+                                            <small class="text-muted">Pay using your subsidized health balance</small>
+                                        </div>
+                                    </div>
+                                </label>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-2 shadow-sm">Authorize Payment</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function openAdmissionModal(consultId) {
