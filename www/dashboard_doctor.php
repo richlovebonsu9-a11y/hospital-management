@@ -51,7 +51,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
 
 // 6. Fetch Assigned Emergencies
 $myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=neq.resolved&select=*,reporter:reporter_id(name)', null, true);
-$myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergencies['data'] : [];
+$myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
 
 // Stats
 $waitingCount = 0;
