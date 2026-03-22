@@ -141,8 +141,6 @@ $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
                                 </div>
                             </div>
                             <p class="extra-small text-muted mt-2 mb-0"><i class="bi bi-info-circle me-1"></i> Occupancy will be updated automatically upon submission.</p>
-                        </div>
-                    </div>
                 </form>
 
                 <!-- Orders (Lab & Radiology) -->
