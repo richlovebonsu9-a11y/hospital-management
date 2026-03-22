@@ -146,6 +146,8 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
             <?php endif; ?>
         </header>
 
+        <?php include 'components/health_tips.php'; ?>
+
         <!-- OVERVIEW SECTION -->
         <div id="section-overview" class="dashboard-section">
             <div class="row g-4 mb-5">

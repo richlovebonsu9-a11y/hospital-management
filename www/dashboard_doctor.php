@@ -171,6 +171,8 @@ $seenToday = count($mySchedule); // Simplification
         </div>
         <?php endif; ?>
 
+        <?php include 'components/health_tips.php'; ?>
+
         <!-- QUEUE SECTION -->
         <div id="section-queue" class="dashboard-section">
             <?php if (!empty($myEmergencies)): ?>

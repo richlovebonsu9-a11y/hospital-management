@@ -246,6 +246,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             </div>
         </header>
 
+        <?php include 'components/health_tips.php'; ?>
+
         <!-- ANALYTICS SECTION -->
         <div id="section-analytics" class="dashboard-section">
             <div class="row g-4 mb-5">

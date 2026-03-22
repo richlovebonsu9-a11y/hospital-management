@@ -239,6 +239,8 @@ foreach ($appointments as $a) {
             </div>
         <?php endif; ?>
 
+        <?php include 'components/health_tips.php'; ?>
+
         <!-- Guardian Link Requests -->
         <?php foreach ($pendingLinks as $link): ?>
             <div class="alert alert-primary border-0 rounded-4 shadow-sm mb-4 p-4 d-flex align-items-center justify-content-between">

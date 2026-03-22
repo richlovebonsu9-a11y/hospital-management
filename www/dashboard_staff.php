@@ -214,6 +214,8 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             </div>
         </header>
 
+        <?php include 'components/health_tips.php'; ?>
+
         <div id="section-queue" class="dashboard-section">
             <?php if (!empty($myEmergencies)): ?>
                 <div class="row g-4 mb-4">
