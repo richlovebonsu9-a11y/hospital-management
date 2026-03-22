@@ -665,49 +665,19 @@ foreach ($appointments as $a) {
         </div>
     </div>
 
-    <!-- Admission Approval Modal -->
+    <!-- Admission Status Info Modal (Read-only) -->
     <div class="modal fade" id="admissionModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-4">
                 <div class="modal-header border-0 pb-0">
-                    <h5 class="modal-title fw-bold">Hospital Admission Approval</h5>
+                    <h5 class="modal-title fw-bold">Hospital Admission</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <form action="/api/admission/approve.php" method="POST">
-                        <input type="hidden" name="consultation_id" id="modal_consultation_id">
-                        <p class="text-muted small mb-4">You have been recommended for admission. Please select a ward to secure your bed and finalize the process.</p>
-                        
-                        <div class="mb-4">
-                            <label class="form-label fw-bold small">Available Wards</label>
-                            <?php foreach ($wards as $w): 
-                                $isFull = ($w['occupied_beds'] >= $w['total_beds']);
-                                $free = $w['total_beds'] - $w['occupied_beds'];
-                            ?>
-                                <div class="form-check border rounded-3 p-3 mb-2 <?php echo $isFull ? 'opacity-50' : ''; ?>" 
-                                     style="cursor: <?php echo $isFull ? 'not-allowed' : 'pointer'; ?>">
-                                    <input class="form-check-input ms-0 me-3" type="radio" name="ward_id" 
-                                           id="ward_<?php echo $w['id']; ?>" value="<?php echo $w['id']; ?>" 
-                                           <?php echo $isFull ? 'disabled' : 'required'; ?>>
-                                    <label class="form-check-label w-100" for="ward_<?php echo $w['id']; ?>">
-                                        <div class="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <span class="fw-bold d-block"><?php echo htmlspecialchars($w['ward_name']); ?></span>
-                                                <small class="text-muted"><?php echo $free; ?> beds free</small>
-                                            </div>
-                                            <span class="fw-bold text-primary">₵ <?php echo number_format($w['admission_fee'] ?? 0, 2); ?></span>
-                                        </div>
-                                    </label>
-                                </div>
-                            <?php endforeach; ?>
-                        </div>
-
-                        <div class="alert alert-info border-0 shadow-sm rounded-3 py-2 px-3 extra-small">
-                            <i class="bi bi-info-circle-fill me-2"></i> Initial bed fee will be added to your current invoice upon approval.
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-2 shadow-sm">Confirm & Secure Bed</button>
-                    </form>
+                <div class="modal-body p-4 text-center">
+                    <i class="bi bi-hospital-fill display-4 text-primary mb-3"></i>
+                    <h5 class="fw-bold">Your Bed is Secured!</h5>
+                    <p class="text-muted small">Your admission has been finalized by the clinical staff. Please check with the ward nurse for your assigned bed location.</p>
+                    <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold mt-2 shadow-sm" data-bs-dismiss="modal">Got it</button>
                 </div>
             </div>
         </div>

@@ -224,7 +224,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
                                         $pName = $t['patient']['name'] ?? 'Patient';
                                         $priority = ($t['is_ordered'] ?? false) ? "<span class='badge bg-warning text-dark me-2 small'><i class='bi bi-megaphone-fill me-1'></i> ORDERED</span>" : "";
-                                        echo $priority . "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
+                                        echo $priority . "Dispense: <span class='fw-bold'>" . htmlspecialchars($t['medication_name']) . "</span> x <span class='badge bg-primary rounded-pill'>" . ($t['quantity'] ?? 1) . "</span> for <span class='fw-bold text-primary'>$pName</span>";
                                         echo "<div class='extra-small text-muted'>" . htmlspecialchars(($t['dosage'] ?? '') . " | " . ($t['frequency'] ?? '') . " | " . ($t['duration'] ?? '')) . "</div>";
                                     } elseif ($role === 'technician') {
                                         $pName = $t['patient']['name'] ?? 'Patient';
@@ -499,7 +499,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4 text-center">
                     <i class="bi bi-box-seam display-4 text-success mb-3"></i>
-                    <p class="text-muted small px-3 mb-4">You are about to dispense this medication. This will decrement the inventory stock and generate an automated bill for the patient.</p>
+                    <p class="text-muted small px-3 mb-4">You are about to dispense the prescribed quantity of this medication. This will decrement the inventory stock accordingly and total the bill for the patient.</p>
                     <div class="mb-3 text-start"><label class="small text-muted fw-bold">Batch Number / Trace ID</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" placeholder="e.g. BATCH-202X-001" required></div>
                     <div class="mb-3 text-start"><label class="small text-muted fw-bold">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
                     <button type="submit" class="btn btn-success w-100 rounded-pill py-2 fw-bold mt-2">Finalize & Dispense</button>

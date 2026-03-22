@@ -27,6 +27,10 @@ $patient_name = "Patient " . substr($patient_id, 0, 8);
 // Fetch available drugs for the prescription list
 $drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
 $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
+
+// Fetch available wards for the admission selection
+$wardsRes = $sb->request('GET', '/rest/v1/wards?select=*&order=ward_name.asc', null, true);
+$wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -110,12 +114,33 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                     <label class="form-label fw-bold">Clinical Notes</label>
                     <textarea name="notes" class="form-control rounded-4 p-4 border-light bg-light" rows="6" placeholder="Type patient symptoms, history, and examination findings here..."></textarea>
                     
-                    <div class="mt-4">
-                        <h5 class="fw-bold mb-3">Diagnosis</h5>
-                        <input type="text" name="diagnosis" class="form-control rounded-pill border-light bg-light mb-3" placeholder="e.g. Malaria, URTI">
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" name="recommend_admission" id="admissionCheck">
-                            <label class="form-check-label" for="admissionCheck">Recommend Admission</label>
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" name="recommend_admission" id="admissionCheck" onchange="toggleAdmissionFields()">
+                            <label class="form-check-label fw-bold" for="admissionCheck">Recommend Admission</label>
+                        </div>
+
+                        <div id="admission-fields" class="d-none bg-light p-3 rounded-4 border">
+                            <h6 class="fw-bold mb-3 small text-primary"><i class="bi bi-hospital me-2"></i>Ward & Bed Assignment</h6>
+                            <div class="row g-2">
+                                <div class="col-md-6">
+                                    <label class="extra-small text-muted">Select Ward</label>
+                                    <select name="ward_id" class="form-select form-select-sm rounded-pill border-0 shadow-sm" onchange="updateBedDisplay()">
+                                        <option value="">-- Select Ward --</option>
+                                        <?php foreach($wards as $w): 
+                                            $isFull = ($w['occupied_beds'] >= $w['total_beds']);
+                                        ?>
+                                            <option value="<?php echo $w['id']; ?>" <?php echo $isFull ? 'disabled' : ''; ?> data-fee="<?php echo $w['admission_fee']; ?>" data-free="<?php echo $w['total_beds'] - $w['occupied_beds']; ?>">
+                                                <?php echo htmlspecialchars($w['ward_name']); ?> (₵<?php echo number_format($w['admission_fee'], 0); ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="extra-small text-muted">Bed Number (Auto-assign)</label>
+                                    <input type="text" name="bed_number" class="form-control form-control-sm rounded-pill border-0 shadow-sm" placeholder="e.g. BED-A1">
+                                </div>
+                            </div>
+                            <p class="extra-small text-muted mt-2 mb-0"><i class="bi bi-info-circle me-1"></i> Occupancy will be updated automatically upon submission.</p>
                         </div>
                     </div>
                 </form>
@@ -180,10 +205,14 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                         <?php endforeach; ?>
                                     </select>
                                 </div>
-                                <div class="row g-2">
+                                <div class="row g-2 mb-2">
                                     <div class="col-12"><input type="text" name="meds[0][dosage]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Dosage (500mg)"></div>
                                     <div class="col-6"><input type="text" name="meds[0][frequency]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Freq (2x)"></div>
                                     <div class="col-6"><input type="text" name="meds[0][duration]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Dur (7d)"></div>
+                                </div>
+                                <div class="mb-0">
+                                    <label class="extra-small text-muted mb-1 d-block ms-2">Total Quantity to Dispense</label>
+                                    <input type="number" name="meds[0][quantity]" form="consultationForm" class="form-control form-control-sm rounded-pill" placeholder="Total Qty (e.g. 10)" min="1" value="1">
                                 </div>
                             </div>
                         </div>
@@ -263,6 +292,20 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             container.appendChild(newItem);
             medCount++;
         });
+
+        function toggleAdmissionFields() {
+            const check = document.getElementById('admissionCheck');
+            const fields = document.getElementById('admission-fields');
+            if (check.checked) {
+                fields.classList.remove('d-none');
+            } else {
+                fields.classList.add('d-none');
+            }
+        }
+
+        function updateBedDisplay() {
+            // Optional: Can add logic to suggest next available bed via API
+        }
     </script>
 </body>
 </html>

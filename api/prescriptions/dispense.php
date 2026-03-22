@@ -37,15 +37,18 @@ if ($drugId && $patientId) {
         $stock = (int)($drug['stock_count'] ?? 0);
 
         if ($stock > 0) {
+            $qty = (int)($prescription['quantity'] ?? 1);
+            if ($qty > $stock) { $qty = $stock; } // Cap at available stock if something went wrong
+
             // A. Decrement Stock
-            $sb->request('PATCH', '/rest/v1/drug_inventory?id=eq.' . $drugId, ['stock_count' => $stock - 1], true);
+            $sb->request('PATCH', '/rest/v1/drug_inventory?id=eq.' . $drugId, ['stock_count' => $stock - $qty], true);
 
             // B. NHIS DISCOUNT CHECK
             $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
             $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
             $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
             $discountMultiplier = $hasNHIS ? 0.5 : 1.0;
-            $chargedPrice = $basePrice * $discountMultiplier;
+            $chargedPrice = ($basePrice * $qty) * $discountMultiplier;
 
             // C. Find or Create Unpaid Invoice
             $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
@@ -90,7 +93,7 @@ if ($drugId && $patientId) {
                 $sb->request('POST', '/rest/v1/invoice_items', [
                     'invoice_id' => $invoiceId,
                     'description' => 'Medication: ' . $drug['drug_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
-                    'quantity' => 1,
+                    'quantity' => $qty,
                     'unit_price' => $basePrice,
                     'amount' => $chargedPrice
                 ], true);

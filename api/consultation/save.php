@@ -21,8 +21,10 @@ $weight = $_POST['weight'] ?? null;
 $pulse = $_POST['pulse'] ?? null;
 $notes = $_POST['notes'] ?? '';
 $diagnosis = $_POST['diagnosis'] ?? '';
-$meds = $_POST['meds'] ?? []; // Array of medications
+$meds = $_POST['meds'] ?? []; 
 $admission = isset($_POST['recommend_admission']) ? 'yes' : 'no';
+$wardId = $_POST['ward_id'] ?? null;
+$bedNumber = $_POST['bed_number'] ?? '';
 
 if (!$patientId) {
     header('Location: /dashboard_staff.php?error=invalid_patient'); exit;
@@ -98,15 +100,70 @@ if ($role === 'doctor') {
                         'dosage' => $mDosage,
                         'frequency' => $mFreq,
                         'duration' => $mDuration,
+                        'quantity' => (int)($m['quantity'] ?? 1),
                         'status' => 'pending'
                     ], true);
                 }
             }
         }
 
-        // TRIGGER ADMISSION NOTIFICATION
+        // TRIGGER ADMISSION NOTIFICATION OR AUTO-ASSIGNMENT
         if ($admission === 'yes') {
-            $msg = "Admission Recommended: Dr. " . ($u['user_metadata']['name'] ?? 'Staff') . " has recommended your admission. Please check your dashboard to approve and secure a bed.";
+            if ($wardId) {
+                // 1. Create Active Admission Record
+                $sb->request('POST', '/rest/v1/admissions', [
+                    'patient_id' => $patientId,
+                    'ward_id' => $wardId,
+                    'bed_number' => $bedNumber ?: 'AUTO',
+                    'status' => 'active',
+                    'assigned_by' => $u['id']
+                ], true);
+
+                // 2. Increment Ward Occupancy
+                $wardRes = $sb->request('GET', '/rest/v1/wards?id=eq.' . $wardId . '&select=occupied_beds', null, true);
+                if ($wardRes['status'] === 200 && !empty($wardRes['data'])) {
+                    $newOcc = (int)$wardRes['data'][0]['occupied_beds'] + 1;
+                    $sb->request('PATCH', '/rest/v1/wards?id=eq.' . $wardId, ['occupied_beds' => $newOcc], true);
+                }
+
+                // 3. Add Admission Fee to Invoice
+                $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
+                if ($invRes['status'] === 200 && !empty($invRes['data'])) {
+                    $invoiceId = $invRes['data'][0]['id'];
+                    $currentTotal = (float)$invRes['data'][0]['total_amount'];
+                } else {
+                    $newInv = $sb->request('POST', '/rest/v1/invoices', ['patient_id' => $patientId, 'total_amount' => 0, 'status' => 'unpaid'], true, ['Prefer' => 'return=representation']);
+                    $invoiceId = ($newInv['status'] === 201) ? $newInv['data'][0]['id'] : null;
+                    $currentTotal = 0;
+                }
+
+                if ($invoiceId) {
+                    $wardInfoRes = $sb->request('GET', '/rest/v1/wards?id=eq.' . $wardId . '&select=ward_name,admission_fee', null, true);
+                    if ($wardInfoRes['status'] === 200 && !empty($wardInfoRes['data'])) {
+                        $wInfo = $wardInfoRes['data'][0];
+                        $fee = (float)$wInfo['admission_fee'];
+                        
+                        // Check for NHIS discount
+                        $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
+                        $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
+                        $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
+                        $chargedFee = $fee * ($hasNHIS ? 0.5 : 1.0);
+
+                        $sb->request('POST', '/rest/v1/invoice_items', [
+                            'invoice_id' => $invoiceId,
+                            'description' => 'Admission Fee: ' . $wInfo['ward_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+                            'quantity' => 1,
+                            'unit_price' => $fee,
+                            'amount' => $chargedFee
+                        ], true);
+                        $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $chargedFee], true);
+                    }
+                }
+
+                $msg = "Admission Confirmed: You have been assigned to " . ($bedNumber ?: 'a bed') . " in Ward " . ($wInfo['ward_name'] ?? 'Assigned') . ". Please proceed to the nurse station.";
+            } else {
+                $msg = "Admission Recommended: Dr. " . ($u['user_metadata']['name'] ?? 'Staff') . " has recommended your admission. A bed will be assigned by the hospital staff soon.";
+            }
             
             // 1. Notify Patient
             $sb->request('POST', '/rest/v1/notifications', [
@@ -122,7 +179,7 @@ if ($role === 'doctor') {
                 foreach ($gLinksRes['data'] as $link) {
                     $sb->request('POST', '/rest/v1/notifications', [
                         'user_id' => $link['guardian_id'],
-                        'message' => "Medical Alert: Admission has been recommended for your ward. Please coordinate for approval.",
+                        'message' => "Medical Alert: Admission has been " . ($wardId ? "confirmed" : "recommended") . " for your ward.",
                         'type' => 'admission_request',
                         'related_id' => $consultId
                     ], true);
