@@ -47,7 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'id' => $newUserId,
                 'name' => $name,
                 'role' => $role,
-                'department' => $department
+                'department' => $department,
+                'ghana_post_gps' => 'N/A' // Required by DB constraint
             ], true);
             
             $sb->request('POST', '/rest/v1/audit_log', [
