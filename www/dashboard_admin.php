@@ -204,61 +204,63 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <h4 class="fw-bold mb-0 text-primary">Kobby Moore Hospital</h4>
         </div>
 
-        <header class="d-flex justify-content-between align-items-center mb-5">
-            <div>
-                <h2 class="fw-bold mb-1">Administrative Center</h2>
-                <p class="text-muted mb-0">Overview of Kobby Moore Hospital operations.</p>
-            </div>
-            <div class="d-flex align-items-center">
-                <div class="dropdown me-4">
-                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
-                        <i class="bi bi-bell fs-5 text-secondary"></i>
-                        <?php if ($unreadCount > 0): ?>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
-                            <?php echo $unreadCount; ?>
-                        </span>
-                        <?php endif; ?>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
-                        <h6 class="fw-bold mb-3">System Alerts</h6>
-                        <?php if (empty($notifications)): ?>
-                            <p class="text-muted small mb-0">No alerts at this time.</p>
-                        <?php else: foreach ($notifications as $n): 
-                            $msg = $n['message'];
-                            foreach($profilesMap as $pid => $pname) {
-                                $msg = str_replace($pid, $pname, $msg);
-                            }
-                        ?>
-                            <div class="p-2 mb-2 rounded-3 <?php echo empty($n['is_read']) ? 'bg-light' : ''; ?>" 
-                                 onclick="<?php echo empty($n['is_read']) ? 'markNotificationRead(this, \''.$n['id'].'\')' : ''; ?>"
-                                 style="<?php echo empty($n['is_read']) ? 'cursor: pointer;' : ''; ?>">
-                                <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>">
-                                    <?php echo htmlspecialchars($msg); ?>
-                                </p>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted extra-small"><?php echo date('H:i', strtotime($n['created_at'])); ?></small>
-                                    <?php if (($n['type'] ?? '') === 'emergency_handled_by_staff'): ?>
-                                        <button class="btn btn-success btn-xs py-0 px-2 rounded-pill fw-bold extra-small"
-                                                onclick="event.stopPropagation(); clearEmergencyTask('<?php echo $n['id']; ?>', this)">
-                                            Clear
-                                        </button>
-                                    <?php endif; ?>
+        <div id="dashboard-global-header">
+            <header class="d-flex justify-content-between align-items-center mb-5">
+                <div>
+                    <h2 class="fw-bold mb-1">Administrative Center</h2>
+                    <p class="text-muted mb-0">Overview of Kobby Moore Hospital operations.</p>
+                </div>
+                <div class="d-flex align-items-center">
+                    <div class="dropdown me-4">
+                        <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
+                            <i class="bi bi-bell fs-5 text-secondary"></i>
+                            <?php if ($unreadCount > 0): ?>
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
+                                <?php echo $unreadCount; ?>
+                            </span>
+                            <?php endif; ?>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
+                            <h6 class="fw-bold mb-3">System Alerts</h6>
+                            <?php if (empty($notifications)): ?>
+                                <p class="text-muted small mb-0">No alerts at this time.</p>
+                            <?php else: foreach ($notifications as $n): 
+                                $msg = $n['message'];
+                                foreach($profilesMap as $pid => $pname) {
+                                    $msg = str_replace($pid, $pname, $msg);
+                                }
+                            ?>
+                                <div class="p-2 mb-2 rounded-3 <?php echo empty($n['is_read']) ? 'bg-light' : ''; ?>" 
+                                     onclick="<?php echo empty($n['is_read']) ? 'markNotificationRead(this, \''.$n['id'].'\')' : ''; ?>"
+                                     style="<?php echo empty($n['is_read']) ? 'cursor: pointer;' : ''; ?>">
+                                    <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>">
+                                        <?php echo htmlspecialchars($msg); ?>
+                                    </p>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted extra-small"><?php echo date('H:i', strtotime($n['created_at'])); ?></small>
+                                        <?php if (($n['type'] ?? '') === 'emergency_handled_by_staff'): ?>
+                                            <button class="btn btn-success btn-xs py-0 px-2 rounded-pill fw-bold extra-small"
+                                                    onclick="event.stopPropagation(); clearEmergencyTask('<?php echo $n['id']; ?>', this)">
+                                                Clear
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
                                 </div>
-                            </div>
-                        <?php endforeach; endif; ?>
+                            <?php endforeach; endif; ?>
+                        </div>
+                    </div>
+                     <div class="me-4 text-end">
+                        <p class="mb-0 fw-bold">Hospital Status</p>
+                        <span class="badge bg-success-soft text-success rounded-pill px-3">Normal Operations</span>
+                    </div>
+                    <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
+                        <?php echo strtoupper(substr($name, 0, 1)); ?>
                     </div>
                 </div>
-                 <div class="me-4 text-end">
-                    <p class="mb-0 fw-bold">Hospital Status</p>
-                    <span class="badge bg-success-soft text-success rounded-pill px-3">Normal Operations</span>
-                </div>
-                <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
-                    <?php echo strtoupper(substr($name, 0, 1)); ?>
-                </div>
-            </div>
-        </header>
+            </header>
 
-        <?php include 'components/health_tips.php'; ?>
+            <?php include 'components/health_tips.php'; ?>
+        </div>
 
         <!-- ANALYTICS SECTION -->
         <div id="section-analytics" class="dashboard-section">
@@ -865,9 +867,9 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 </div>
 
                 <ul class="nav nav-pills mb-4 bg-light p-1 rounded-pill" id="reportTabs" role="tablist">
-                    <li class="nav-item flex-fill"><button class="nav-link active rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-inventory-report">Inventory & Meds</button></li>
-                    <li class="nav-item flex-fill"><button class="nav-link rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-ward-report">Wards & Admissions</button></li>
-                    <li class="nav-item flex-fill"><button class="nav-link rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-financial-report">Financial Summary</button></li>
+                    <li class="nav-item flex-fill"><button class="nav-link active rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-inventory-report"><i class="bi bi-box-seam me-1"></i>Inventory &amp; Meds</button></li>
+                    <li class="nav-item flex-fill"><button class="nav-link rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-ward-report"><i class="bi bi-hospital me-1"></i>Wards &amp; Admissions</button></li>
+                    <li class="nav-item flex-fill"><button class="nav-link rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-financial-report"><i class="bi bi-cash-stack me-1"></i>Financial Summary</button></li>
                 </ul>
 
                 <div class="tab-content" id="reportTabContent">
@@ -876,23 +878,23 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <div class="row g-4">
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-4 bg-white h-100">
-                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Most Prescribed Drugs</h6>
-                                    <div id="report_most_prescribed" class="report-container"><div class="text-center py-4 text-muted small">No data load yet...</div></div>
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted"><i class="bi bi-trophy-fill text-warning me-1"></i>Most Prescribed Drugs</h6>
+                                    <div id="report_most_prescribed" class="report-container"><div class="text-center py-4 text-muted small">Click Generate to load data.</div></div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="p-3 border rounded-4 bg-white h-100">
-                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Prescriptions per Doctor</h6>
-                                    <div id="report_per_doctor" class="report-container"><div class="text-center py-4 text-muted small">No data load yet...</div></div>
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted"><i class="bi bi-person-badge-fill text-primary me-1"></i>Prescriptions per Doctor</h6>
+                                    <div id="report_per_doctor" class="report-container"><div class="text-center py-4 text-muted small">Click Generate to load data.</div></div>
                                 </div>
                             </div>
                             <div class="col-12">
                                 <div class="p-3 border rounded-4 bg-white">
-                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Drug Revenue Breakdown</h6>
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted"><i class="bi bi-currency-dollar text-success me-1"></i>Drug Revenue Breakdown</h6>
                                     <div class="table-responsive">
                                         <table class="table table-sm align-middle small">
-                                            <thead><tr><th>Medication</th><th>Total Revenue (Estimated)</th></tr></thead>
-                                            <tbody id="report_drug_revenue_table"></tbody>
+                                            <thead class="table-light"><tr><th>Medication</th><th class="text-end">Total Revenue (Est.)</th></tr></thead>
+                                            <tbody id="report_drug_revenue_table"><tr><td colspan="2" class="text-center text-muted py-3">Click Generate to load data.</td></tr></tbody>
                                         </table>
                                     </div>
                                 </div>
@@ -904,17 +906,17 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <div class="row g-4">
                             <div class="col-md-7">
                                 <div class="p-3 border rounded-4 bg-white">
-                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Ward Occupancy Overview</h6>
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted"><i class="bi bi-bar-chart-fill text-info me-1"></i>Ward Occupancy Overview</h6>
                                     <div id="report_ward_occupancy" class="report-container"></div>
                                 </div>
                             </div>
                             <div class="col-md-5">
                                 <div class="p-3 border rounded-4 bg-white h-100">
-                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Admission Revenue</h6>
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted"><i class="bi bi-cash-coin text-success me-1"></i>Admission Revenue by Ward</h6>
                                     <div class="table-responsive">
                                         <table class="table table-sm align-middle small">
-                                            <thead><tr><th>Ward</th><th>Total Revenue</th></tr></thead>
-                                            <tbody id="report_ward_revenue_table"></tbody>
+                                            <thead class="table-light"><tr><th>Ward</th><th class="text-end">Revenue</th></tr></thead>
+                                            <tbody id="report_ward_revenue_table"><tr><td colspan="2" class="text-center text-muted py-3">Click Generate to load data.</td></tr></tbody>
                                         </table>
                                     </div>
                                 </div>
@@ -923,18 +925,24 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                     </div>
                     <!-- Financial Summary Tab -->
                     <div class="tab-pane fade" id="tab-financial-report">
-                         <div class="p-4 bg-primary-soft rounded-4 mb-4 text-center">
-                            <h2 class="fw-bold text-primary mb-1" id="report_total_rev">₵ 0.00</h2>
-                            <p class="text-muted small mb-0">Total Estimated Revenue for Period</p>
+                        <div class="p-4 rounded-4 mb-4 text-center text-white" style="background: linear-gradient(135deg, #1a237e 0%, #1565c0 100%);">
+                            <p class="text-white-50 small mb-1 text-uppercase fw-bold" style="letter-spacing:1px;">Total Estimated Revenue for Period</p>
+                            <h1 class="fw-bold mb-0" id="report_total_rev" style="font-size: 2.5rem;">&#8373; 0.00</h1>
                         </div>
                         <div class="row g-4">
-                            <div class="col-md-6 text-center border-end">
-                                <h3 class="fw-bold text-success mb-1" id="report_med_total">₵ 0.00</h3>
-                                <p class="text-muted extra-small uppercase">Pharmacy Sales (Dispensed)</p>
+                            <div class="col-md-6">
+                                <div class="p-4 border rounded-4 bg-white text-center">
+                                    <div class="mb-2"><span class="badge rounded-pill px-3 py-2" style="background:rgba(25,135,84,0.12); color:#198754;"><i class="bi bi-capsule-pill me-1"></i>Pharmacy</span></div>
+                                    <h2 class="fw-bold text-success mb-0" id="report_med_total">&#8373; 0.00</h2>
+                                    <p class="text-muted small mt-1 mb-0">Sales from Dispensed Prescriptions</p>
+                                </div>
                             </div>
-                            <div class="col-md-6 text-center">
-                                <h3 class="fw-bold text-info mb-1" id="report_ward_total">₵ 0.00</h3>
-                                <p class="text-muted extra-small uppercase">Admission Fees</p>
+                            <div class="col-md-6">
+                                <div class="p-4 border rounded-4 bg-white text-center">
+                                    <div class="mb-2"><span class="badge rounded-pill px-3 py-2" style="background:rgba(13,202,240,0.12); color:#0dcaf0;"><i class="bi bi-hospital me-1"></i>Admissions</span></div>
+                                    <h2 class="fw-bold text-info mb-0" id="report_ward_total">&#8373; 0.00</h2>
+                                    <p class="text-muted small mt-1 mb-0">Revenue from Ward Admission Fees</p>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1349,36 +1357,68 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         }
 
         function renderInventoryReports(r) {
-            // Most Prescribed
+            // Most Prescribed — styled ranked list
             const mp = document.getElementById('report_most_prescribed');
-            if (Object.keys(r.most_prescribed || {}).length > 0) {
-                let html = '<ul class="list-group list-group-flush small">';
-                for (const [name, count] of Object.entries(r.most_prescribed)) {
-                    html += `<li class="list-group-item d-flex justify-content-between"><span>${name}</span><span class="fw-bold text-primary">${count} rx</span></li>`;
-                }
-                mp.innerHTML = html + '</ul>';
+            const mpEntries = Object.entries(r.most_prescribed || {});
+            if (mpEntries.length > 0) {
+                const maxCount = mpEntries[0][1] || 1;
+                const colors = ['text-warning','text-secondary','text-danger'];
+                const rankIcons = ['bi-trophy-fill','bi-award-fill','bi-patch-check-fill'];
+                let html = '<div class="d-flex flex-column gap-2">';
+                mpEntries.forEach(([name, count], i) => {
+                    const pct = Math.round((count / maxCount) * 100);
+                    const iconClass = rankIcons[i] || 'bi-dot';
+                    const colorClass = colors[i] || 'text-primary';
+                    html += `
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi ${iconClass} ${colorClass}" style="font-size:1rem; min-width:18px;"></i>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small fw-semibold">${name}</span>
+                                    <span class="badge bg-primary-soft text-primary rounded-pill px-2">${count} rx</span>
+                                </div>
+                                <div class="progress" style="height:5px;"><div class="progress-bar bg-primary" style="width:${pct}%"></div></div>
+                            </div>
+                        </div>`;
+                });
+                mp.innerHTML = html + '</div>';
             } else mp.innerHTML = '<div class="text-center py-4 text-muted small">No prescriptions in this period.</div>';
 
-            // Per Doctor
+            // Per Doctor — styled ranked list
             const pd = document.getElementById('report_per_doctor');
-            if (Object.keys(r.per_doctor || {}).length > 0) {
-                let html = '<ul class="list-group list-group-flush small">';
-                for (const [id, count] of Object.entries(r.per_doctor)) {
-                    const name = (typeof profilesMap !== 'undefined' && profilesMap[id]) ? profilesMap[id] : id.substring(0,8);
-                    html += `<li class="list-group-item d-flex justify-content-between"><span>${name}</span><span class="fw-bold">${count}</span></li>`;
-                }
-                pd.innerHTML = html + '</ul>';
-            } else pd.innerHTML = '<div class="text-center py-4 text-muted small">No data.</div>';
+            const pdEntries = Object.entries(r.per_doctor || {});
+            if (pdEntries.length > 0) {
+                const maxCount = pdEntries[0][1] || 1;
+                let html = '<div class="d-flex flex-column gap-2">';
+                pdEntries.forEach(([id, count], i) => {
+                    const name = (typeof profilesMap !== 'undefined' && profilesMap[id]) ? profilesMap[id] : 'Dr. ' + id.substring(0,8);
+                    const pct = Math.round((count / maxCount) * 100);
+                    const initial = name.charAt(0).toUpperCase();
+                    html += `
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold flex-shrink-0"
+                                 style="width:28px;height:28px;font-size:0.75rem;">${initial}</div>
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small fw-semibold">${name}</span>
+                                    <span class="badge bg-light text-dark border rounded-pill px-2">${count} rx</span>
+                                </div>
+                                <div class="progress" style="height:5px;"><div class="progress-bar bg-info" style="width:${pct}%"></div></div>
+                            </div>
+                        </div>`;
+                });
+                pd.innerHTML = html + '</div>';
+            } else pd.innerHTML = '<div class="text-center py-4 text-muted small">No prescriptions in this period.</div>';
 
             // Revenue Table
             const revTable = document.getElementById('report_drug_revenue_table');
             let revHtml = '';
             let totalMed = 0;
             for (const [name, amt] of Object.entries(r.revenue_per_drug || {})) {
-                revHtml += `<tr><td>${name}</td><td class="fw-bold text-success text-end">₵ ${amt.toFixed(2)}</td></tr>`;
+                revHtml += `<tr><td class="fw-semibold">${name}</td><td class="fw-bold text-success text-end">&#8373; ${amt.toFixed(2)}</td></tr>`;
                 totalMed += amt;
             }
-            revTable.innerHTML = revHtml || '<tr><td colspan="2" class="text-center text-muted">No sales data.</td></tr>';
+            revTable.innerHTML = revHtml || '<tr><td colspan="2" class="text-center text-muted py-3">No sales data.</td></tr>';
             document.getElementById('report_med_total').innerText = '₵ ' + totalMed.toLocaleString(undefined, {minimumFractionDigits:2});
             updateTotalRevenue();
         }
@@ -1470,6 +1510,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
             
+            const globalHeader = document.getElementById('dashboard-global-header');
+
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
                     const targetId = link.getAttribute('data-target');
@@ -1480,6 +1522,15 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         if (target) target.classList.remove('d-none');
                         links.forEach(l => l.classList.remove('active'));
                         link.classList.add('active');
+
+                        // Hide/show global header & health tips for Reports section
+                        if (globalHeader) {
+                            if (targetId === 'section-reports') {
+                                globalHeader.classList.add('d-none');
+                            } else {
+                                globalHeader.classList.remove('d-none');
+                            }
+                        }
                     }
                 });
             });
