@@ -1746,41 +1746,63 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 alert("Error: " + data.error);
             }
         }
-        async function submitAddStaff(e) {
-            e.preventDefault();
-            const form = document.getElementById('addStaffForm');
-            const btn = form.querySelector('button[type="submit"]');
-            const oriText = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
-            btn.disabled = true;
+        document.addEventListener('DOMContentLoaded', () => {
+            const staffForm = document.getElementById('addStaffForm');
+            if (staffForm) {
+                staffForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    const btn = staffForm.querySelector('button[type="submit"]');
+                    const oriText = btn.innerHTML;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+                    btn.disabled = true;
 
-            try {
-                const fd = new FormData(form);
-                const res = await fetch('/api/admin/add_staff.php', { method: 'POST', body: fd });
-                const data = await res.json();
-                if (data.success) {
-                    const modalEl = document.getElementById('addStaffModal');
-                    const modal = bootstrap.Modal.getInstance(modalEl);
-                    if (modal) modal.hide();
-                    form.reset();
-                    if (typeof silentRefresh === 'function') silentRefresh();
-                    else location.reload();
-                } else {
-                    alert("Error: " + (data.error || "Failed to create account."));
-                }
-            } catch (err) {
-                alert("A server error occurred.");
-            } finally {
-                btn.innerHTML = oriText;
-                btn.disabled = false;
+                    try {
+                        const fd = new FormData(staffForm);
+                        const res = await fetch('/api/admin/add_staff.php', { method: 'POST', body: fd });
+                        const text = await res.text();
+                        
+                        let data;
+                        try {
+                            data = JSON.parse(text);
+                        } catch (parseError) {
+                            alert("API Error: Received invalid response from server -> " + text.substring(0, 100));
+                            btn.innerHTML = oriText;
+                            btn.disabled = false;
+                            return;
+                        }
+
+                        if (data.success) {
+                            const modalEl = document.getElementById('addStaffModal');
+                            let modal = bootstrap.Modal.getInstance(modalEl);
+                            if (!modal) modal = new bootstrap.Modal(modalEl);
+                            modal.hide();
+                            
+                            staffForm.reset();
+                            
+                            if (typeof silentRefresh === 'function') {
+                                silentRefresh();
+                            } else {
+                                location.reload();
+                            }
+                        } else {
+                            alert("Error: " + (data.error || "Failed to create account."));
+                        }
+                    } catch (err) {
+                        alert("A network error occurred while connecting to the server.");
+                    } finally {
+                        btn.innerHTML = oriText;
+                        btn.disabled = false;
+                    }
+                });
             }
-        }
+        });
     </script>
     <!-- Add Staff Modal -->
     <div class="modal fade" id="addStaffModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
-                <form id="addStaffForm" onsubmit="submitAddStaff(event)">
+                <form id="addStaffForm">
                     <div class="modal-header border-0 pb-0">
                         <h5 class="fw-bold">Register New Staff Member</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
