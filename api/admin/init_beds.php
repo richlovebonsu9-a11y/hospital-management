@@ -64,6 +64,7 @@ $res = $sb->request('POST', '/rest/v1/rpc/exec_sql', ['query' => $sql], true);
 header('Content-Type: text/html');
 if ($res['status'] === 200) {
     echo "<h1>Success!</h1><p>Beds table initialized and populated successfully.</p>";
+    echo "<p><a href='/api/admin/reconcile_beds.php' style='display:inline-block; padding:10px 20px; background:#1a237e; color:white; text-decoration:none; border-radius:5px;'>Sync with Active Admissions Now</a></p>";
     echo "<p><a href='/dashboard_admin.php'>Return to Dashboard</a></p>";
 } else {
     echo "<h1 style='color:red;'>Migration Failed</h1>";
