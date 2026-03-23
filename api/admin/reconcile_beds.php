@@ -17,10 +17,10 @@ $sb = new Supabase();
 // The reconciliation SQL logic
 $sql = "
 -- 1. Reset all beds to available
-UPDATE beds SET status = 'available';
+UPDATE beds SET status = 'available' WHERE true;
 
 -- 2. Reset all ward occupancy to zero
-UPDATE wards SET occupied_beds = 0;
+UPDATE wards SET occupied_beds = 0 WHERE true;
 
 -- 3. Mark beds as occupied based on ACTIVE admissions
 -- We match by ward_id and bed_number string
