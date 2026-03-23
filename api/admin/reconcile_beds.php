@@ -15,16 +15,45 @@ if (!isset($_SESSION['user']) || ($_SESSION['user']['user_metadata']['role'] ?? 
 
 $sb = new Supabase();
 
-// The reconciliation SQL logic
-$sql = "
--- 1. Reset all beds to available
-UPDATE beds SET status = 'available' WHERE true;
+// 1. Fetch all active admissions
+$admRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=id,ward_id,bed_number', null, true);
+$admissions = ($admRes['status'] === 200) ? $admRes['data'] : [];
 
--- 2. Reset all ward occupancy to zero
+$reassignedCount = 0;
+
+foreach ($admissions as $adm) {
+    $admId = $adm['id'];
+    $wardId = $adm['ward_id'];
+    $currentBed = $adm['bed_number'];
+
+    // Check if this bed exists in our new beds table for this ward
+    $bedCheck = $sb->request('GET', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . urlencode($currentBed) . '&select=id', null, true);
+    
+    if ($bedCheck['status'] === 200 && empty($bedCheck['data'])) {
+        // Bed not found in new system! Let's find the first available new bed in this ward.
+        $availableBedRes = $sb->request('GET', '/rest/v1/beds?ward_id=eq.' . $wardId . '&status=eq.available&select=bed_number&limit=1&order=bed_number.asc', null, true);
+        
+        if ($availableBedRes['status'] === 200 && !empty($availableBedRes['data'])) {
+            $newBedNumber = $availableBedRes['data'][0]['bed_number'];
+            
+            // Update the admission to use the new bed
+            $sb->request('PATCH', '/rest/v1/admissions?id=eq.' . $admId, ['bed_number' => $newBedNumber], true);
+            
+            // Mark it occupied in the beds table (will also be ensured by the SQL below)
+            $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . urlencode($newBedNumber), ['status' => 'occupied'], true);
+            
+            $reassignedCount++;
+        }
+    }
+}
+
+// 2. The standard SQL reconciliation logic to sync statuses and counts
+$sql = "
+-- Reset
+UPDATE beds SET status = 'available' WHERE true;
 UPDATE wards SET occupied_beds = 0 WHERE true;
 
--- 3. Mark beds as occupied based on ACTIVE admissions
--- We match by ward_id and bed_number string
+-- Mark beds as occupied based on ACTIVE admissions
 UPDATE beds b
 SET status = 'occupied', last_occupied_at = a.admission_date
 FROM admissions a
@@ -32,7 +61,7 @@ WHERE a.status = 'active'
 AND a.ward_id = b.ward_id
 AND a.bed_number = b.bed_number;
 
--- 4. Re-calculate ward occupancy counts
+-- Re-calculate ward occupancy counts
 UPDATE wards w
 SET occupied_beds = sub.count
 FROM (
@@ -55,6 +84,9 @@ if ($res['status'] === 200 || $res['status'] === 204) {
 
     echo "<h1>Reconciliation Success!</h1>";
     echo "<p>The system has been synchronized. All beds and ward counts now reflect the <b>$count</b> active admissions currently in your database.</p>";
+    if ($reassignedCount > 0) {
+        echo "<p style='color: #1a237e;'><b>Note:</b> $reassignedCount active admissions were mapped from old bed numbers (e.g., BED-A5) to new valid ones (e.g., GEN-01) automatically.</p>";
+    }
     echo "<p><a href='/dashboard_admin.php'>Return to Dashboard</a></p>";
 } else {
     echo "<h1 style='color:red;'>Reconciliation Failed</h1>";
