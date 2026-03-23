@@ -26,33 +26,15 @@ CREATE TABLE IF NOT EXISTS beds (
     UNIQUE(ward_id, bed_number)
 );
 
--- 2. Populate beds for existing wards
--- ICU
+-- 2. Populate beds for all existing wards dynamically
 INSERT INTO beds (ward_id, bed_number)
-SELECT id, 'ICU-' || lpad(s.n::text, 2, '0')
-FROM wards, generate_series(1, 20) AS s(n)
-WHERE ward_name = 'ICU'
-ON CONFLICT DO NOTHING;
-
--- Maternity
-INSERT INTO beds (ward_id, bed_number)
-SELECT id, 'MAT-' || lpad(s.n::text, 2, '0')
-FROM wards, generate_series(1, 40) AS s(n)
-WHERE ward_name = 'Maternity'
-ON CONFLICT DO NOTHING;
-
--- General Ward
-INSERT INTO beds (ward_id, bed_number)
-SELECT id, 'GEN-' || lpad(s.n::text, 3, '0')
-FROM wards, generate_series(1, 100) AS s(n)
-WHERE ward_name = 'General Ward'
-ON CONFLICT DO NOTHING;
-
--- Pediatric Ward
-INSERT INTO beds (ward_id, bed_number)
-SELECT id, 'PED-' || lpad(s.n::text, 2, '0')
-FROM wards, generate_series(1, 30) AS s(n)
-WHERE ward_name = 'Pediatric Ward'
+SELECT 
+    id, 
+    CASE 
+        WHEN ward_name = 'ICU' THEN 'ICU'
+        ELSE UPPER(SUBSTR(ward_name, 1, 3)) 
+    END || '-' || LPAD(s.n::text, 2, '0')
+FROM wards, generate_series(1, total_beds) AS s(n)
 ON CONFLICT DO NOTHING;
 
 -- 3. Enable RLS
