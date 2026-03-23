@@ -1851,7 +1851,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                             <input type="password" name="password" class="form-control rounded-pill px-3" required value="GghmsStaff!2024">
                             <small class="text-muted extra-small">Password will be shared with the staff member.</small>
                         </div>
-                        <button type="button" class="btn btn-primary w-100 rounded-pill py-2 fw-bold" onclick="submitAddStaff()">Create Staff Account</button>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-2 fw-bold">Create Staff Account</button>
                     </div>
                 </form>
             </div>
