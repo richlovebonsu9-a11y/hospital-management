@@ -1777,8 +1777,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 alert("Error: " + data.error);
             }
         }
-        }
-
         async function submitAddStaff(e) {
             e.preventDefault();
             const form = document.getElementById('addStaffForm');
