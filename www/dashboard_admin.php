@@ -868,38 +868,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     </div>
 
     <!-- Modals -->
-    <div class="modal fade" id="addStaffModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Add New Staff</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body p-4">
-                    <form action="/api/admin/staff_add" method="POST">
-                        <div class="mb-3"><label class="small text-muted">Full Name</label><input type="text" name="name" class="form-control rounded-pill px-3" required></div>
-                        <div class="mb-3"><label class="small text-muted">Email Address</label><input type="email" name="email" class="form-control rounded-pill px-3" required></div>
-                        <div class="mb-3"><label class="small text-muted">Temp Password</label><input type="password" name="password" class="form-control rounded-pill px-3" required minlength="6"></div>
-                        <div class="row">
-                            <div class="col-6 mb-3"><label class="small text-muted">Role</label><select name="role" class="form-select rounded-pill px-3"><option value="doctor">Doctor</option><option value="nurse">Nurse</option><option value="pharmacist">Pharmacist</option><option value="technician">Technician</option></select></div>
-                            <div class="col-6 mb-3">
-                                <label class="small text-muted">Department</label>
-                                <select name="department" class="form-select rounded-pill px-3" required>
-                                    <option value="General OPD">General OPD</option>
-                                    <option value="Cardiology">Cardiology</option>
-                                    <option value="Pediatrics">Pediatrics</option>
-                                    <option value="Laboratory">Laboratory</option>
-                                    <option value="Pharmacy">Pharmacy</option>
-                                    <option value="Radiology">Radiology</option>
-                                    <option value="Maternity">Maternity</option>
-                                    <option value="Orthopedics">Orthopedics</option>
-                                    <option value="Surgery">Surgery</option>
-                                </select>
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Create Account</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+
     <!-- Edit Staff Modal -->
     <div class="modal fade" id="editStaffModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
