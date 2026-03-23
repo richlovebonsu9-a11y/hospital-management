@@ -1,3 +1,4 @@
+<?php
 // API: Reconcile Bed Occupancy with Admissions (v1.1 - Fixed WHERE clause)
 // Last Updated: 2026-03-23 15:43
 session_start();
