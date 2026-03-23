@@ -112,22 +112,28 @@ $inventory = ($inventoryRes['status'] === 200) ? $inventoryRes['data'] : [];
 $admissionsRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=*,patient:patient_id(name),ward:ward_id(ward_name)', null, true);
 $activeAdmissions = ($admissionsRes['status'] === 200) ? $admissionsRes['data'] : [];
 
-// 10. Fetch Admission Requests (Recommended but no bed assigned yet)
-$consultsRes = $sb->request('GET', '/rest/v1/consultations?recommend_admission=eq.yes&select=*,patient:patient_id(name)', null, true);
-$pendingAdmissionsRaw = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
-
-// Filter out those who already have an active admission
+// 10. Fetch Pending Admission Recommendations from NOTIFICATIONS (Single Source of Truth)
 $pendingAdmissions = [];
-$admittedPatientIds = array_column($activeAdmissions, 'patient_id');
+$pendingNotifsRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_recommendation&select=*&order=created_at.desc', null, true);
+if ($pendingNotifsRes['status'] === 200) {
+    foreach ($pendingNotifsRes['data'] as $notif) {
+        $pId = $notif['related_id'];
+        $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $pId . '&select=name', null, true);
+        $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
+        
+        $pendingAdmissions[] = [
+            'id' => $notif['id'],
+            'patient_id' => $pId,
+            'patient' => ['name' => $pName],
+            'message' => $notif['message'],
+            'created_at' => $notif['created_at']
+        ];
+    }
+}
 
 $totalRevenue = 0;
 foreach($allInvoices as $inv) {
     if($inv['status'] === 'paid') $totalRevenue += (float)$inv['total_amount'];
-}
-foreach ($pendingAdmissionsRaw as $c) {
-    if (!in_array($c['patient_id'], $admittedPatientIds)) {
-        $pendingAdmissions[] = $c;
-    }
 }
 // 12. Fetch Notifications
 $notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $user['id'] . '&order=created_at.desc&limit=5', null, true);
@@ -176,6 +182,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
             <a href="#" class="nav-link-custom" data-target="section-billing"><i class="bi bi-credit-card-2-front"></i> Billing & Payments</a>
             <a href="#" class="nav-link-custom" data-target="section-inventory"><i class="bi bi-box-seam"></i> Inventory</a>
+            <a href="#" class="nav-link-custom" data-target="section-reports"><i class="bi bi-bar-chart-line"></i> Reports & Analytics</a>
             <hr class="my-3">
             <div class="px-2 mb-3">
                 <button class="btn btn-primary-soft text-primary w-100 rounded-pill d-flex align-items-center justify-content-center py-2" data-bs-toggle="modal" data-bs-target="#searchModal">
@@ -712,8 +719,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <?php endif; foreach($pendingAdmissions as $pa): ?>
                             <div class="bg-white p-3 rounded-4 mb-3 shadow-sm border-start border-warning border-4">
                                 <h6 class="fw-bold mb-1 small"><?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?></h6>
-                                <p class="extra-small text-muted mb-2">Recommended by Dr. <?php echo substr($pa['doctor_id'], 0, 8); ?></p>
-                                <button class="btn btn-warning btn-sm w-100 rounded-pill extra-small fw-bold" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo $pa['patient']['name'] ?? 'Patient'; ?>')">Assign Ward & Bed</button>
+                                <p class="extra-small text-muted mb-2"><?php echo htmlspecialchars($pa['message']); ?></p>
+                                <button class="btn btn-warning btn-sm w-100 rounded-pill extra-small fw-bold" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?>')">Assign Ward & Bed</button>
                             </div>
                         <?php endforeach; ?>
                     </div>
@@ -842,30 +849,95 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         <!-- AUDIT LOGS SECTION -->
         <div id="section-audit" class="dashboard-section d-none">
-            <div class="card p-4 border-0 shadow-sm">
+            </div>
+        </div>
+
+        <!-- REPORTS & ANALYTICS SECTION -->
+        <div id="section-reports" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h5 class="fw-bold mb-0">System Audit Logs</h5>
-                    <span class="badge bg-light text-muted border rounded-pill px-3 py-2">Viewing last 20 events</span>
+                    <h5 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Hospital Performance Reports</h5>
+                    <div class="d-flex gap-2">
+                        <input type="date" id="report_start_date" class="form-control form-control-sm rounded-pill px-3" value="<?php echo date('Y-m-01'); ?>">
+                        <input type="date" id="report_end_date" class="form-control form-control-sm rounded-pill px-3" value="<?php echo date('Y-m-d'); ?>">
+                        <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="refreshReports()">Generate</button>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light">
-                            <tr><th>Timestamp</th><th>User Role</th><th>Action</th><th>Details</th><th>IP Address</th></tr>
-                        </thead>
-                        <tbody>
-                            <?php if (empty($auditLogs)): ?>
-                                <tr><td colspan="5" class="text-center py-5 text-muted"><i class="bi bi-shield-check fs-2 d-block mb-2"></i>No audit events recorded yet.</td></tr>
-                            <?php endif; foreach($auditLogs as $log): ?>
-                                <tr>
-                                    <td class="small text-muted fw-bold"><?php echo date('M d, H:i:s', strtotime($log['created_at'])); ?></td>
-                                    <td><span class="badge bg-secondary-soft text-secondary rounded-pill px-2"><?php echo htmlspecialchars(ucfirst($log['user_role'] ?? 'System')); ?></span></td>
-                                    <td class="fw-bold text-dark"><?php echo htmlspecialchars($log['action']); ?></td>
-                                    <td class="small text-muted"><?php echo htmlspecialchars($log['details'] ?? '—'); ?></td>
-                                    <td class="extra-small font-monospace text-muted"><?php echo htmlspecialchars($log['ip_address'] ?? '—'); ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+
+                <ul class="nav nav-pills mb-4 bg-light p-1 rounded-pill" id="reportTabs" role="tablist">
+                    <li class="nav-item flex-fill"><button class="nav-link active rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-inventory-report">Inventory & Meds</button></li>
+                    <li class="nav-item flex-fill"><button class="nav-link rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-ward-report">Wards & Admissions</button></li>
+                    <li class="nav-item flex-fill"><button class="nav-link rounded-pill w-100" data-bs-toggle="pill" data-bs-target="#tab-financial-report">Financial Summary</button></li>
+                </ul>
+
+                <div class="tab-content" id="reportTabContent">
+                    <!-- Inventory Report Tab -->
+                    <div class="tab-pane fade show active" id="tab-inventory-report">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded-4 bg-white h-100">
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Most Prescribed Drugs</h6>
+                                    <div id="report_most_prescribed" class="report-container"><div class="text-center py-4 text-muted small">No data load yet...</div></div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded-4 bg-white h-100">
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Prescriptions per Doctor</h6>
+                                    <div id="report_per_doctor" class="report-container"><div class="text-center py-4 text-muted small">No data load yet...</div></div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="p-3 border rounded-4 bg-white">
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Drug Revenue Breakdown</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle small">
+                                            <thead><tr><th>Medication</th><th>Total Revenue (Estimated)</th></tr></thead>
+                                            <tbody id="report_drug_revenue_table"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Ward Report Tab -->
+                    <div class="tab-pane fade" id="tab-ward-report">
+                        <div class="row g-4">
+                            <div class="col-md-7">
+                                <div class="p-3 border rounded-4 bg-white">
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Ward Occupancy Overview</h6>
+                                    <div id="report_ward_occupancy" class="report-container"></div>
+                                </div>
+                            </div>
+                            <div class="col-md-5">
+                                <div class="p-3 border rounded-4 bg-white h-100">
+                                    <h6 class="fw-bold mb-3 small text-uppercase text-muted">Admission Revenue</h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm align-middle small">
+                                            <thead><tr><th>Ward</th><th>Total Revenue</th></tr></thead>
+                                            <tbody id="report_ward_revenue_table"></tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Financial Summary Tab -->
+                    <div class="tab-pane fade" id="tab-financial-report">
+                         <div class="p-4 bg-primary-soft rounded-4 mb-4 text-center">
+                            <h2 class="fw-bold text-primary mb-1" id="report_total_rev">₵ 0.00</h2>
+                            <p class="text-muted small mb-0">Total Estimated Revenue for Period</p>
+                        </div>
+                        <div class="row g-4">
+                            <div class="col-md-6 text-center border-end">
+                                <h3 class="fw-bold text-success mb-1" id="report_med_total">₵ 0.00</h3>
+                                <p class="text-muted extra-small uppercase">Pharmacy Sales (Dispensed)</p>
+                            </div>
+                            <div class="col-md-6 text-center">
+                                <h3 class="fw-bold text-info mb-1" id="report_ward_total">₵ 0.00</h3>
+                                <p class="text-muted extra-small uppercase">Admission Fees</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1072,7 +1144,9 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         </div>
                         <div class="mb-3">
                             <label class="small text-muted">Bed Number</label>
-                            <input type="text" name="bed_number" id="assign_bed_number" class="form-control rounded-pill px-3" placeholder="e.g. BED-402" required>
+                            <select name="bed_number" id="assign_bed_number_select" class="form-select rounded-pill px-3" required>
+                                <option value="">-- Select Ward First --</option>
+                            </select>
                         </div>
                         <button type="button" class="btn btn-primary w-100 rounded-pill mt-3" onclick="submitBedAssignment()">Finalize Admission</button>
                     </form>
@@ -1203,7 +1277,9 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         </div>
                         <div class="mb-3">
                             <label class="small text-muted">Bed Number</label>
-                            <input type="text" name="bed_number" id="edit_adm_bed_number" class="form-control rounded-pill px-3" required>
+                            <select name="bed_number" id="edit_adm_bed_number_select" class="form-select rounded-pill px-3" required>
+                                <option value="">-- Select Ward --</option>
+                            </select>
                         </div>
                         <button type="button" class="btn btn-primary w-100 rounded-pill mt-3" onclick="submitBedUpdate()">Save Changes</button>
                     </form>
@@ -1250,6 +1326,145 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         }
     </script>
     <script>
+        // Reports Logic
+        async function refreshReports() {
+            const start = document.getElementById('report_start_date').value;
+            const end = document.getElementById('report_end_date').value;
+            
+            // Fetch Inventory Reports
+            fetchReports('inventory', start, end);
+            // Fetch Ward Reports
+            fetchReports('ward', start, end);
+        }
+
+        async function fetchReports(type, start, end) {
+            try {
+                const res = await fetch(`/api/admin/get_reports.php?type=${type}&start_date=${start}&end_date=${end}`);
+                const data = await res.json();
+                if (data.success) {
+                    if (type === 'inventory') renderInventoryReports(data.report);
+                    else renderWardReports(data.report);
+                }
+            } catch (e) { console.error("Report Error:", e); }
+        }
+
+        function renderInventoryReports(r) {
+            // Most Prescribed
+            const mp = document.getElementById('report_most_prescribed');
+            if (Object.keys(r.most_prescribed || {}).length > 0) {
+                let html = '<ul class="list-group list-group-flush small">';
+                for (const [name, count] of Object.entries(r.most_prescribed)) {
+                    html += `<li class="list-group-item d-flex justify-content-between"><span>${name}</span><span class="fw-bold text-primary">${count} rx</span></li>`;
+                }
+                mp.innerHTML = html + '</ul>';
+            } else mp.innerHTML = '<div class="text-center py-4 text-muted small">No prescriptions in this period.</div>';
+
+            // Per Doctor
+            const pd = document.getElementById('report_per_doctor');
+            if (Object.keys(r.per_doctor || {}).length > 0) {
+                let html = '<ul class="list-group list-group-flush small">';
+                for (const [id, count] of Object.entries(r.per_doctor)) {
+                    const name = (typeof profilesMap !== 'undefined' && profilesMap[id]) ? profilesMap[id] : id.substring(0,8);
+                    html += `<li class="list-group-item d-flex justify-content-between"><span>${name}</span><span class="fw-bold">${count}</span></li>`;
+                }
+                pd.innerHTML = html + '</ul>';
+            } else pd.innerHTML = '<div class="text-center py-4 text-muted small">No data.</div>';
+
+            // Revenue Table
+            const revTable = document.getElementById('report_drug_revenue_table');
+            let revHtml = '';
+            let totalMed = 0;
+            for (const [name, amt] of Object.entries(r.revenue_per_drug || {})) {
+                revHtml += `<tr><td>${name}</td><td class="fw-bold text-success text-end">₵ ${amt.toFixed(2)}</td></tr>`;
+                totalMed += amt;
+            }
+            revTable.innerHTML = revHtml || '<tr><td colspan="2" class="text-center text-muted">No sales data.</td></tr>';
+            document.getElementById('report_med_total').innerText = '₵ ' + totalMed.toLocaleString(undefined, {minimumFractionDigits:2});
+            updateTotalRevenue();
+        }
+
+        function renderWardReports(r) {
+            // Occupancy
+            const occ = document.getElementById('report_ward_occupancy');
+            let html = '';
+            (r.occupancy || []).forEach(w => {
+                const perc = (w.total_beds > 0) ? (w.occupied_beds / w.total_beds) * 100 : 0;
+                html += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between extra-small mb-1"><span>${w.ward_name}</span><span>${w.occupied_beds}/${w.total_beds}</span></div>
+                        <div class="progress" style="height:6px;"><div class="progress-bar" style="width:${perc}%"></div></div>
+                    </div>
+                `;
+            });
+            occ.innerHTML = html || 'No ward data.';
+
+            // Ward Revenue
+            const revTable = document.getElementById('report_ward_revenue_table');
+            let revHtml = '';
+            let totalWard = 0;
+            for (const [name, amt] of Object.entries(r.ward_revenue || {})) {
+                revHtml += `<tr><td>${name}</td><td class="fw-bold text-info text-end">₵ ${amt.toFixed(2)}</td></tr>`;
+                totalWard += amt;
+            }
+            revTable.innerHTML = revHtml || '<tr><td colspan="2" class="text-center text-muted">No revenue data.</td></tr>';
+            document.getElementById('report_ward_total').innerText = '₵ ' + totalWard.toLocaleString(undefined, {minimumFractionDigits:2});
+            updateTotalRevenue();
+        }
+
+        function updateTotalRevenue() {
+            const med = parseFloat(document.getElementById('report_med_total').innerText.replace('₵ ', '').replace(/,/g, '')) || 0;
+            const ward = parseFloat(document.getElementById('report_ward_total').innerText.replace('₵ ', '').replace(/,/g, '')) || 0;
+            document.getElementById('report_total_rev').innerText = '₵ ' + (med + ward).toLocaleString(undefined, {minimumFractionDigits:2});
+        }
+
+        // Bed Dropdown Logic
+        async function updateBedDropdown(wardId, selectId, currentBed = '') {
+            const select = document.getElementById(selectId);
+            if (!wardId) {
+                select.innerHTML = '<option value="">-- Select Ward First --</option>';
+                return;
+            }
+            
+            select.innerHTML = '<option value="">Loading beds...</option>';
+            try {
+                const res = await fetch(`/api/admin/get_available_beds.php?ward_id=${wardId}`);
+                const data = await res.json();
+                if (data.success) {
+                    let html = '<option value="">-- Select Bed --</option>';
+                    if (currentBed) html += `<option value="${currentBed}" selected>${currentBed} (Current)</option>`;
+                    data.data.forEach(b => {
+                        if (b.bed_number !== currentBed) {
+                            html += `<option value="${b.bed_number}">${b.bed_number}</option>`;
+                        }
+                    });
+                    select.innerHTML = html;
+                    if (data.data.length === 0 && !currentBed) {
+                        select.innerHTML = '<option value="">No available beds</option>';
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Error loading beds</option>';
+                }
+            } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
+        }
+
+        // Attach listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const adminWardSelect = document.getElementById('assign_bed_ward_select');
+            if (adminWardSelect) {
+                adminWardSelect.addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));
+            }
+            const editWardSelect = document.getElementById('edit_adm_ward_select');
+            if (editWardSelect) {
+                editWardSelect.addEventListener('change', (e) => updateBedDropdown(e.target.value, 'edit_adm_bed_number_select'));
+            }
+
+            // Initial report load if section active
+            const reportBtn = document.querySelector('[data-target="section-reports"]');
+            if (reportBtn) reportBtn.addEventListener('click', () => { 
+                setTimeout(refreshReports, 200); 
+            });
+        });
+
         // Tab Navigation & Search Logic
         document.addEventListener('DOMContentLoaded', () => {
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
@@ -1608,6 +1823,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         function openAssignBedModal(ptId, ptName) {
             document.getElementById('assign_bed_patient_id').value = ptId;
             document.getElementById('assign_bed_patient_name').innerText = ptName;
+            document.getElementById('assign_bed_ward_select').selectedIndex = 0;
+            document.getElementById('assign_bed_number_select').innerHTML = '<option value="">-- Select Ward First --</option>';
             new bootstrap.Modal(document.getElementById('assignBedModal')).show();
         }
 
@@ -1615,7 +1832,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const form = document.getElementById('assignBedForm');
             const ptId = document.getElementById('assign_bed_patient_id').value;
             const wardId = document.getElementById('assign_bed_ward_select').value;
-            const bedNum = document.getElementById('assign_bed_number').value;
+            const bedNum = document.getElementById('assign_bed_number_select').value;
 
             if (!wardId || !bedNum) { alert("Please select ward and bed number"); return; }
 
@@ -1640,12 +1857,14 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             document.getElementById('edit_adm_old_ward').value = adm.ward_id;
             document.getElementById('edit_adm_patient_name').innerText = adm.patient ? adm.patient.name : 'Patient';
             document.getElementById('edit_adm_ward_select').value = adm.ward_id;
-            document.getElementById('edit_adm_bed_number').value = adm.bed_number;
+            updateBedDropdown(adm.ward_id, 'edit_adm_bed_number_select', adm.bed_number);
             new bootstrap.Modal(document.getElementById('editAdmissionModal')).show();
         }
 
         async function submitBedUpdate() {
             const fd = new FormData(document.getElementById('editAdmissionForm'));
+            const bedNum = document.getElementById('edit_adm_bed_number_select').value;
+            fd.set('bed_number', bedNum); // Ensure select value is sent
             const res = await fetch('/api/admission/update_assignment.php', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {

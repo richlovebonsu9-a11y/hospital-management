@@ -32,6 +32,16 @@ if ($res['status'] === 204 || $res['status'] === 200) {
     if ($wardRes['status'] === 200 && !empty($wardRes['data'])) {
         $newOcc = max(0, (int)$wardRes['data'][0]['occupied_beds'] - 1);
         $sb->request('PATCH', '/rest/v1/wards?id=eq.' . $wardId, ['occupied_beds' => $newOcc], true);
+
+        // 2b. Free up the specific bed
+        // First get the bed number from the admission
+        $admInfo = $sb->request('GET', '/rest/v1/admissions?id=eq.' . $admissionId . '&select=bed_number', null, true);
+        if ($admInfo['status'] === 200 && !empty($admInfo['data'])) {
+            $bedNum = $admInfo['data'][0]['bed_number'];
+            if ($bedNum) {
+                $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . $bedNum, ['status' => 'available'], true);
+            }
+        }
     }
     echo json_encode(['success' => true]);
 } else {

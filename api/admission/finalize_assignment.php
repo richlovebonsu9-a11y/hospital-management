@@ -38,6 +38,14 @@ if ($admRes['status'] === 201 || $admRes['status'] === 200) {
         $newOcc = (int)$wInfo['occupied_beds'] + 1;
         $sb->request('PATCH', '/rest/v1/wards?id=eq.' . $wardId, ['occupied_beds' => $newOcc], true);
 
+        // 2b. Mark specific bed as occupied
+        if ($bedNumber) {
+            $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . $bedNumber, [
+                'status' => 'occupied',
+                'last_occupied_at' => date('c')
+            ], true);
+        }
+
         // 3. Add Admission Fee to Invoice
         $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
         if ($invRes['status'] === 200 && !empty($invRes['data'])) {

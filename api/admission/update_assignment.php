@@ -9,7 +9,7 @@ if (!isset($_COOKIE['sb_user'])) { exit; }
 
 $u = json_decode($_COOKIE['sb_user'], true);
 $role = $u['user_metadata']['role'] ?? '';
-if ($role !== 'admin') { 
+if (!in_array($role, ['admin', 'nurse'])) { 
     echo json_encode(['success' => false, 'error' => 'Unauthorized']);
     exit; 
 }
@@ -26,6 +26,10 @@ if (!$admissionId || !$newWardId) {
 
 $sb = new Supabase();
 
+// 0. Fetch old bed number
+$oldAdmRes = $sb->request('GET', '/rest/v1/admissions?id=eq.' . $admissionId . '&select=bed_number', null, true);
+$oldBedNumber = ($oldAdmRes['status'] === 200 && !empty($oldAdmRes['data'])) ? $oldAdmRes['data'][0]['bed_number'] : '';
+
 // 1. Update Admission Record
 $updateData = [
     'ward_id' => $newWardId,
@@ -35,7 +39,20 @@ $updateData = [
 $updRes = $sb->request('PATCH', '/rest/v1/admissions?id=eq.' . $admissionId, $updateData, true);
 
 if ($updRes['status'] === 204 || $updRes['status'] === 200) {
-    // 2. Adjust Ward Occupancy if ward changed
+    // 2. Handle Bed Status Changes
+    if ($oldBedNumber && ($oldWardId !== $newWardId || $oldBedNumber !== $newBedNumber)) {
+        // Free old bed
+        $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $oldWardId . '&bed_number=eq.' . $oldBedNumber, ['status' => 'available'], true);
+    }
+    if ($newBedNumber) {
+        // Occupy new bed
+        $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $newWardId . '&bed_number=eq.' . $newBedNumber, [
+            'status' => 'occupied',
+            'last_occupied_at' => date('c')
+        ], true);
+    }
+
+    // 3. Adjust Ward Occupancy if ward changed
     if ($oldWardId && $oldWardId !== $newWardId) {
         // Decrement old ward
         $oldWardRes = $sb->request('GET', '/rest/v1/wards?id=eq.' . $oldWardId . '&select=occupied_beds', null, true);

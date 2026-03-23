@@ -120,15 +120,25 @@ if ($role === 'nurse') {
     $admissionsRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=*,patient:patient_id(name),ward:ward_id(ward_name)', null, true);
     $activeAdmissions = ($admissionsRes['status'] === 200) ? $admissionsRes['data'] : [];
 
-    // Fetch Pending Admission Recommendations (from consultations)
-    $consultsRes = $sb->request('GET', '/rest/v1/consultations?recommend_admission=eq.yes&select=*,patient:patient_id(name)', null, true);
-    $pendingAdmissionsRaw = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
-    
-    // Filter recommendations that are already admitted
-    $admittedPatientIds = array_column($activeAdmissions, 'patient_id');
-    foreach ($pendingAdmissionsRaw as $c) {
-        if (!in_array($c['patient_id'], $admittedPatientIds)) {
-            $pendingAdmissions[] = $c;
+    // Fetch Pending Admission Recommendations from NOTIFICATIONS (Single Source of Truth)
+    $pendingNotifsRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_recommendation&select=*&order=created_at.desc', null, true);
+    if ($pendingNotifsRes['status'] === 200) {
+        foreach ($pendingNotifsRes['data'] as $notif) {
+            $pId = $notif['related_id'];
+            // Fetch patient name for the list
+            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $pId . '&select=name', null, true);
+            $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
+            
+            $item = [
+                'id' => $notif['id'],
+                'patient_id' => $pId,
+                'patient' => ['name' => $pName],
+                'message' => $notif['message'],
+                'created_at' => $notif['created_at'],
+                'type' => 'admission_task'
+            ];
+            $pendingAdmissions[] = $item;
+            $tasks[] = $item; // Integrate into main Task Queue
         }
     }
 }
@@ -361,7 +371,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                             echo "<div class='extra-small text-muted'>Awaiting admin assignment for full details.</div>";
                                         }
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
-                                        // Prescription task — use patient_name from server-side enrichment
+                                        // Prescription task â€” use patient_name from server-side enrichment
                                         $pName = $t['patient_name'] ?? ($t['patient']['name'] ?? 'Patient');
                                         $priority = ($t['is_ordered'] ?? false) ? "<span class='badge bg-warning text-dark me-2 small'><i class='bi bi-megaphone-fill me-1'></i> ORDERED</span>" : "";
                                         $drugLabel = !empty($t['medication_name']) ? htmlspecialchars($t['medication_name']) : 'Medication';
@@ -370,6 +380,11 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                     } elseif ($role === 'technician') {
                                         $pName = $t['patient_name'] ?? ($t['patient']['name'] ?? 'Patient');
                                         echo "Test: <span class='fw-bold'>" . htmlspecialchars($t['test_name'] ?? 'Lab Test') . "</span> for <span class='fw-bold text-primary'>{$pName}</span>";
+                                    } elseif (isset($t['type']) && $t['type'] === 'admission_task') {
+                                        // Admission Recommendation task (Humanized)
+                                        $pName = htmlspecialchars($t['patient']['name'] ?? 'Patient');
+                                        echo "<span class='fw-bold text-danger'><i class='bi bi-hospital me-1'></i> [ADMISSION]</span> Process bed assignment for <span class='fw-bold text-dark'>" . $pName . "</span>";
+                                        echo "<div class='extra-small text-muted'>" . htmlspecialchars($t['message'] ?? 'Immediate admission recommended.') . "</div>";
                                     }
                                     ?>
                                 </td>
@@ -398,6 +413,8 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                             <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>', this)">Dispense</button>
                                         <?php elseif (isset($t['test_name']) && $role === 'technician'): ?>
                                             <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>', this)">Result</button>
+                                        <?php elseif (isset($t['type']) && $t['type'] === 'admission_task'): ?>
+                                            <button class="btn btn-sm btn-warning rounded-pill px-3 fw-bold" onclick="openAssignBedModal('<?php echo $t['patient_id']; ?>', '<?php echo htmlspecialchars($t['patient']['name'] ?? 'Patient'); ?>')">Assign Bed</button>
                                         <?php else: ?>
                                             <span class="text-muted extra-small">View Details Only</span>
                                         <?php endif; ?>
@@ -463,7 +480,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                         <div class="d-flex justify-content-between align-items-center mb-3">
                                             <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($w['ward_name']); ?></h6>
                                             <span class="badge <?php echo str_replace('bg-', 'text-', $colorClass); ?> bg-light rounded-pill">
-                                                ₵ <?php echo number_format($w['admission_fee'], 0); ?>
+                                                â‚µ <?php echo number_format($w['admission_fee'], 0); ?>
                                             </span>
                                         </div>
                                         <div class="progress mb-2" style="height: 6px;">
@@ -522,7 +539,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                 <?php endif; foreach($pendingAdmissions as $pa): ?>
                                     <div class="bg-white p-3 rounded-4 mb-3 shadow-sm border-start border-warning border-4 animate-fade-in">
                                         <h6 class="fw-bold mb-1 small"><?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?></h6>
-                                        <p class="extra-small text-muted mb-2">Recommendation from Dr. <?php echo htmlspecialchars($profilesMap[$pa['doctor_id']] ?? 'Staff'); ?></p>
+                                        <p class="extra-small text-muted mb-2"><?php echo htmlspecialchars($pa['message']); ?></p>
                                         <button class="btn btn-warning btn-sm w-100 rounded-pill extra-small fw-bold" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?>')">Process Admission</button>
                                     </div>
                                 <?php endforeach; ?>
@@ -549,7 +566,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                                 <td class="fw-bold"><?php echo htmlspecialchars($inv['drug_name']); ?></td>
                                                 <td><span class="badge bg-light text-muted fw-normal"><?php echo htmlspecialchars($inv['category'] ?? 'General'); ?></span></td>
                                                 <td><?php echo $inv['stock_count']; ?> units</td>
-                                                <td class="fw-bold text-primary">₵ <?php echo number_format($inv['unit_price'] ?? 0, 2); ?></td>
+                                                <td class="fw-bold text-primary">â‚µ <?php echo number_format($inv['unit_price'] ?? 0, 2); ?></td>
                                                 <td>
                                                     <?php if ($inv['stock_count'] <= ($inv['reorder_level'] ?? 10)): ?>
                                                         <span class="badge bg-danger-soft text-danger rounded-pill px-2">Low Stock</span>
@@ -675,7 +692,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                 <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
-                        <div class="col-6"><label class="small text-muted">Temp (°C)</label><input type="number" step="0.1" name="temperature" class="form-control rounded-pill px-3"></div>
+                        <div class="col-6"><label class="small text-muted">Temp (Â°C)</label><input type="number" step="0.1" name="temperature" class="form-control rounded-pill px-3"></div>
                         <div class="col-6"><label class="small text-muted">BP (mmHg)</label><input type="text" name="blood_pressure" class="form-control rounded-pill px-3" placeholder="120/80"></div>
                         <div class="col-6"><label class="small text-muted">Weight (kg)</label><input type="number" step="0.1" name="weight" class="form-control rounded-pill px-3"></div>
                         <div class="col-6"><label class="small text-muted">Pulse (bpm)</label><input type="number" name="pulse" class="form-control rounded-pill px-3"></div>
@@ -784,9 +801,9 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                         <div class="mb-3">
                             <label class="small text-muted">Dispatch Type</label>
                             <select name="dispatch_type" class="form-select rounded-pill px-3" required>
-                                <option value="ambulance">🚑 Ambulance (Critical Transfer)</option>
-                                <option value="team">🚑 Emergency Response Team</option>
-                                <option value="rider">🏍️ Dispatch Rider (Meds/Supplies Only)</option>
+                                <option value="ambulance">ðŸš‘ Ambulance (Critical Transfer)</option>
+                                <option value="team">ðŸš‘ Emergency Response Team</option>
+                                <option value="rider">ðŸï¸ Dispatch Rider (Meds/Supplies Only)</option>
                             </select>
                         </div>
                         <div id="riderMedicationSection" class="mb-3 d-none">
@@ -891,9 +908,9 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                         <div class="mb-3">
                             <label class="small text-muted fw-bold">Select Dispatch Asset</label>
                             <select name="dispatch_type" class="form-select rounded-pill px-3" required id="staff_dispatch_select">
-                                <option value="ambulance">🚑 Ambulance (Critical Life Support)</option>
-                                <option value="team">🚑 Response Team (Emergency Care)</option>
-                                <option value="rider" selected>🏍️ Dispatch Rider (Meds/Supplies Only)</option>
+                                <option value="ambulance">ðŸš‘ Ambulance (Critical Life Support)</option>
+                                <option value="team">ðŸš‘ Response Team (Emergency Care)</option>
+                                <option value="rider" selected>ðŸï¸ Dispatch Rider (Meds/Supplies Only)</option>
                             </select>
                         </div>
                         <div id="riderMedicationSection" class="mb-3">
@@ -1228,7 +1245,9 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                         </div>
                         <div class="mb-3">
                             <label class="small fw-bold text-muted mb-1">Bed Number</label>
-                            <input type="text" name="bed_number" id="assign_bed_number" class="form-control rounded-4" placeholder="e.g. BED-402" required>
+                            <select name="bed_number" id="assign_bed_number_select" class="form-select rounded-4" required>
+                                <option value="">-- Select Ward First --</option>
+                            </select>
                         </div>
                         <button type="button" class="btn btn-warning w-100 rounded-pill fw-bold mt-3" onclick="submitBedAssignment()">Finalize Admission</button>
                     </form>
@@ -1260,7 +1279,9 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                         </div>
                         <div class="mb-3">
                             <label class="small fw-bold text-muted mb-1">Bed Number</label>
-                            <input type="text" name="bed_number" id="edit_adm_bed_number" class="form-control rounded-4" required>
+                            <select name="bed_number" id="edit_adm_bed_number_select" class="form-select rounded-4" required>
+                                <option value="">-- Select Ward --</option>
+                            </select>
                         </div>
                         <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold mt-3" onclick="submitBedUpdate()">Save Changes</button>
                     </form>
@@ -1270,10 +1291,35 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
     </div>
 
     <script>
-        // Ward Management Functions
+        async function updateBedDropdown(wardId, selectId, currentBed = '') {
+            const select = document.getElementById(selectId);
+            if (!wardId) {
+                select.innerHTML = '<option value="">-- Select Ward First --</option>';
+                return;
+            }
+            select.innerHTML = '<option value="">Loading beds...</option>';
+            try {
+                const res = await fetch(`/api/admin/get_available_beds.php?ward_id=${wardId}`);
+                const data = await res.json();
+                if (data.success) {
+                    let html = '<option value="">-- Select Bed --</option>';
+                    if (currentBed) html += `<option value="${currentBed}" selected>${currentBed} (Current)</option>`;
+                    data.data.forEach(b => {
+                        if (b.bed_number !== currentBed) {
+                            html += `<option value="${b.bed_number}">${b.bed_number}</option>`;
+                        }
+                    });
+                    select.innerHTML = html;
+                    if (data.data.length === 0 && !currentBed) select.innerHTML = '<option value="">No available beds</option>';
+                } else select.innerHTML = '<option value="">Error</option>';
+            } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
+        }
+
         function openAssignBedModal(ptId, ptName) {
             document.getElementById('assign_bed_patient_id').value = ptId;
             document.getElementById('assign_bed_patient_name').innerText = ptName;
+            document.getElementById('assign_bed_ward_select').selectedIndex = 0;
+            document.getElementById('assign_bed_number_select').innerHTML = '<option value="">-- Select Ward First --</option>';
             new bootstrap.Modal(document.getElementById('assignBedModal')).show();
         }
 
@@ -1281,7 +1327,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             const form = document.getElementById('assignBedForm');
             const ptId = document.getElementById('assign_bed_patient_id').value;
             const wardId = document.getElementById('assign_bed_ward_select').value;
-            const bedNum = document.getElementById('assign_bed_number').value;
+            const bedNum = document.getElementById('assign_bed_number_select').value;
 
             if (!wardId || !bedNum) { alert("Please select ward and bed number"); return; }
 
@@ -1305,7 +1351,7 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
             document.getElementById('edit_adm_old_ward').value = adm.ward_id;
             document.getElementById('edit_adm_patient_name').innerText = adm.patient ? adm.patient.name : 'Patient';
             document.getElementById('edit_adm_ward_select').value = adm.ward_id;
-            document.getElementById('edit_adm_bed_number').value = adm.bed_number;
+            updateBedDropdown(adm.ward_id, 'edit_adm_bed_number_select', adm.bed_number);
             new bootstrap.Modal(document.getElementById('editAdmissionModal')).show();
         }
 
@@ -1335,6 +1381,9 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                 alert("Error: " + data.error);
             }
         }
+
+        document.getElementById('assign_bed_ward_select').addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));
+        document.getElementById('edit_adm_ward_select').addEventListener('change', (e) => updateBedDropdown(e.target.value, 'edit_adm_bed_number_select'));
     </script>
 </body>
 </html>
