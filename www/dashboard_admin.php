@@ -1228,7 +1228,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
         async function silentRefresh() {
             try {
                 const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
