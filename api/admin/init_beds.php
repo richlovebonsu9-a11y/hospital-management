@@ -42,7 +42,18 @@ ALTER TABLE beds ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS \"Beds are viewable by authenticated users\" ON beds;
 CREATE POLICY \"Beds are viewable by authenticated users\" ON beds FOR SELECT USING (true);
 DROP POLICY IF EXISTS \"Admins can manage beds\" ON beds;
-CREATE POLICY \"Admins can manage beds\" ON beds FOR ALL TO authenticated USING (auth.jwt() -> 'user_metadata' ->> 'role' = 'admin');
+DROP POLICY IF EXISTS \"Staff can manage beds\" ON beds;
+CREATE POLICY \"Staff can manage beds\" ON beds FOR ALL TO authenticated 
+USING (auth.jwt() -> 'user_metadata' ->> 'role' IN ('admin', 'doctor', 'nurse'));
+
+-- 4. Enable RLS for Wards (Ensuring doctors/nurses can update occupancy)
+ALTER TABLE wards ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS \"Wards are viewable by all authenticated users\" ON wards;
+CREATE POLICY \"Wards are viewable by all authenticated users\" ON wards FOR SELECT USING (true);
+DROP POLICY IF EXISTS \"Admins can manage wards\" ON wards;
+DROP POLICY IF EXISTS \"Staff can manage wards\" ON wards;
+CREATE POLICY \"Staff can manage wards\" ON wards FOR ALL TO authenticated 
+USING (auth.jwt() -> 'user_metadata' ->> 'role' IN ('admin', 'doctor', 'nurse'));
 ";
 
 echo "Attempting to execute SQL migration...\n";

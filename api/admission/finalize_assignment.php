@@ -40,7 +40,7 @@ if ($admRes['status'] === 201 || $admRes['status'] === 200) {
 
         // 2b. Mark specific bed as occupied
         if ($bedNumber) {
-            $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . $bedNumber, [
+            $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . urlencode($bedNumber), [
                 'status' => 'occupied',
                 'last_occupied_at' => date('c')
             ], true);

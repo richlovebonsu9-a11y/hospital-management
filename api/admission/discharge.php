@@ -39,7 +39,7 @@ if ($res['status'] === 204 || $res['status'] === 200) {
         if ($admInfo['status'] === 200 && !empty($admInfo['data'])) {
             $bedNum = $admInfo['data'][0]['bed_number'];
             if ($bedNum) {
-                $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . $bedNum, ['status' => 'available'], true);
+                $sb->request('PATCH', '/rest/v1/beds?ward_id=eq.' . $wardId . '&bed_number=eq.' . urlencode($bedNum), ['status' => 'available'], true);
             }
         }
     }
