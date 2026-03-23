@@ -23,5 +23,9 @@ $res = $sb->request('GET', '/rest/v1/beds?ward_id=eq.' . $wardId . '&status=eq.a
 if ($res['status'] === 200) {
     echo json_encode(['success' => true, 'data' => $res['data']]);
 } else {
-    echo json_encode(['success' => false, 'error' => 'Database error', 'debug' => $res]);
+    $error = 'Database error';
+    if ($res['status'] === 404) {
+        $error = 'Beds table not found. Please run the initialization script.';
+    }
+    echo json_encode(['success' => false, 'error' => $error, 'debug' => $res]);
 }

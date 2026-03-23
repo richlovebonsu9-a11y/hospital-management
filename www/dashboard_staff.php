@@ -1311,7 +1311,16 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                     });
                     select.innerHTML = html;
                     if (data.data.length === 0 && !currentBed) select.innerHTML = '<option value="">No available beds</option>';
-                } else select.innerHTML = '<option value="">Error</option>';
+                } else {
+                    let msg = data.error || 'Error';
+                    if (msg.includes('not found')) {
+                        console.error('Beds table missing. Run /api/admin/init_beds');
+                        select.innerHTML = '<option value=\"\">Initialization required</option>';
+                        alert('Bed data is not initialized. Please contact an admin to run the initialization script.');
+                    } else {
+                        select.innerHTML = `<option value=\"\">${msg}</option>`;
+                    }
+                }
             } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
         }
 

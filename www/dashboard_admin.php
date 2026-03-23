@@ -1482,7 +1482,16 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         select.innerHTML = '<option value="">No available beds</option>';
                     }
                 } else {
-                    select.innerHTML = '<option value="">Error loading beds</option>';
+                    let msg = data.error || 'Error loading beds';
+                    if (msg.includes('not found')) {
+                        msg = 'Beds not initialized. <a href=\"/api/admin/init_beds\" target=\"_blank\">Fix now</a>';
+                        // Since it's a select, we can't easily put a link, so we'll just show the text and maybe alert admins
+                        console.error('Beds table missing. Run /api/admin/init_beds');
+                        select.innerHTML = '<option value=\"\">Table missing - see console</option>';
+                        alert('Bed data is not initialized. Please run the initialization script at /api/admin/init_beds');
+                    } else {
+                        select.innerHTML = `<option value=\"\">${msg}</option>`;
+                    }
                 }
             } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
         }
