@@ -1,5 +1,5 @@
-<?php
-// API: Reconcile Bed Occupancy with Admissions
+// API: Reconcile Bed Occupancy with Admissions (v1.1 - Fixed WHERE clause)
+// Last Updated: 2026-03-23 15:43
 session_start();
 require_once __DIR__ . '/../../src/lib/Supabase.php';
 use App\Lib\Supabase;
