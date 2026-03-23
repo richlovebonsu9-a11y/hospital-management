@@ -849,10 +849,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             </div>
         </div>
 
-        <!-- AUDIT LOGS SECTION -->
-        <div id="section-audit" class="dashboard-section d-none">
-            </div>
-        </div>
 
         <!-- REPORTS & ANALYTICS SECTION -->
         <div id="section-reports" class="dashboard-section d-none">
