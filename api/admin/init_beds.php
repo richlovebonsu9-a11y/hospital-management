@@ -50,9 +50,15 @@ echo "Attempting to execute SQL migration...\n";
 // Execute migration
 $res = $sb->request('POST', '/rest/v1/rpc/exec_sql', ['query' => $sql], true);
 
-header('Content-Type: application/json');
+header('Content-Type: text/html');
 if ($res['status'] === 200) {
-    echo json_encode(['success' => true, 'message' => 'Beds table initialized and populated successfully.']);
+    echo "<h1>Success!</h1><p>Beds table initialized and populated successfully.</p>";
+    echo "<p><a href='/dashboard_admin.php'>Return to Dashboard</a></p>";
 } else {
-    echo json_encode(['success' => false, 'error' => 'Migration failed. Ensure the exec_sql RPC is enabled in Supabase.', 'debug' => $res]);
+    echo "<h1 style='color:red;'>Migration Failed</h1>";
+    echo "<p>Status Code: " . $res['status'] . "</p>";
+    echo "<p>Error Detail: " . json_encode($res['data'] ?? 'No detail available') . "</p>";
+    echo "<h3>If this continues to fail:</h3>";
+    echo "<p>Please copy the SQL below and run it manually in your <b>Supabase SQL Editor</b>:</p>";
+    echo "<pre style='background:#f4f4f4; padding:15px; border-radius:8px; overflow:auto;'>" . htmlspecialchars($sql) . "</pre>";
 }
