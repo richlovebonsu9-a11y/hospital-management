@@ -99,6 +99,40 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 $myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=in.(active,pending,assigned)&select=*,reporter:reporter_id(name)', null, true);
 $myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
 
+// 7. Fetch Data for Ward Management (Nurses Only)
+$wards = [];
+$activeAdmissions = [];
+$pendingAdmissions = [];
+$profilesMap = []; // For humanizing IDs
+
+// Fetch all profiles to build ID -> Name map for consistent "Humanization"
+$pMapRes = $sb->request('GET', '/rest/v1/profiles?select=id,name', null, true);
+if ($pMapRes['status'] === 200) {
+    foreach ($pMapRes['data'] as $pr) $profilesMap[$pr['id']] = $pr['name'];
+}
+
+if ($role === 'nurse') {
+    // Fetch Wards
+    $wardsRes = $sb->request('GET', '/rest/v1/wards?select=*&order=ward_name.asc', null, true);
+    $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
+
+    // Fetch Active Admissions
+    $admissionsRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=*,patient:patient_id(name),ward:ward_id(ward_name)', null, true);
+    $activeAdmissions = ($admissionsRes['status'] === 200) ? $admissionsRes['data'] : [];
+
+    // Fetch Pending Admission Recommendations (from consultations)
+    $consultsRes = $sb->request('GET', '/rest/v1/consultations?recommend_admission=eq.yes&select=*,patient:patient_id(name)', null, true);
+    $pendingAdmissionsRaw = ($consultsRes['status'] === 200) ? $consultsRes['data'] : [];
+    
+    // Filter recommendations that are already admitted
+    $admittedPatientIds = array_column($activeAdmissions, 'patient_id');
+    foreach ($pendingAdmissionsRaw as $c) {
+        if (!in_array($c['patient_id'], $admittedPatientIds)) {
+            $pendingAdmissions[] = $c;
+        }
+    }
+}
+
 // Fetch Drugs for Emergency Prescription
 $drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
 $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
@@ -200,9 +234,16 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                         <?php if (empty($notifications)): ?>
                             <p class="text-muted small mb-0">No notifications.</p>
                         <?php endif; ?>
-                        <?php foreach($notifications as $n): ?>
+                        <?php foreach($notifications as $n): 
+                            $msg = $n['message'];
+                            // Simple humanization for any stray UUIDs in messages if possible, 
+                            // though new ones are already humanized from backend.
+                            foreach($profilesMap as $pid => $pname) {
+                                $msg = str_replace($pid, $pname, $msg);
+                            }
+                        ?>
                             <div class="p-2 border-bottom border-light mb-2 <?php echo empty($n['is_read']) ? 'bg-light rounded' : ''; ?>" <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor: pointer;"' ?>>
-                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($msg); ?></p>
                                 <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
                             </div>
                         <?php endforeach; ?>
@@ -249,7 +290,10 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                     <tr class="table-danger-soft">
                                         <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
                                         <td>
-                                            <div class="fw-bold"><?php echo htmlspecialchars($e['reporter']['name'] ?? 'Patient'); ?></div>
+                                            <div class="fw-bold"><?php 
+                                                $reporterName = $e['reporter']['name'] ?? $profilesMap[$e['reporter_id']] ?? 'Patient';
+                                                echo htmlspecialchars($reporterName); 
+                                            ?></div>
                                             <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
                                         </td>
                                         <td><code class="text-primary bg-light px-2 py-1 rounded"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
@@ -292,6 +336,12 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                 $isAssigned = (($t['assigned_to'] ?? '') === $user['id']);
                                 $isUnassignedNurseTask = ($role === 'nurse' && empty($t['assigned_to']) && isset($t['department']) && $t['department'] === ($user['user_metadata']['department'] ?? 'General OPD'));
                                 $canProcess = ($isAssigned || $isUnassignedNurseTask || in_array($role, ['pharmacist', 'technician']));
+
+                                // Automatically hide completed vitals tasks from the Nurse's Queue
+                                global $vitalsPatients;
+                                if (isset($t['appointment_date']) && $role === 'nurse' && in_array($t['patient_id'], $vitalsPatients ?? [])) {
+                                    continue;
+                                }
                             ?>
                             <tr class="<?php echo $canProcess ? 'table-primary-soft' : ''; ?>">
                                 <td>#<?php echo substr($t['id'], 0, 5); ?></td>
@@ -299,11 +349,12 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                                     <?php 
                                     if (isset($t['appointment_date'])) {
                                         // Appointment task (nurse)
+                                        $patientNameStr = htmlspecialchars($t['patient']['name'] ?? 'Patient');
                                         if ($isAssigned) {
-                                            echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . htmlspecialchars($t['patient']['name'] ?? 'Patient');
+                                            echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . $patientNameStr;
                                             echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
                                         } elseif ($isUnassignedNurseTask) {
-                                            echo "<span class='fw-bold text-warning'><i class='bi bi-exclamation-circle-fill me-1'></i> [URGENT TRIAGE]</span> Record vitals for Patient " . substr($t['patient_id'], 0, 8);
+                                            echo "<span class='fw-bold text-warning'><i class='bi bi-exclamation-circle-fill me-1'></i> [URGENT TRIAGE]</span> Record vitals for <span class='fw-bold text-dark'>" . $patientNameStr . "</span>";
                                             echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
                                         } else {
                                             echo "<i class='bi bi-shield-lock me-1'></i> Departmental Appointment Request (ID: " . substr($t['patient_id'] ?? 'unknown', 0, 8) . ")";
@@ -365,10 +416,117 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
         <div id="section-role" class="dashboard-section d-none">
             <div class="row g-4">
                 <?php if ($role === 'nurse'): ?>
-                    <div class="col-md-12">
-                        <div class="card border-0 shadow-sm p-4">
-                            <h5 class="fw-bold mb-4">Inpatient Ward Management</h5>
-                            <div class="alert alert-info border-0 rounded-4">No patients currently admitted to General Ward.</div>
+                    <!-- WARD MANAGEMENT SECTION (Mirrored from Admin) -->
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-3">
+                            <div class="card p-3 border-0 shadow-sm text-center">
+                                <h6 class="text-muted mb-2 small text-uppercase">Total Capacity</h6>
+                                <?php 
+                                $totalCap = array_sum(array_column($wards, 'total_beds'));
+                                $totalOcc = array_sum(array_column($wards, 'occupied_beds'));
+                                ?>
+                                <h2 class="fw-bold mb-0 text-primary"><?php echo $totalCap; ?></h2>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card p-3 border-0 shadow-sm text-center">
+                                <h6 class="text-muted mb-2 small text-uppercase">Occupied</h6>
+                                <h2 class="fw-bold mb-0 text-danger"><?php echo $totalOcc; ?></h2>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card p-3 border-0 shadow-sm text-center">
+                                <h6 class="text-muted mb-2 small text-uppercase">Available</h6>
+                                <h2 class="fw-bold mb-0 text-success"><?php echo $totalCap - $totalOcc; ?></h2>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card p-3 border-0 shadow-sm text-center">
+                                <h6 class="text-muted mb-2 small text-uppercase">Pending Admissions</h6>
+                                <h2 class="fw-bold mb-0 text-warning"><?php echo count($pendingAdmissions); ?></h2>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mb-5">
+                        <div class="col-12">
+                            <h5 class="fw-bold mb-4">Ward Live Occupancy</h5>
+                            <div class="row g-4">
+                                <?php foreach ($wards as $w): 
+                                    $occupied = $w['occupied_beds'];
+                                    $total = $w['total_beds'];
+                                    $perc = ($total > 0) ? ($occupied / $total) * 100 : 0;
+                                    $colorClass = ($perc > 85) ? 'bg-danger' : (($perc > 60) ? 'bg-warning' : 'bg-primary');
+                                ?>
+                                <div class="col-md-4">
+                                    <div class="card border-0 shadow-sm p-4 h-100">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($w['ward_name']); ?></h6>
+                                            <span class="badge <?php echo str_replace('bg-', 'text-', $colorClass); ?> bg-light rounded-pill">
+                                                ₵ <?php echo number_format($w['admission_fee'], 0); ?>
+                                            </span>
+                                        </div>
+                                        <div class="progress mb-2" style="height: 6px;">
+                                            <div class="progress-bar <?php echo $colorClass; ?>" style="width: <?php echo $perc; ?>%"></div>
+                                        </div>
+                                        <div class="d-flex justify-content-between extra-small text-muted">
+                                            <span><?php echo $occupied; ?> / <?php echo $total; ?> Beds</span>
+                                            <span><?php echo round($perc); ?>% Full</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-lg-8">
+                            <div class="card p-4 border-0 shadow-sm h-100">
+                                <h5 class="fw-bold mb-4"><i class="bi bi-people-fill me-2 text-primary"></i>Active Admissions</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle">
+                                        <thead class="table-light">
+                                            <tr><th>Patient</th><th>Ward</th><th>Bed #</th><th>Admitted On</th><th>Actions</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php if (empty($activeAdmissions)): ?>
+                                                <tr><td colspan="5" class="text-center py-4 text-muted">No active admissions currently.</td></tr>
+                                            <?php endif; foreach($activeAdmissions as $adm): ?>
+                                                <tr>
+                                                    <td class="fw-bold"><?php echo htmlspecialchars($adm['patient']['name'] ?? 'P-' . substr($adm['patient_id'], 0, 8)); ?></td>
+                                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($adm['ward']['ward_name'] ?? 'Unknown'); ?></span></td>
+                                                    <td class="fw-bold"><?php echo htmlspecialchars($adm['bed_number'] ?: 'N/A'); ?></td>
+                                                    <td class="small"><?php echo date('M d, H:i', strtotime($adm['admission_date'])); ?></td>
+                                                    <td>
+                                                        <div class="btn-group">
+                                                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3 me-2" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'>Transfer</button>
+                                                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')">Discharge</button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card p-4 border-0 shadow-sm bg-light h-100">
+                                <h5 class="fw-bold mb-4 small text-uppercase text-muted"><i class="bi bi-bell-fill me-2 text-warning"></i>Pending Recommendations</h5>
+                                <?php if (empty($pendingAdmissions)): ?>
+                                    <div class="text-center py-4">
+                                        <i class="bi bi-check2-circle display-4 text-muted opacity-25"></i>
+                                        <p class="text-muted small mt-2">Zero pending admission recommendations.</p>
+                                    </div>
+                                <?php endif; foreach($pendingAdmissions as $pa): ?>
+                                    <div class="bg-white p-3 rounded-4 mb-3 shadow-sm border-start border-warning border-4 animate-fade-in">
+                                        <h6 class="fw-bold mb-1 small"><?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?></h6>
+                                        <p class="extra-small text-muted mb-2">Recommendation from Dr. <?php echo htmlspecialchars($profilesMap[$pa['doctor_id']] ?? 'Staff'); ?></p>
+                                        <button class="btn btn-warning btn-sm w-100 rounded-pill extra-small fw-bold" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?>')">Process Admission</button>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
                     </div>
                 <?php elseif ($role === 'pharmacist'): ?>
@@ -1043,5 +1201,140 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
         }
     </script>
     <script src="/assets/js/auto_dismiss.js"></script>
+
+    <!-- WARD MANAGEMENT MODALS -->
+    <div class="modal fade" id="assignBedModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-warning text-dark border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0">Assign Bed: <span id="assign_bed_patient_name"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="assignBedForm">
+                        <input type="hidden" name="patient_id" id="assign_bed_patient_id">
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Target Ward</label>
+                            <select name="ward_id" id="assign_bed_ward_select" class="form-select rounded-4" required>
+                                <option value="">-- Choose Ward --</option>
+                                <?php foreach($wards as $w): 
+                                    $isFull = ($w['occupied_beds'] >= $w['total_beds']);
+                                ?>
+                                    <option value="<?php echo $w['id']; ?>" <?php echo $isFull ? 'disabled' : ''; ?>>
+                                        <?php echo htmlspecialchars($w['ward_name']); ?> (<?php echo $w['total_beds'] - $w['occupied_beds']; ?> beds free)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Bed Number</label>
+                            <input type="text" name="bed_number" id="assign_bed_number" class="form-control rounded-4" placeholder="e.g. BED-402" required>
+                        </div>
+                        <button type="button" class="btn btn-warning w-100 rounded-pill fw-bold mt-3" onclick="submitBedAssignment()">Finalize Admission</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editAdmissionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0">Update Admission: <span id="edit_adm_patient_name"></span></h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="editAdmissionForm">
+                        <input type="hidden" name="admission_id" id="edit_adm_id">
+                        <input type="hidden" name="old_ward_id" id="edit_adm_old_ward">
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Ward</label>
+                            <select name="ward_id" id="edit_adm_ward_select" class="form-select rounded-4" required>
+                                <?php foreach($wards as $w): ?>
+                                    <option value="<?php echo $w['id']; ?>">
+                                        <?php echo htmlspecialchars($w['ward_name']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Bed Number</label>
+                            <input type="text" name="bed_number" id="edit_adm_bed_number" class="form-control rounded-4" required>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold mt-3" onclick="submitBedUpdate()">Save Changes</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ward Management Functions
+        function openAssignBedModal(ptId, ptName) {
+            document.getElementById('assign_bed_patient_id').value = ptId;
+            document.getElementById('assign_bed_patient_name').innerText = ptName;
+            new bootstrap.Modal(document.getElementById('assignBedModal')).show();
+        }
+
+        async function submitBedAssignment() {
+            const form = document.getElementById('assignBedForm');
+            const ptId = document.getElementById('assign_bed_patient_id').value;
+            const wardId = document.getElementById('assign_bed_ward_select').value;
+            const bedNum = document.getElementById('assign_bed_number').value;
+
+            if (!wardId || !bedNum) { alert("Please select ward and bed number"); return; }
+
+            const fd = new FormData();
+            fd.append('patient_id', ptId);
+            fd.append('ward_id', wardId);
+            fd.append('bed_number', bedNum);
+            
+            const res = await fetch('/api/admission/finalize_assignment.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Bed assigned successfully.");
+                silentRefresh();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
+        function openEditAdmissionModal(adm) {
+            document.getElementById('edit_adm_id').value = adm.id;
+            document.getElementById('edit_adm_old_ward').value = adm.ward_id;
+            document.getElementById('edit_adm_patient_name').innerText = adm.patient ? adm.patient.name : 'Patient';
+            document.getElementById('edit_adm_ward_select').value = adm.ward_id;
+            document.getElementById('edit_adm_bed_number').value = adm.bed_number;
+            new bootstrap.Modal(document.getElementById('editAdmissionModal')).show();
+        }
+
+        async function submitBedUpdate() {
+            const fd = new FormData(document.getElementById('editAdmissionForm'));
+            const res = await fetch('/api/admission/update_assignment.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Admission details updated.");
+                silentRefresh();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+
+        async function dischargePatient(admId, wardId) {
+            if (!confirm("Are you sure you want to discharge this patient?")) return;
+            const fd = new FormData();
+            fd.append('admission_id', admId);
+            fd.append('ward_id', wardId);
+            const res = await fetch('/api/admission/discharge.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                alert("Patient discharged and bed freed.");
+                silentRefresh();
+            } else {
+                alert("Error: " + data.error);
+            }
+        }
+    </script>
 </body>
 </html>

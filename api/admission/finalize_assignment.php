@@ -66,14 +66,40 @@ if ($admRes['status'] === 201 || $admRes['status'] === 200) {
             $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $chargedFee], true);
         }
 
-        // 4. Notify Patient
+        // Fetch Patient Name for humanized notifications
+        $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=name', null, true);
+        $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : ('Patient ' . substr($patientId, 0, 8));
+
+        // 4. Notify Patient (Humanized)
         $sb->request('POST', '/rest/v1/notifications', [
             'user_id' => $patientId,
-            'message' => "Admission Confirmed: You have been assigned to " . ($bedNumber ?: 'a bed') . " in Ward " . $wInfo['ward_name'] . ".",
+            'message' => "Admission Confirmed: You have been assigned to " . ($bedNumber ?: 'a bed') . " in Ward " . $wInfo['ward_name'] . ". Please proceed to the ward.",
             'type' => 'admission_assignment'
         ], true);
+
+        // 5. Cross-Notification: Notify counterparts (If Admin, notify Nurses. If Nurse, notify Admins)
+        $targetRole = ($role === 'admin') ? 'nurse' : 'admin';
+        $senderName = $u['user_metadata']['name'] ?? 'Staff';
+        
+        $recipientsRes = $sb->request('GET', '/rest/v1/profiles?role=eq.' . $targetRole . '&select=id', null, true);
+        if ($recipientsRes['status'] === 200) {
+            foreach ($recipientsRes['data'] as $r) {
+                $sb->request('POST', '/rest/v1/notifications', [
+                    'user_id' => $r['id'],
+                    'message' => "ADMISSION HANDLED: $pName has been assigned to Ward " . $wInfo['ward_name'] . " (Bed: " . ($bedNumber ?: 'Auto') . ") by $senderName.",
+                    'type' => 'admission_fulfilled',
+                    'related_id' => $patientId
+                ], true);
+            }
+        }
+
+        // 6. One-Time Handling: Mark any 'admission_recommendation' notifications for this patient as read/deleted
+        // This ensures the recommendation alert doesn't stay in other staff members' dashboards once handled.
+        $sb->request('DELETE', '/rest/v1/notifications?type=eq.admission_recommendation&related_id=eq.' . $patientId, null, true);
+        echo json_encode(['success' => true]);
+    } else {
+        echo json_encode(['success' => false, 'error' => 'Ward data not found or database error', 'debug' => $wardRes]);
     }
-    echo json_encode(['success' => true]);
 } else {
     $errorMsg = 'Failed to create admission record';
     if ($admRes['status'] === 400) { $errorMsg = 'Database error: Column mismatch or invalid ID'; }

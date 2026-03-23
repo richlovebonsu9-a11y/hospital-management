@@ -28,9 +28,12 @@ foreach ($guardianLinks as $link) {
     }
 }
 
-// 3. Fetch System Notifications for Guardian
-$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=5', null, true);
-$notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
+// 4. Humanize IDs: Fetch all profiles for Name Mapping
+$profilesMap = [];
+$pMapRes = $sb->request('GET', '/rest/v1/profiles?select=id,name', null, true);
+if ($pMapRes['status'] === 200) {
+    foreach ($pMapRes['data'] as $pr) $profilesMap[$pr['id']] = $pr['name'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -93,10 +96,15 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                             </button>
                             <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
                                 <h6 class="fw-bold mb-3">Notifications</h6>
-                                <?php foreach($notifications as $n): ?>
+                                <?php foreach($notifications as $n): 
+                                    $msg = $n['message'];
+                                    foreach($profilesMap as $pid => $pname) {
+                                        $msg = str_replace($pid, $pname, $msg);
+                                    }
+                                ?>
                                     <div class="p-2 border-bottom border-light mb-2 notification-item"
                                          onclick="markNotificationRead(this, '<?php echo $n['id']; ?>')" style="cursor:pointer;">
-                                        <p class="small mb-1 <?php echo ($n['is_read'] ?? false) ? 'text-muted' : 'fw-bold'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                        <p class="small mb-1 <?php echo ($n['is_read'] ?? false) ? 'text-muted' : 'fw-bold'; ?>"><?php echo htmlspecialchars($msg); ?></p>
                                         <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
                                     </div>
                                 <?php endforeach; ?>
@@ -273,11 +281,11 @@ $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data
                                 <?php foreach ($appointments as $a): ?>
                                 <tr>
                                     <td><?php echo date('M d, Y', strtotime($a['appointment_date'])); ?></td>
-                                    <td><?php echo substr($a['patient_id'], 0, 8); ?></td>
-                                    <td><?php echo htmlspecialchars($a['department']); ?></td>
-                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>
+                                    <td><?php echo htmlspecialchars($profilesMap[$a['patient_id']] ?? ('Patient ' . substr($a['patient_id'], 0, 8))); ?></td>
+                                    <td>Appointment with Dr. <?php echo substr($a['assigned_to'] ?? 'Staff', 0, 8); ?></td>
+                                    <td><span class="badge bg-light text-dark border rounded-pill px-3"><?php echo htmlspecialchars($a['status']); ?></span></td>
                                 </tr>
-                                <?php endforeach; ?>
+                            <?php endforeach; ?>
                             </tbody>
                         </table>
                     </div>

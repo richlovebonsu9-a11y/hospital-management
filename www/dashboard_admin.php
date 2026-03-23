@@ -216,12 +216,17 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <h6 class="fw-bold mb-3">System Alerts</h6>
                         <?php if (empty($notifications)): ?>
                             <p class="text-muted small mb-0">No alerts at this time.</p>
-                        <?php else: foreach ($notifications as $n): ?>
+                        <?php else: foreach ($notifications as $n): 
+                            $msg = $n['message'];
+                            foreach($profilesMap as $pid => $pname) {
+                                $msg = str_replace($pid, $pname, $msg);
+                            }
+                        ?>
                             <div class="p-2 mb-2 rounded-3 <?php echo empty($n['is_read']) ? 'bg-light' : ''; ?>" 
                                  onclick="<?php echo empty($n['is_read']) ? 'markNotificationRead(this, \''.$n['id'].'\')' : ''; ?>"
                                  style="<?php echo empty($n['is_read']) ? 'cursor: pointer;' : ''; ?>">
                                 <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>">
-                                    <?php echo htmlspecialchars($n['message']); ?>
+                                    <?php echo htmlspecialchars($msg); ?>
                                 </p>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <small class="text-muted extra-small"><?php echo date('H:i', strtotime($n['created_at'])); ?></small>

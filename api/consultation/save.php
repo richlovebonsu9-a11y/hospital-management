@@ -50,10 +50,11 @@ if ($role === 'nurse') {
         $urgentAppt = $apptRes['data'][0];
         $doctorId = $urgentAppt['doctor_id'];
         
-        // Notify doctor
+        // Notify doctor with Patient Name
+        $pName = $uData['name'] ?? ('Patient ' . substr($patientId, 0, 8));
         $sb->request('POST', '/rest/v1/notifications', [
             'user_id' => $doctorId,
-            'message' => "Fresh vitals for Patient " . substr($patientId, 0, 8) . " have been successfully recorded by the nursing team."
+            'message' => "Fresh vitals for $pName have been successfully recorded by the nursing team."
         ], true);
         
         // Mark appointment as completed so it leaves the nurse queue
@@ -159,101 +160,63 @@ if ($role === 'doctor') {
             }
             if ($hasPrescriptions) {
                 $doctorName = $u['user_metadata']['name'] ?? 'A Doctor';
+                $pName = $pData['name'] ?? ('Patient ' . substr($patientId, 0, 8));
+                
                 $pharmacistsRes = $sb->request('GET', '/rest/v1/profiles?role=eq.pharmacist&select=id', null, true);
                 if ($pharmacistsRes['status'] === 200) {
                     foreach ($pharmacistsRes['data'] as $ph) {
                         $sb->request('POST', '/rest/v1/notifications', [
                             'user_id'    => $ph['id'],
-                            'message'    => "New prescription from Dr. {$doctorName} for Patient " . substr($patientId, 0, 8) . ". Please review and dispense.",
+                            'message'    => "New prescription from Dr. {$doctorName} for {$pName}. Please review and dispense.",
                             'type'       => 'pharmacy_order',
                             'related_id' => $consultId
                         ], true);
                     }
                 }
 
-                // Also notify the patient about their prescriptions
+                // Also notify the patient
                 $sb->request('POST', '/rest/v1/notifications', [
                     'user_id' => $patientId,
-                    'message' => "Your consultation with Dr. {$doctorName} is complete. Medications have been prescribed and sent to the pharmacy for dispensing.",
+                    'message' => "Your consultation with Dr. {$doctorName} is complete. Medications have been prescribed and sent to the pharmacy.",
                     'type'    => 'prescription_ready',
                     'related_id' => $consultId
                 ], true);
             }
         }
 
-        // TRIGGER ADMISSION NOTIFICATION OR AUTO-ASSIGNMENT
+        // 3. Admission Recommendation Workflow (Refactored)
         if ($admission === 'yes') {
-            if ($wardId) {
-                // 1. Create Active Admission Record
-                $sb->request('POST', '/rest/v1/admissions', [
-                    'patient_id' => $patientId,
-                    'ward_id' => $wardId,
-                    'bed_number' => $bedNumber ?: 'AUTO',
-                    'status' => 'active',
-                    'assigned_by' => $u['id']
-                ], true);
-
-                // 2. Increment Ward Occupancy
-                $wardRes = $sb->request('GET', '/rest/v1/wards?id=eq.' . $wardId . '&select=occupied_beds', null, true);
-                if ($wardRes['status'] === 200 && !empty($wardRes['data'])) {
-                    $newOcc = (int)$wardRes['data'][0]['occupied_beds'] + 1;
-                    $sb->request('PATCH', '/rest/v1/wards?id=eq.' . $wardId, ['occupied_beds' => $newOcc], true);
-                }
-
-                // 3. Add Admission Fee to Invoice
-                $invRes = $sb->request('GET', '/rest/v1/invoices?patient_id=eq.' . $patientId . '&status=eq.unpaid&order=created_at.desc&limit=1', null, true);
-                if ($invRes['status'] === 200 && !empty($invRes['data'])) {
-                    $invoiceId = $invRes['data'][0]['id'];
-                    $currentTotal = (float)$invRes['data'][0]['total_amount'];
-                } else {
-                    $newInv = $sb->request('POST', '/rest/v1/invoices', ['patient_id' => $patientId, 'total_amount' => 0, 'status' => 'unpaid'], true, ['Prefer' => 'return=representation']);
-                    $invoiceId = ($newInv['status'] === 201) ? $newInv['data'][0]['id'] : null;
-                    $currentTotal = 0;
-                }
-
-                if ($invoiceId) {
-                    $wardInfoRes = $sb->request('GET', '/rest/v1/wards?id=eq.' . $wardId . '&select=ward_name,admission_fee', null, true);
-                    if ($wardInfoRes['status'] === 200 && !empty($wardInfoRes['data'])) {
-                        $wInfo = $wardInfoRes['data'][0];
-                        $fee = (float)$wInfo['admission_fee'];
-                        
-                        // Check for NHIS discount
-                        $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
-                        $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
-                        $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
-                        $chargedFee = $fee * ($hasNHIS ? 0.5 : 1.0);
-
-                        $sb->request('POST', '/rest/v1/invoice_items', [
-                            'invoice_id' => $invoiceId,
-                            'description' => 'Admission Fee: ' . $wInfo['ward_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
-                            'quantity' => 1,
-                            'unit_price' => $fee,
-                            'amount' => $chargedFee
-                        ], true);
-                        $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $chargedFee], true);
-                    }
-                }
-
-                $msg = "Admission Confirmed: You have been assigned to " . ($bedNumber ?: 'a bed') . " in Ward " . ($wInfo['ward_name'] ?? 'Assigned') . ". Please proceed to the nurse station.";
-            } else {
-                $msg = "Admission Recommended: Dr. " . ($u['user_metadata']['name'] ?? 'Staff') . " has recommended your admission. A bed will be assigned by the hospital staff soon.";
-            }
+            $doctorName = $u['user_metadata']['name'] ?? 'Medical Staff';
+            $pName = $pData['name'] ?? ('Patient ' . substr($patientId, 0, 8));
             
-            // 1. Notify Patient
+            // 3.1 Notify Admins and Nurses
+            $recipientsRes = $sb->request('GET', '/rest/v1/profiles?role=in.(admin,nurse)&select=id', null, true);
+            if ($recipientsRes['status'] === 200) {
+                foreach ($recipientsRes['data'] as $r) {
+                    $sb->request('POST', '/rest/v1/notifications', [
+                        'user_id' => $r['id'],
+                        'message' => "ADMISSION RECOMMENDED: Dr. $doctorName recommends immediate admission for $pName. Please assign a ward and bed.",
+                        'type' => 'admission_recommendation',
+                        'related_id' => $patientId
+                    ], true);
+                }
+            }
+
+            // 3.2 Notify Patient
             $sb->request('POST', '/rest/v1/notifications', [
                 'user_id' => $patientId,
-                'message' => $msg,
+                'message' => "Admission Recommended: Dr. $doctorName has recommended your admission. Hospital staff will assign you a bed shortly.",
                 'type' => 'admission_request',
                 'related_id' => $consultId
             ], true);
 
-            // 2. Notify Guardians
+            // 3.3 Notify Guardians
             $gLinksRes = $sb->request('GET', '/rest/v1/guardians?patient_id=eq.' . $patientId . '&status=eq.approved', null, true);
             if ($gLinksRes['status'] === 200) {
                 foreach ($gLinksRes['data'] as $link) {
                     $sb->request('POST', '/rest/v1/notifications', [
                         'user_id' => $link['guardian_id'],
-                        'message' => "Medical Alert: Admission has been " . ($wardId ? "confirmed" : "recommended") . " for your ward.",
+                        'message' => "Medical Alert: Admission has been recommended for $pName by Dr. $doctorName.",
                         'type' => 'admission_request',
                         'related_id' => $consultId
                     ], true);

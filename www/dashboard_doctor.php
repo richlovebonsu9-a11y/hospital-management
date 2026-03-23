@@ -57,6 +57,13 @@ $myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data
 $waitingCount = 0;
 foreach($queue as $q) if($q['status'] === 'scheduled') $waitingCount++;
 $seenToday = count($mySchedule); // Simplification
+
+// 7. Humanize IDs: Fetch all profiles for Name Mapping
+$profilesMap = [];
+$pMapRes = $sb->request('GET', '/rest/v1/profiles?select=id,name', null, true);
+if ($pMapRes['status'] === 200) {
+    foreach ($pMapRes['data'] as $pr) $profilesMap[$pr['id']] = $pr['name'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -129,9 +136,14 @@ $seenToday = count($mySchedule); // Simplification
                         <?php if (empty($notifications)): ?>
                             <p class="text-muted small mb-0">No alerts at this time.</p>
                         <?php endif; ?>
-                        <?php foreach($notifications as $n): ?>
+                        <?php foreach($notifications as $n): 
+                            $msg = $n['message'];
+                            foreach($profilesMap as $pid => $pname) {
+                                $msg = str_replace($pid, $pname, $msg);
+                            }
+                        ?>
                             <div class="p-2 border-bottom border-light mb-2 <?php echo empty($n['is_read']) ? 'bg-light rounded' : ''; ?>" <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor: pointer;"' ?>>
-                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($msg); ?></p>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
                                     <?php if (($n['type'] ?? '') === 'emergency_handled_by_admin'): ?>
@@ -207,7 +219,10 @@ $seenToday = count($mySchedule); // Simplification
                                     <tr class="table-danger-soft">
                                         <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
                                         <td>
-                                            <div class="fw-bold"><?php echo htmlspecialchars($e['reporter']['name'] ?? 'Patient'); ?></div>
+                                            <div class="fw-bold"><?php 
+                                                $reporterName = $e['reporter']['name'] ?? $profilesMap[$e['reporter_id']] ?? 'Patient';
+                                                echo htmlspecialchars($reporterName); 
+                                            ?></div>
                                             <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
                                         </td>
                                         <td><code class="text-primary bg-light px-2 py-1 rounded"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
@@ -281,7 +296,7 @@ $seenToday = count($mySchedule); // Simplification
                                     <div class="d-flex align-items-center">
                                         <div class="bg-primary-soft text-primary rounded-circle me-2 d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px;">P</div>
                                         <div>
-                                            <div class="fw-bold">Patient <?php echo substr($q['patient_id'], 0, 8); ?></div>
+                                            <div class="fw-bold"><?php echo htmlspecialchars($profilesMap[$q['patient_id']] ?? ('Patient ' . substr($q['patient_id'], 0, 8))); ?></div>
                                             <small class="text-muted"><?php echo htmlspecialchars($q['reason']); ?></small>
                                         </div>
                                     </div>
