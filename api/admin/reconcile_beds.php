@@ -47,7 +47,7 @@ WHERE w.id = sub.ward_id;
 $res = $sb->request('POST', '/rest/v1/rpc/exec_sql', ['query' => $sql], true);
 
 header('Content-Type: text/html');
-if ($res['status'] === 200) {
+if ($res['status'] === 200 || $res['status'] === 204) {
     // Also fetch the current count for confirmation
     $admCountRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=count', null, true, ['Prefer' => 'count=exact']);
     $count = $admCountRes['status'] === 200 ? ($admCountRes['data'][0]['count'] ?? 'some') : 'some';
