@@ -157,6 +157,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
         .transition-all { transition: all 0.4s ease-in-out; }
         .pulse-highlight { animation: pulse-yellow 1.5s infinite; }
+        .dashboard-section { min-height: 400px; }
         @keyframes pulse-yellow {
             0% { box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4); }
             70% { box-shadow: 0 0 0 10px rgba(255, 193, 7, 0); }
@@ -293,6 +294,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <h2 class="fw-bold mb-1 text-info"><?php echo count($staffMembers); ?></h2>
                         <small class="text-success small">System-wide</small>
                     </div>
+                </div>
             </div>
 
             <!-- PENDING ADMISSIONS TASK QUEUE (ADMIN) -->
@@ -1834,12 +1836,36 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         }
 
         function navigateTo(targetId) {
+            console.log('Navigating to:', targetId);
+            const target = document.getElementById(targetId);
+            if (!target) {
+                console.error('Target section not found:', targetId);
+                return;
+            }
+            
             document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
-            document.getElementById(targetId).classList.remove('d-none');
+            target.classList.remove('d-none');
+            
             document.querySelectorAll('.nav-link-custom').forEach(l => {
                 if(l.getAttribute('data-target') === targetId) l.classList.add('active');
                 else l.classList.remove('active');
             });
+        }
+
+        function silentRefresh() {
+            if (typeof refreshData === 'function') refreshData();
+            else location.reload();
+        }
+
+        function editStaff(encodedStaff) {
+            try {
+                const staff = JSON.parse(atob(encodedStaff));
+                // Add your staff edit modal logic here if needed, 
+                // for now we'll just show a placeholder alert to verify it works
+                Swal.fire({ title: 'Edit Staff', text: 'Editing functionality for ' + staff.name + ' will be expanded in the next update.', icon: 'info' });
+            } catch (e) {
+                console.error('Error parsing staff data:', e);
+            }
         }
 
         function respondToEmergency(id) {
@@ -1922,12 +1948,23 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             document.querySelector('.sidebar-overlay').classList.toggle('show');
         }
 
-        // Auto-close sidebar on mobile link click
-        document.querySelectorAll('.nav-link-custom').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 992) {
-                    document.querySelector('.sidebar').classList.remove('show');
-                    document.querySelector('.sidebar-overlay').classList.remove('show');
+        // Universal Dashboard Section Navigation
+        document.querySelectorAll('.nav-link-custom[data-target]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                const targetId = link.getAttribute('data-target');
+                const target = document.getElementById(targetId);
+                if (target) {
+                    e.preventDefault();
+                    document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
+                    target.classList.remove('d-none');
+                    document.querySelectorAll('.nav-link-custom').forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                    
+                    // Auto-close sidebar on mobile
+                    if (window.innerWidth < 992) {
+                        document.querySelector('.sidebar').classList.remove('show');
+                        document.querySelector('.sidebar-overlay').classList.remove('show');
+                    }
                 }
             });
         });

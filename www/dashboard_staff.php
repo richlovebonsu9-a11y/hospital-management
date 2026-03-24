@@ -129,9 +129,12 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         .bg-success-soft { background-color: #ecfdf5 !important; color: #065f46 !important; }
         .bg-warning-soft { background-color: #fffbeb !important; color: #92400e !important; }
         .bg-danger-soft { background-color: #fef2f2 !important; color: #991b1b !important; }
+        .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
+        .transition-all { transition: all 0.4s ease-in-out; }
         .extra-small { font-size: 0.75rem; }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .dashboard-section { min-height: 400px; }
         
         @media (max-width: 991.98px) {
             .sidebar { transform: translateX(-100%); }
@@ -747,11 +750,23 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
         document.querySelectorAll('.nav-link-custom[data-target]').forEach(link => {
             link.addEventListener('click', (e) => {
-                e.preventDefault();
-                document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
-                document.getElementById(link.getAttribute('data-target')).classList.remove('d-none');
-                document.querySelectorAll('.nav-link-custom').forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
+                const targetId = link.getAttribute('data-target');
+                const target = document.getElementById(targetId);
+                if (target) {
+                    e.preventDefault();
+                    document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
+                    target.classList.remove('d-none');
+                    document.querySelectorAll('.nav-link-custom').forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                    
+                    // Auto-close sidebar on mobile
+                    if (window.innerWidth < 992) {
+                        document.querySelector('.sidebar').classList.remove('show');
+                        document.querySelector('.sidebar-overlay').classList.remove('show');
+                    }
+                } else {
+                    console.error('Navigation target not available:', targetId);
+                }
             });
         });
 
