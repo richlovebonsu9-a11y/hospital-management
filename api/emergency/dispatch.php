@@ -47,7 +47,33 @@ $emergencyDataConfig = [
     'breathing_difficulty'     => ['fee' => 400, 'items' => []],
 ];
 
-$config = $emergencyDataConfig[$type] ?? ['fee' => 100, 'items' => []];
+$config = $emergencyDataConfig[$type] ?? null;
+
+// AI Triage for 'Other' type: If type is 'other', try to infer the config from symptoms
+if ($type === 'other' || !$config) {
+    $symptoms = strtolower($emergency['symptoms'] ?? '');
+    if (strpos($symptoms, 'heart') !== false || strpos($symptoms, 'cardiac') !== false || strpos($symptoms, 'chest pain') !== false) {
+        $config = $emergencyDataConfig['cardiac_emergencies'];
+    } elseif (strpos($symptoms, 'asthma') !== false || strpos($symptoms, 'breath') !== false || strpos($symptoms, 'inhaler') !== false) {
+        $config = $emergencyDataConfig['asthmatic_attacks'];
+    } elseif (strpos($symptoms, 'sugar') !== false || strpos($symptoms, 'diabet') !== false || strpos($symptoms, 'insulin') !== false) {
+        $config = $emergencyDataConfig['diabetic_emergencies'];
+    } elseif (strpos($symptoms, 'accident') !== false || strpos($symptoms, 'crash') !== false || strpos($symptoms, 'collision') !== false) {
+        $config = $emergencyDataConfig['car_and_motor_accident'];
+    } elseif (strpos($symptoms, 'snake') !== false) {
+        $config = $emergencyDataConfig['snake_bite'];
+    } elseif (strpos($symptoms, 'dog') !== false) {
+        $config = $emergencyDataConfig['dog_bite'];
+    } elseif (strpos($symptoms, 'scorpion') !== false) {
+        $config = $emergencyDataConfig['scorpion_bite'];
+    } elseif (strpos($symptoms, 'labour') !== false || strpos($symptoms, 'birth') !== false || strpos($symptoms, 'pregnant') !== false) {
+        $config = $emergencyDataConfig['labour'];
+    } else {
+        // Fallback for truly unknown 'other' cases
+        $config = ['fee' => 100, 'items' => []];
+    }
+}
+
 $responseFee = $config['fee'];
 $itemsToDeduct = $config['items'];
 
