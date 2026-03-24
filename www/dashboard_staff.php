@@ -379,32 +379,39 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 </div>
             <?php endif; ?>
 
-            <?php if ($role === 'nurse' && !empty($pendingAdmissions)): ?>
-                <div class="card p-4 border-0 shadow-sm mb-5 border-start border-warning border-4 animate-fade-in">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-hospital me-2"></i>Pending Admission Tasks</h5>
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill pending-adm-count"><?php echo count($pendingAdmissions); ?> Recommendations</span>
+            <?php if (!in_array($role, ['ambulance', 'dispatch_rider'])): ?>
+            <div class="card p-0 border-0 shadow-sm overflow-hidden mb-5">
+                <div class="bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Assigned Task Queue</h5>
+                    <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($roleTasks) + count($tasks); ?> Active</span>
+                </div>
+                
+                <?php if ($role === 'nurse' && !empty($pendingAdmissions)): ?>
+                <div class="p-4 bg-warning bg-opacity-10 border-bottom border-warning border-opacity-25">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold mb-0 text-dark"><i class="bi bi-hospital text-warning me-2"></i>Pending Admission Tasks</h6>
+                        <span class="badge bg-warning text-dark px-3 py-1 rounded-pill pending-adm-count"><?php echo count($pendingAdmissions); ?> Recommendations</span>
                     </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle">
+                    <div class="table-responsive bg-white rounded-3 border shadow-sm">
+                        <table class="table table-hover align-middle mb-0">
                             <thead class="table-light">
                                 <tr>
-                                    <th>Patient</th>
+                                    <th class="ps-3">Patient</th>
                                     <th>Recommendation Details</th>
                                     <th>Requested At</th>
-                                    <th class="text-end">Actions</th>
+                                    <th class="text-end pe-3">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <?php foreach($pendingAdmissions as $pa): ?>
                                     <tr>
-                                        <td>
+                                        <td class="ps-3">
                                             <div class="fw-bold"><?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?></div>
                                             <small class="text-muted extra-small">ID: <?php echo substr($pa['patient_id'], 0, 8); ?></small>
                                         </td>
                                         <td><div class="small text-muted" style="max-width: 400px;"><?php echo htmlspecialchars($pa['message']); ?></div></td>
                                         <td><small class="text-muted"><?php echo date('H:i', strtotime($pa['created_at'])); ?> GMT</small></td>
-                                        <td class="text-end">
+                                        <td class="text-end pe-3">
                                             <button class="btn btn-warning btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?>')">
                                                 <i class="bi bi-door-open me-1"></i> Assign Ward & Bed
                                             </button>
@@ -415,14 +422,8 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                         </table>
                     </div>
                 </div>
-            <?php endif; ?>
+                <?php endif; ?>
 
-            <?php if (!in_array($role, ['ambulance', 'dispatch_rider'])): ?>
-            <div class="card p-0 border-0 shadow-sm overflow-hidden mb-5">
-                <div class="bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
-                    <h5 class="fw-bold mb-0">Assigned Task Queue</h5>
-                    <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($roleTasks) + count($tasks); ?> Active</span>
-                </div>
                 <div class="table-responsive">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="table-light">
