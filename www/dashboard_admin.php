@@ -150,6 +150,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
         .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
@@ -1482,13 +1483,11 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 } else {
                     let msg = data.error || 'Error loading beds';
                     if (msg.includes('not found')) {
-                        msg = 'Beds not initialized. <a href=\"/api/admin/init_beds\" target=\"_blank\">Fix now</a>';
-                        // Since it's a select, we can't easily put a link, so we'll just show the text and maybe alert admins
                         console.error('Beds table missing. Run /api/admin/init_beds');
-                        select.innerHTML = '<option value=\"\">Table missing - see console</option>';
-                        alert('Bed data is not initialized. Please run the initialization script at /api/admin/init_beds');
+                        select.innerHTML = '<option value="">Table missing - see console</option>';
+                        Swal.fire({ title: 'Setup Required', text: 'Bed data is not initialized. Please run the initialization script at /api/admin/init_beds', icon: 'warning', confirmButtonColor: '#1a73e8' });
                     } else {
-                        select.innerHTML = `<option value=\"\">${msg}</option>`;
+                        select.innerHTML = `<option value="">${msg}</option>`;
                     }
                 }
             } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
@@ -1601,7 +1600,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 editModal.show();
             } catch (e) {
                 console.error("Error parsing staff data:", e);
-                alert("Could not load staff details. Please try again.");
+                Swal.fire({ title: 'Error', text: 'Could not load staff details. Please try again.', icon: 'error', confirmButtonColor: '#1a73e8' });
             }
         }
 
@@ -1615,11 +1614,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         function openLinkModalDirect(guardianId, guardianName) {
             // Re-use linkGuardianModal but swap fields? Better to have a dedicated one or generic
             // For now, let's just alert that it's coming soon or use the same one logic
-            alert("To link " + guardianName + ", please go to the Patient Directory and click '+ Link' next to the patient.");
+            Swal.fire({ title: 'Instruction', text: 'To link ' + guardianName + ', please go to the Patient Directory and click \'+ Link\' next to the patient.', icon: 'info', confirmButtonColor: '#1a73e8' });
         }
 
         async function approveLink(linkId) {
-            if (!confirm("Approve this guardian-patient link?")) return;
+            const result = await Swal.fire({ title: 'Approve Link?', text: 'Approve this guardian-patient link?', icon: 'question', showCancelButton: true, confirmButtonColor: '#198754', cancelButtonColor: '#6c757d', confirmButtonText: 'Approve' });
+            if (!result.isConfirmed) return;
             const fd = new FormData();
             fd.append('link_id', linkId);
             fd.append('action', 'approve');
@@ -1627,26 +1627,21 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const res = await fetch('/api/admin/approve_guardian', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Link approved successfully!");
-                silentRefresh();
+                Swal.fire({ title: 'Approved!', text: 'Guardian link approved successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Error', text: data.error || 'Failed to approve.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
         async function removeGuardianLink(linkId) {
-            if (!confirm("Are you sure you want to remove this guardian-patient link? This cannot be undone.")) return;
-            const res = await fetch('/api/admin/remove_guardian_link', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ link_id: linkId })
-            });
+            const result = await Swal.fire({ title: 'Remove Link?', text: 'Are you sure you want to remove this guardian-patient link? This cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', cancelButtonColor: '#6c757d', confirmButtonText: 'Yes, Remove' });
+            if (!result.isConfirmed) return;
+            const res = await fetch('/api/admin/remove_guardian_link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ link_id: linkId }) });
             const data = await res.json();
             if (data.success) {
-                alert("Link removed successfully.");
-                silentRefresh();
+                Swal.fire({ title: 'Removed!', text: 'Guardian link removed successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
-                alert("Error removing link: " + (data.message || 'Unknown error'));
+                Swal.fire({ title: 'Error', text: data.message || 'Unknown error removing link.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
@@ -1735,7 +1730,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         }
 
         async function syncStaffData() {
-            if (!confirm("This will scan for missing staff profiles and restore them. Continue?")) return;
+            const result = await Swal.fire({ title: 'Sync Staff Data?', text: 'This will scan for missing staff profiles and restore them.', icon: 'question', showCancelButton: true, confirmButtonColor: '#1a73e8', cancelButtonColor: '#6c757d', confirmButtonText: 'Yes, Sync' });
+            if (!result.isConfirmed) return;
             
             const btn = event.currentTarget;
             const originalHtml = btn.innerHTML;
@@ -1744,20 +1740,16 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
             try {
                 const response = await fetch('/api/admin/reconcile_staff');
-                const result = await response.json();
+                const data = await response.json();
                 
-                if (result.success) {
-                    let logSummary = result.logs ? "\n\nDetails:\n" + result.logs.slice(0, 10).join("\n") : "";
-                    if (result.logs && result.logs.length > 10) logSummary += "\n...and more.";
-                    
-                    alert(`Sync Complete!\nReconciled: ${result.reconciled_count}\nSkipped: ${result.skipped_count}\nTotal Checked: ${result.total_checked}${logSummary}`);
-                    silentRefresh();
+                if (data.success) {
+                    Swal.fire({ title: 'Sync Complete!', html: `<b>Reconciled:</b> ${data.reconciled_count}<br><b>Skipped:</b> ${data.skipped_count}<br><b>Total Checked:</b> ${data.total_checked}`, icon: 'success', confirmButtonColor: '#198754' }).then(() => silentRefresh());
                 } else {
-                    alert("Sync failed: " + (result.error || "Unknown error"));
+                    Swal.fire({ title: 'Sync Failed', text: data.error || 'Unknown error', icon: 'error', confirmButtonColor: '#dc3545' });
                 }
             } catch (e) {
                 console.error(e);
-                alert("An error occurred during synchronization.");
+                Swal.fire({ title: 'Error', text: 'An error occurred during synchronization.', icon: 'error', confirmButtonColor: '#dc3545' });
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalHtml;
@@ -1863,7 +1855,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             });
         });
         async function dischargePatient(admId, wardId) {
-            if (!confirm("Are you sure you want to discharge this patient? This will free up the bed.")) return;
+            const result = await Swal.fire({ title: 'Discharge Patient?', text: 'This will free up the bed. This action cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', cancelButtonColor: '#6c757d', confirmButtonText: 'Yes, Discharge' });
+            if (!result.isConfirmed) return;
             const fd = new FormData();
             fd.append('admission_id', admId);
             fd.append('ward_id', wardId);
@@ -1871,10 +1864,9 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const res = await fetch('/api/admission/discharge', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Patient discharged and bed freed.");
-                silentRefresh();
+                Swal.fire({ title: 'Discharged!', text: 'Patient discharged and bed freed.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Error', text: data.error || 'Discharge failed.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
@@ -1887,12 +1879,14 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         }
 
         async function submitBedAssignment() {
-            const form = document.getElementById('assignBedForm');
             const ptId = document.getElementById('assign_bed_patient_id').value;
             const wardId = document.getElementById('assign_bed_ward_select').value;
             const bedNum = document.getElementById('assign_bed_number_select').value;
 
-            if (!wardId || !bedNum) { alert("Please select ward and bed number"); return; }
+            if (!wardId || !bedNum) {
+                Swal.fire({ title: 'Incomplete', text: 'Please select both a ward and a bed number.', icon: 'warning', confirmButtonColor: '#1a73e8' });
+                return;
+            }
 
             const fd = new FormData();
             fd.append('patient_id', ptId);
@@ -1902,10 +1896,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const res = await fetch('/api/admission/finalize_assignment', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Bed assigned successfully.");
-                silentRefresh();
+                bootstrap.Modal.getInstance(document.getElementById('assignBedModal'))?.hide();
+                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Error', text: data.error || 'Assignment failed.', icon: 'error', confirmButtonColor: '#dc3545' });
                 if (data.debug) console.error("API Debug Info:", data.debug);
             }
         }
@@ -1922,14 +1916,14 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         async function submitBedUpdate() {
             const fd = new FormData(document.getElementById('editAdmissionForm'));
             const bedNum = document.getElementById('edit_adm_bed_number_select').value;
-            fd.set('bed_number', bedNum); // Ensure select value is sent
+            fd.set('bed_number', bedNum);
             const res = await fetch('/api/admission/update_assignment', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Admission details updated.");
-                silentRefresh();
+                bootstrap.Modal.getInstance(document.getElementById('editAdmissionModal'))?.hide();
+                Swal.fire({ title: 'Updated!', text: 'Admission details updated successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Error', text: data.error || 'Update failed.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
@@ -1944,10 +1938,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const res = await fetch('/api/emergency/assign', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                alert("Staff assigned to emergency.");
-                silentRefresh();
+                bootstrap.Modal.getInstance(document.getElementById('assignEmergencyModal'))?.hide();
+                Swal.fire({ title: 'Assigned!', text: 'Staff assigned to emergency successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Error', text: data.error || 'Assignment failed.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
@@ -1999,20 +1993,18 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const res = await fetch('/api/emergency/dispatch', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
-                bootstrap.Modal.getInstance(document.getElementById('dispatchEmergencyModal')).hide();
+                bootstrap.Modal.getInstance(document.getElementById('dispatchEmergencyModal'))?.hide();
                 const row = document.getElementById('emerg-row-' + emergId);
-                if (row) {
-                    row.style.transition = 'opacity 0.4s';
-                    row.style.opacity = '0';
-                    setTimeout(() => row.remove(), 400);
-                }
+                if (row) { row.style.transition = 'opacity 0.4s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 400); }
+                Swal.fire({ title: 'Dispatched!', text: 'Emergency team has been dispatched.', icon: 'success', confirmButtonColor: '#198754', timer: 3000, timerProgressBar: true });
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Dispatch Error', text: data.error || 'Dispatch failed.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
         async function resolveEmergency(id) {
-            if(!confirm("Mark this emergency as resolved/completed?")) return;
+            const result = await Swal.fire({ title: 'Resolve Emergency?', text: 'Mark this emergency as resolved/completed?', icon: 'question', showCancelButton: true, confirmButtonColor: '#198754', cancelButtonColor: '#6c757d', confirmButtonText: 'Yes, Resolve' });
+            if (!result.isConfirmed) return;
             const fd = new FormData();
             fd.append('emergency_id', id);
             fd.append('resolution_notes', 'Resolved by admin.');
@@ -2020,13 +2012,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 const row = document.getElementById('emerg-row-' + id);
-                if (row) {
-                    row.style.transition = 'opacity 0.4s';
-                    row.style.opacity = '0';
-                    setTimeout(() => row.remove(), 400);
-                }
+                if (row) { row.style.transition = 'opacity 0.4s'; row.style.opacity = '0'; setTimeout(() => row.remove(), 400); }
+                Swal.fire({ title: 'Resolved!', text: 'Emergency has been marked as resolved.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true });
             } else {
-                alert("Error: " + data.error);
+                Swal.fire({ title: 'Error', text: data.error || 'Failed to resolve.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
         document.addEventListener('DOMContentLoaded', () => {
@@ -2049,7 +2038,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         try {
                             data = JSON.parse(text);
                         } catch (parseError) {
-                            alert("API Error: Received invalid response from server -> " + text.substring(0, 100));
+                            Swal.fire({ title: 'API Error', text: 'Received an invalid response from the server. Please try again.', icon: 'error', confirmButtonColor: '#1a73e8' });
                             btn.innerHTML = oriText;
                             btn.disabled = false;
                             return;
@@ -2060,19 +2049,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                             let modal = bootstrap.Modal.getInstance(modalEl);
                             if (!modal) modal = new bootstrap.Modal(modalEl);
                             modal.hide();
-                            
                             staffForm.reset();
-                            
-                            if (typeof silentRefresh === 'function') {
-                                silentRefresh();
-                            } else {
-                                location.reload();
-                            }
+                            Swal.fire({ title: 'Staff Created!', text: 'The new staff account has been created successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 3000, timerProgressBar: true }).then(() => { if (typeof silentRefresh === 'function') silentRefresh(); else location.reload(); });
                         } else {
-                            alert("Error: " + (data.error || "Failed to create account."));
+                            Swal.fire({ title: 'Error', text: data.error || 'Failed to create account.', icon: 'error', confirmButtonColor: '#dc3545' });
                         }
                     } catch (err) {
-                        alert("A network error occurred while connecting to the server.");
+                        Swal.fire({ title: 'Network Error', text: 'Could not connect to the server. Please try again.', icon: 'error', confirmButtonColor: '#dc3545' });
                     } finally {
                         btn.innerHTML = oriText;
                         btn.disabled = false;

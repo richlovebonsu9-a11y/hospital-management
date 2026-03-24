@@ -420,6 +420,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         const emergencyAssetsMap = {
             'car_and_motor_accident': { type: 'Ambulance Team', items: [] },
@@ -454,34 +455,51 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
         async function submitEmergencyDispatch() {
             const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
-            const res = await fetch('/api/emergency/dispatch', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) { alert("Dispatch success!"); location.reload(); }
-            else { alert("Dispatch Error: " + data.error); }
+            const btn = document.querySelector('#dispatchEmergencyForm button[onclick]');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Dispatching...'; }
+            try {
+                const res = await fetch('/api/emergency/dispatch', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('dispatchEmergencyModal'))?.hide();
+                    await Swal.fire({ title: 'Dispatched!', text: 'Help is on the way to the patient.', icon: 'success', confirmButtonColor: '#dc3545', confirmButtonText: 'Got it', timer: 4000, timerProgressBar: true });
+                    location.reload();
+                } else {
+                    Swal.fire({ title: 'Dispatch Failed', text: data.error || 'An unknown error occurred.', icon: 'error', confirmButtonColor: '#dc3545' });
+                }
+            } catch (e) {
+                Swal.fire({ title: 'Network Error', text: 'Could not reach the server. Please check your connection.', icon: 'error', confirmButtonColor: '#dc3545' });
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = 'Rapid Dispatch Help'; }
+            }
         }
 
         async function resolveEmergency(id, btn) {
-            if (!confirm("Are you sure this emergency is resolved?")) return;
-            const res = await fetch('/api/emergency/resolve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
-            });
+            const result = await Swal.fire({ title: 'Confirm Resolution', text: 'Mark this emergency as fully resolved?', icon: 'question', showCancelButton: true, confirmButtonColor: '#198754', cancelButtonColor: '#6c757d', confirmButtonText: 'Yes, Resolve', cancelButtonText: 'Cancel' });
+            if (!result.isConfirmed) return;
+            const res = await fetch('/api/emergency/resolve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
             const data = await res.json();
-            if (data.success) { btn.closest('tr').remove(); }
-            else { alert("Error: " + data.error); }
+            if (data.success) {
+                btn.closest('tr').style.opacity = '0';
+                btn.closest('tr').style.transition = 'opacity 0.4s';
+                setTimeout(() => btn.closest('tr').remove(), 400);
+                Swal.fire({ title: 'Resolved!', text: 'Emergency has been marked as resolved.', icon: 'success', confirmButtonColor: '#198754', timer: 3000, timerProgressBar: true });
+            } else {
+                Swal.fire({ title: 'Error', text: data.error || 'Failed to resolve.', icon: 'error', confirmButtonColor: '#dc3545' });
+            }
         }
 
         async function escalateToAmbulance(id, btn) {
-            if (!confirm("Request critical ambulance transport for this case?")) return;
-            const res = await fetch('/api/emergency/escalate', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: id })
-            });
+            const result = await Swal.fire({ title: 'Escalate to Ambulance?', text: 'This will request critical ambulance transport for this case. This cannot be undone.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#dc3545', cancelButtonColor: '#6c757d', confirmButtonText: 'Yes, Escalate!', cancelButtonText: 'Cancel' });
+            if (!result.isConfirmed) return;
+            const res = await fetch('/api/emergency/escalate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: id }) });
             const data = await res.json();
-            if (data.success) { alert("Escalated to Ambulance!"); location.reload(); }
-            else { alert("Error: " + data.error); }
+            if (data.success) {
+                await Swal.fire({ title: 'Escalated!', text: 'Ambulance team has been alerted.', icon: 'success', confirmButtonColor: '#dc3545', timer: 3000, timerProgressBar: true });
+                location.reload();
+            } else {
+                Swal.fire({ title: 'Error', text: data.error || 'Failed to escalate.', icon: 'error', confirmButtonColor: '#dc3545' });
+            }
         }
 
         document.querySelectorAll('.nav-link-custom[data-target]').forEach(link => {
