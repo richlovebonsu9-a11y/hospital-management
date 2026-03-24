@@ -73,10 +73,10 @@ if ($role === 'nurse') {
 // EMERGENCY ROUTING
 $myEmergencies = [];
 if ($role === 'ambulance') {
-    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(car_and_motor_accident,labour,sudden_consciousness_loss,breathing_difficulty)&select=*&order=created_at.desc', null, true);
+    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&or=(assigned_to.eq.' . $userId . ',status.eq.pending)&emergency_type=in.(car_and_motor_accident,labour,sudden_consciousness_loss,breathing_difficulty)&select=*&order=created_at.desc', null, true);
     $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
 } elseif ($role === 'dispatch_rider') {
-    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(cardiac_emergencies,diabetic_emergencies,asthmatic_attacks,snake_bite,dog_bite,scorpion_bite)&select=*&order=created_at.desc', null, true);
+    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&or=(assigned_to.eq.' . $userId . ',status.eq.pending)&emergency_type=in.(cardiac_emergencies,diabetic_emergencies,asthmatic_attacks,snake_bite,dog_bite,scorpion_bite)&select=*&order=created_at.desc', null, true);
     $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
 }
 
@@ -272,7 +272,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                         </td>
                                         <td>
                                             <div class="d-flex gap-2">
-                                                <?php if($e['status'] === 'pending'): ?>
+                                                <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): ?>
                                                     <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)'>
                                                         <i class="bi bi-truck me-1"></i> Dispatch
                                                     </button>
