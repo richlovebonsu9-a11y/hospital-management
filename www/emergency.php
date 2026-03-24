@@ -61,8 +61,29 @@ session_start();
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold">Primary Symptoms</label>
-                            <textarea name="symptoms" class="form-control rounded-4 p-4 border-light bg-light" rows="3" placeholder="Chest pain, difficulty breathing, car accident, etc." required></textarea>
+                            <label class="form-label fw-bold text-danger">Nature of Emergency</label>
+                            <select name="emergency_type" class="form-select rounded-pill px-4 py-3 border-light bg-light fw-bold" required>
+                                <option value="">-- Choose Situation --</option>
+                                <optgroup label="Ambulance Dispatch Required">
+                                    <option value="car_accident">Car and Motor Accident</option>
+                                    <option value="labour">Labour / Maternity</option>
+                                    <option value="sudden_consciousness_loss">Sudden Consciousness Loss</option>
+                                    <option value="breathing_difficulty">Breathing Difficulty</option>
+                                </optgroup>
+                                <optgroup label="Dispatch Rider Specialist Needed">
+                                    <option value="cardiac">Cardiac Emergency</option>
+                                    <option value="diabetic">Diabetic Emergency</option>
+                                    <option value="asthmatic">Asthmatic Attack</option>
+                                    <option value="snake_bite">Snake Bite</option>
+                                    <option value="dog_bite">Dog Bite</option>
+                                    <option value="scorpion_bite">Scorpion Bite</option>
+                                </optgroup>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Primary Symptoms / Details</label>
+                            <textarea name="symptoms" class="form-control rounded-4 p-4 border-light bg-light" rows="3" placeholder="Briefly describe what is happening..." required></textarea>
                         </div>
 
                         <div class="mb-4">
@@ -72,7 +93,7 @@ session_start();
                         </div>
 
                         <div class="d-grid mt-5">
-                            <button type="submit" class="btn btn-danger btn-lg py-3 fw-bold rounded-pill shadow-lg">REQUEST IMMEDIATE DISPATCH &rarr;</button>
+                            <button type="submit" class="btn btn-danger btn-lg py-3 fw-bold rounded-pill shadow-lg text-uppercase">Request Immediate Dispatch &rarr;</button>
                         </div>
                     </form>
                 </div>
@@ -87,16 +108,12 @@ session_start();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function selectSeverity(val, el) {
-            // Check the hidden radio
             const radio = document.querySelector(`input[value="${val}"]`);
             if (radio) radio.checked = true;
-            
-            // Update UI
             document.querySelectorAll('.severity-btn').forEach(btn => btn.classList.remove('active'));
             el.classList.add('active');
         }
 
-        // Initialize if any is checked (e.g. after validation error)
         document.addEventListener('DOMContentLoaded', () => {
             const checked = document.querySelector('input[name="severity"]:checked');
             if (checked) {

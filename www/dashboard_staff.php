@@ -1,317 +1,258 @@
 <?php
-// Staff Dashboard - Kobby Moore Hospital (Nurse/Pharmacist/Technician)
 session_start();
 require_once __DIR__ . '/../src/lib/Supabase.php';
 use App\Lib\Supabase;
 
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
-if (!isset($_SESSION['user']) || !in_array($_SESSION['user']['user_metadata']['role'] ?? '', ['nurse', 'pharmacist', 'technician'])) {
-    header('Location: /login');
-    exit;
-}
+if (!isset($_SESSION['user'])) { header('Location: /login'); exit; }
 
-$user = $_SESSION['user'];
-$userId = $user['id'];
 $sb = new Supabase();
+$userId = $_SESSION['user']['id'] ?? $_SESSION['user_id'];
+// Get role from user metadata
+$role = $_SESSION['user']['user_metadata']['role'] ?? ($_SESSION['role'] ?? 'staff');
 
-// 1. Fetch live Profile data (metadata can be outdated until next login)
+// Fetch staff profile
 $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $userId . '&select=*', null, true);
 $profile = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : null;
 
-$role = $profile['role'] ?? $user['user_metadata']['role'] ?? 'staff';
-$name = $profile['name'] ?? $user['user_metadata']['name'] ?? 'Staff Member';
-$dept = $profile['department'] ?? 'General OPD';
-
+// Fetch tasks and role-specific data
 $tasks = [];
-$roleData = [];
-
-// 2. Fetch Departmental Appointment Queue (Limited info for all staff in dept)
-$deptApptsRes = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&department=eq.' . urlencode($dept) . '&select=*,patient:patient_id(name)&order=appointment_date.asc', null, true);
-$deptTasks = ($deptApptsRes['status'] === 200) ? $deptApptsRes['data'] : [];
-
-// 3. Fetch Specifically Assigned Appointments (Full info)
-$assignedApptsRes = $sb->request('GET', '/rest/v1/appointments?status=eq.scheduled&assigned_to=eq.' . $userId . '&select=*,patient:patient_id(name)&order=appointment_date.asc', null, true);
-$assignedTasks = ($assignedApptsRes['status'] === 200) ? $assignedApptsRes['data'] : [];
-
-// 4. Role-specific items (Prescriptions for Pharmacists, Lab for Techs)
 $roleTasks = [];
-if ($role === 'pharmacist') {
-    // Fetch pending prescriptions WITHOUT join (FK may not be registered in Supabase)
-    $res = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*&order=created_at.asc', null, true);
-    $roleTasks = ($res['status'] === 200) ? ($res['data'] ?? []) : [];
-
-    // Enrich each prescription with the patient name via a separate lookup
-    foreach ($roleTasks as &$rx) {
-        if (!empty($rx['patient_id'])) {
-            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $rx['patient_id'] . '&select=name', null, true);
-            $rx['patient_name'] = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
-        } else {
-            $rx['patient_name'] = 'Patient';
-        }
-    }
-    unset($rx);
-
-    $invRes = $sb->request('GET', '/rest/v1/drug_inventory?select=*&order=drug_name.asc', null, true);
-    $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
-} elseif ($role === 'technician') {
-    $res = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*&order=created_at.asc', null, true);
-    $roleTasks = ($res['status'] === 200) ? ($res['data'] ?? []) : [];
-    // Enrich with patient name
-    foreach ($roleTasks as &$lr) {
-        if (!empty($lr['patient_id'])) {
-            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $lr['patient_id'] . '&select=name', null, true);
-            $lr['patient_name'] = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
-        } else {
-            $lr['patient_name'] = 'Patient';
-        }
-    }
-    unset($lr);
-}
-
-$vitalsPatients = [];
-if ($role === 'nurse') {
-    $todayStart = date('Y-m-d') . 'T00:00:00Z';
-    $vitalsRes = $sb->request('GET', '/rest/v1/vitals?recorded_at=gte.' . $todayStart . '&select=patient_id', null, true);
-    if ($vitalsRes['status'] === 200 && is_array($vitalsRes['data'])) {
-        foreach ($vitalsRes['data'] as $v) $vitalsPatients[] = $v['patient_id'];
-    }
-}
-
-// Combine appointment-based tasks. Prescriptions/lab tasks are kept in $roleTasks separately.
-$tasksMap = [];
-foreach ($deptTasks as $t) $tasksMap[$t['id']] = $t;
-foreach ($assignedTasks as $t) $tasksMap[$t['id']] = $t;
-
-$tasks = array_values($tasksMap);
-// Sort by date/created_at
-usort($tasks, function($a, $b) {
-    $da = $a['appointment_date'] ?? $a['created_at'] ?? '0';
-    $db = $b['appointment_date'] ?? $b['created_at'] ?? '0';
-    return strtotime($da) - strtotime($db);
-});
-
-// 5. Fetch Notifications for Staff
-$notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&order=created_at.desc&limit=5', null, true);
-$notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
-$unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
-
-// 6. Fetch Assigned Emergencies
-$myEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?assigned_to=eq.' . $userId . '&status=in.(active,pending,assigned)&select=*,reporter:reporter_id(name)', null, true);
-$myEmergencies = ($myEmergenciesRes['status'] === 200) ? $myEmergenciesRes['data'] : [];
-
-// 7. Fetch Data for Ward Management (Nurses Only)
+$roleData = [];
+$notifications = [];
 $wards = [];
 $activeAdmissions = [];
 $pendingAdmissions = [];
-$profilesMap = []; // For humanizing IDs
-
-// Fetch all profiles to build ID -> Name map for consistent "Humanization"
-$pMapRes = $sb->request('GET', '/rest/v1/profiles?select=id,name', null, true);
-if ($pMapRes['status'] === 200) {
-    foreach ($pMapRes['data'] as $pr) $profilesMap[$pr['id']] = $pr['name'];
-}
+$vitalsPatients = [];
 
 if ($role === 'nurse') {
-    // Fetch Wards
+    // Nurse: Appointments, Wards, Admissions
+    $aptRes = $sb->request('GET', '/rest/v1/appointments?department=eq.General&select=*,patient:profiles(*)', null, true);
+    $tasks = ($aptRes['status'] === 200) ? $aptRes['data'] : [];
+    
     $wardsRes = $sb->request('GET', '/rest/v1/wards?select=*&order=ward_name.asc', null, true);
     $wards = ($wardsRes['status'] === 200) ? $wardsRes['data'] : [];
+    
+    $admRes = $sb->request('GET', '/rest/v1/admissions?status=eq.admitted&select=*,patient:profiles(*),ward:wards(*)', null, true);
+    $activeAdmissions = ($admRes['status'] === 200) ? $admRes['data'] : [];
+        
+    $notifRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_request&is_read=eq.false&select=*,patient:profiles(*)', null, true);
+    $pendingAdmissions = ($notifRes['status'] === 200) ? $notifRes['data'] : [];
 
-    // Fetch Active Admissions
-    $admissionsRes = $sb->request('GET', '/rest/v1/admissions?status=eq.active&select=*,patient:patient_id(name),ward:ward_id(ward_name)', null, true);
-    $activeAdmissions = ($admissionsRes['status'] === 200) ? $admissionsRes['data'] : [];
+    $vitalsRes = $sb->request('GET', '/rest/v1/consultations?created_at=gte.' . date('Y-m-d') . 'T00:00:00&select=patient_id', null, true);
+    if ($vitalsRes['status'] === 200) $vitalsPatients = array_column($vitalsRes['data'], 'patient_id');
 
-    // Fetch Pending Admission Recommendations from NOTIFICATIONS (Single Source of Truth)
-    $pendingNotifsRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_recommendation&select=*&order=created_at.desc', null, true);
-    if ($pendingNotifsRes['status'] === 200) {
-        foreach ($pendingNotifsRes['data'] as $notif) {
-            $pId = $notif['related_id'];
-            // Fetch patient name for the list
-            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $pId . '&select=name', null, true);
-            $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
-            
-            $item = [
-                'id' => $notif['id'],
-                'patient_id' => $pId,
-                'patient' => ['name' => $pName],
-                'message' => $notif['message'],
-                'created_at' => $notif['created_at'],
-                'type' => 'admission_task'
-            ];
-            $pendingAdmissions[] = $item;
-            $tasks[] = $item; // Integrate into main Task Queue
-        }
-    }
+} elseif ($role === 'pharmacist') {
+    $rxRes = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,patient:profiles(*)', null, true);
+    $roleTasks = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
+    
+    $invRes = $sb->request('GET', '/rest/v1/inventory?select=*&order=drug_name.asc', null, true);
+    $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
+    $availableDrugs = $roleData['inventory'];
+
+} elseif ($role === 'technician') {
+    $labRes = $sb->request('GET', '/rest/v1/lab_requests?status=eq.pending&select=*,patient:profiles(*)', null, true);
+    $roleTasks = ($labRes['status'] === 200) ? $labRes['data'] : [];
 }
 
-// Fetch Drugs for Emergency Prescription
-$drugsRes = $sb->request('GET', '/rest/v1/drug_inventory?select=id,drug_name,stock_count&order=drug_name.asc', null, true);
-$availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
+// EMERGENCY ROUTING
+$myEmergencies = [];
+if ($role === 'ambulance') {
+    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(car_and_motor_accident,labour,sudden_consciousness_loss,breathing_difficulty)&select=*,reporter:profiles(*)&order=created_at.desc', null, true);
+    $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
+} elseif ($role === 'dispatch_rider') {
+    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(cardiac_emergencies,diabetic_emergencies,asthmatic_attacks,snake_bite,dog_bite,scorpion_bite)&select=*,reporter:profiles(*)&order=created_at.desc', null, true);
+    $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
+}
+
+// Notifications
+$notifRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $userId . '&select=*&order=created_at.desc&limit=10', null, true);
+$notifications = ($notifRes['status'] === 200 && !empty($notifRes['data'])) ? $notifRes['data'] : [];
+
+if (empty($notifications)) {
+    $notifRes = $sb->request('GET', '/rest/v1/notifications?or=(role.eq.' . $role . ',type.eq.emergency_alert)&select=*&order=created_at.desc&limit=10', null, true);
+    $notifications = ($notifRes['status'] === 200) ? $notifRes['data'] : [];
+}
+
+$unreadCount = 0;
+foreach($notifications as $n) if(empty($n['is_read'])) $unreadCount++;
+
+// Helper map
+$profilesMap = [];
+if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
+    $pMapRes = $sb->request('GET', '/rest/v1/profiles?select=id,name', null, true);
+    if ($pMapRes['status'] === 200) {
+        foreach($pMapRes['data'] as $p) $profilesMap[$p['id']] = $p['name'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff Dashboard - Kobby Moore Hospital</title>
+    <title>Staff Dashboard - Hospital Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="/assets/css/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="/assets/css/dashboard.css" rel="stylesheet">
     <style>
-        .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
-        .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
-        .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
+        :root {
+            --primary-gradient: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            --emergency-red: #ff4757;
+            --success-green: #2ecc71;
+            --soft-bg: #f8faff;
+        }
+        body { background: var(--soft-bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .sidebar { background: #fff; border-right: 1px solid #edf2f7; width: 280px; height: 100vh; position: fixed; z-index: 1000; transition: all 0.3s; }
+        .main-content { margin-left: 280px; padding: 40px; transition: all 0.3s; }
+        .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin: 4px 15px; transition: all 0.2s; font-weight: 500; }
+        .nav-link-custom:hover, .nav-link-custom.active { background: #f0f7ff; color: #1a73e8; }
+        .nav-link-custom i { font-size: 1.25rem; margin-right: 12px; }
+        .stat-card { border: none; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.02); transition: transform 0.2s; }
+        .stat-card:hover { transform: translateY(-5px); }
+        .bg-primary-soft { background-color: #eef2ff !important; color: #4338ca !important; }
+        .bg-success-soft { background-color: #ecfdf5 !important; color: #065f46 !important; }
+        .bg-warning-soft { background-color: #fffbeb !important; color: #92400e !important; }
+        .bg-danger-soft { background-color: #fef2f2 !important; color: #991b1b !important; }
+        .extra-small { font-size: 0.75rem; }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        @media (max-width: 991.98px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.show { transform: translateX(0); }
+            .main-content { margin-left: 0; padding: 20px; }
+            .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+            .sidebar-overlay.show { display: block; }
+        }
+
+        .table-danger-soft { background-color: #fff5f5; }
     </style>
 </head>
 <body>
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
-    <div class="sidebar p-4">
-        <div class="d-flex align-items-center mb-5">
-            <img src="/assets/img/logo.png" alt="KM Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
-            <h4 class="fw-bold mb-0 text-secondary">Kobby Moore Hospital</h4>
+    
+    <div class="sidebar">
+        <div class="p-4 mb-3 d-flex align-items-center">
+            <div class="bg-primary text-white rounded-circle p-2 me-3 shadow-sm">
+                <i class="bi bi-hospital-fill fs-4"></i>
+            </div>
+            <h5 class="fw-bold mb-0 tracking-tight">HealthCore</h5>
         </div>
-
-        <nav id="sidebarMenu">
-            <a href="#" class="nav-link-custom active" data-target="section-queue"><i class="bi bi-list-task"></i> Task Queue</a>
-            <?php if ($role === 'nurse'): ?>
-                <a href="#" class="nav-link-custom" data-target="section-role"><i class="bi bi-hospital"></i> Ward Management</a>
-            <?php elseif ($role === 'pharmacist'): ?>
-                <a href="#" class="nav-link-custom" data-target="section-role"><i class="bi bi-capsule"></i> Inventory</a>
-            <?php elseif ($role === 'technician'): ?>
-                <a href="#" class="nav-link-custom" data-target="section-role"><i class="bi bi-clipboard-pulse"></i> Lab Requests</a>
-            <?php endif; ?>
-            <a href="#" class="nav-link-custom" data-target="section-comms"><i class="bi bi-chat-dots"></i> Internal Comms</a>
+        
+        <nav>
+            <a href="#" class="nav-link-custom active" data-target="section-queue">
+                <i class="bi bi-list-task"></i> Task Queue
+                <?php if (count($roleTasks) + count($tasks) + count($myEmergencies) > 0): ?>
+                    <span class="badge bg-danger rounded-pill ms-auto px-2"><?php echo count($roleTasks) + count($tasks) + count($myEmergencies); ?></span>
+                <?php endif; ?>
+            </a>
+            <a href="#" class="nav-link-custom" data-target="section-role">
+                <i class="bi bi-layers"></i> <?php echo ucfirst($role); ?> Area
+            </a>
             <a href="#" class="nav-link-custom" data-target="section-notifications">
                 <i class="bi bi-bell"></i> Notifications
                 <?php if ($unreadCount > 0): ?>
-                    <span class="badge bg-danger rounded-pill ms-auto nav-notif-badge"><?php echo $unreadCount; ?></span>
+                    <span class="badge bg-warning text-dark rounded-pill ms-auto nav-notif-badge"><?php echo $unreadCount; ?></span>
                 <?php endif; ?>
             </a>
-            <hr class="my-3">
-            <div class="px-2 mb-3">
-                <button class="btn btn-primary-soft text-primary w-100 rounded-pill d-flex align-items-center justify-content-center py-2" data-bs-toggle="modal" data-bs-target="#searchModal">
-                    <i class="bi bi-search me-2"></i> Find Patient
+            <div class="mt-5 px-4 pt-4 border-top">
+                <p class="small text-muted text-uppercase fw-bold mb-3">Quick Actions</p>
+                <button class="btn btn-outline-primary w-100 rounded-pill btn-sm mb-2" data-bs-toggle="modal" data-bs-target="#searchModal">
+                    <i class="bi bi-search me-1"></i> Patient Lookup
                 </button>
+                <a href="/api/logout.php" class="btn btn-light w-100 rounded-pill btn-sm text-danger mt-3">
+                    <i class="bi bi-box-arrow-right me-1"></i> Logout
+                </a>
             </div>
-            <hr class="my-4">
-            <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>
     </div>
 
     <div class="main-content">
-        <!-- Mobile Header -->
-        <div class="d-flex d-lg-none align-items-center mb-4 pb-3 border-bottom">
-            <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm p-2 me-3" onclick="toggleSidebar()">
-                <i class="bi bi-list fs-4 text-primary"></i>
-            </button>
-            <h4 class="fw-bold mb-0 text-primary">Kobby Moore Hospital</h4>
-        </div>
-
         <header class="d-flex justify-content-between align-items-center mb-5">
-            <div>
-                <h2 class="fw-bold mb-1">Hello, <?php echo htmlspecialchars($name); ?></h2>
-                <p class="text-muted mb-0">Role: <span class="text-capitalize fw-bold text-primary"><?php echo htmlspecialchars($role); ?></span></p>
+            <div class="d-flex align-items-center">
+                <button class="btn btn-light rounded-pill p-2 me-3 d-lg-none" onclick="toggleSidebar()">
+                    <i class="bi bi-list fs-4"></i>
+                </button>
+                <div>
+                    <h3 class="fw-bold mb-1">Welcome, <?php echo htmlspecialchars($profile['name'] ?? 'Staff Member'); ?></h3>
+                    <p class="text-muted mb-0"><i class="bi bi-shield-check text-success me-1"></i> Logged in as <span class="fw-bold text-dark"><?php echo ucfirst($role); ?></span></p>
+                </div>
             </div>
-            
-            <?php if (isset($_GET['inventory_updated'])): ?>
-                <div class="alert alert-success border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
-                    <i class="bi bi-check-circle-fill me-2"></i> Inventory synchronized successfully.
+            <div class="d-flex align-items-center gap-3">
+                <div class="text-end d-none d-sm-block">
+                    <p class="small text-muted mb-0"><?php echo date('l, M d'); ?></p>
+                    <p class="small fw-bold mb-0"><?php echo date('H:i'); ?> GMT</p>
                 </div>
-            <?php endif; ?>
-            <?php if (isset($_GET['dispensed'])): ?>
-                <div class="alert alert-success border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
-                    <i class="bi bi-capsule-pill me-2"></i> Medication dispensed & billed.
-                </div>
-            <?php endif; ?>
-            <?php if (isset($_GET['error']) && $_GET['error'] === 'out_of_stock'): ?>
-                <div class="alert alert-danger border-0 shadow-sm rounded-4 py-2 px-3 small mb-0">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i> Error: Item is out of stock!
-                </div>
-            <?php endif; ?>
-
-            <div class="d-none d-lg-flex align-items-center">
-                <div class="dropdown me-4">
-                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
-                        <i class="bi bi-bell fs-5 text-secondary"></i>
-                        <?php if ($unreadCount > 0): ?>
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
-                            <?php echo $unreadCount; ?>
-                        </span>
-                        <?php endif; ?>
-                    </button>
-                    <div class="dropdown-menu dropdown-menu-end border-0 shadow-lg p-3 rounded-4" style="width: 320px;">
-                        <h6 class="fw-bold mb-3">Department Alerts</h6>
-                        <?php if (empty($notifications)): ?>
-                            <p class="text-muted small mb-0">No notifications.</p>
-                        <?php endif; ?>
-                        <?php foreach($notifications as $n): 
-                            $msg = $n['message'];
-                            // Simple humanization for any stray UUIDs in messages if possible, 
-                            // though new ones are already humanized from backend.
-                            foreach($profilesMap as $pid => $pname) {
-                                $msg = str_replace($pid, $pname, $msg);
-                            }
-                        ?>
-                            <div class="p-2 border-bottom border-light mb-2 <?php echo empty($n['is_read']) ? 'bg-light rounded' : ''; ?>" <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor: pointer;"' ?>>
-                                <p class="small mb-1 <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($msg); ?></p>
-                                <small class="text-muted extra-small"><?php echo date('M d, H:i', strtotime($n['created_at'])); ?></small>
-                            </div>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <div class="bg-primary text-white rounded-circle shadow-sm d-flex align-items-center justify-content-center fw-bold fs-5" style="width: 48px; height: 48px;">
-                    <?php echo strtoupper(substr($name, 0, 1)); ?>
+                <div class="bg-white rounded-circle p-1 shadow-sm border">
+                    <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($profile['name'] ?? 'Staff'); ?>&background=random" class="rounded-circle" width="45" height="45">
                 </div>
             </div>
         </header>
 
-        <?php include 'components/health_tips.php'; ?>
-
-        <div id="section-queue" class="dashboard-section">
+        <div id="section-queue" class="dashboard-section animate-fade-in">
             <?php if (!empty($myEmergencies)): ?>
                 <div class="row g-4 mb-4">
-                    <div class="col-md-12">
-                        <div class="card border-0 shadow-sm bg-danger text-white p-4 rounded-4 animate-pulse">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <div class="d-flex align-items-center gap-3">
-                                    <div class="bg-white text-danger rounded-circle p-3 d-flex align-items-center justify-content-center shadow-sm" style="width: 54px; height: 54px;">
-                                        <i class="bi bi-exclamation-triangle-fill fs-3"></i>
-                                    </div>
-                                    <div>
-                                        <h4 class="fw-bold mb-1">Active Emergency Assigned!</h4>
-                                        <p class="mb-0 opacity-75 small">You have <?php echo count($myEmergencies); ?> urgent cases requiring immediate coordination.</p>
-                                    </div>
+                    <div class="col-12">
+                        <div class="alert alert-danger border-0 shadow-lg rounded-5 p-4 d-flex align-items-center justify-content-between">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-white text-danger rounded-circle p-3 d-flex align-items-center justify-content-center shadow-sm me-4" style="width: 60px; height: 60px;">
+                                    <i class="bi bi-lightning-charge-fill fs-2"></i>
                                 </div>
-                                <button class="btn btn-light rounded-pill px-4 fw-bold" onclick="navigateTo('section-queue')">View My Emergencies</button>
+                                <div>
+                                    <h4 class="fw-bold mb-1">Emergency Requests Assigned!</h4>
+                                    <p class="mb-0 opacity-75">You have <?php echo count($myEmergencies); ?> urgent cases requiring immediate attention.</p>
+                                </div>
                             </div>
+                            <button class="btn btn-light rounded-pill px-4 fw-bold shadow-sm" onclick="window.scrollTo({top: 500, behavior: 'smooth'})">Go to Emergency Desk</button>
                         </div>
                     </div>
                 </div>
 
                 <div class="card p-4 border-0 shadow-sm mb-5 border-start border-danger border-4">
-                    <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-lightning-charge-fill me-2"></i>My Emergency Assignments</h5>
+                    <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-activity me-2"></i>Urgent Emergency Tasks</h5>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
                             <thead class="table-light">
-                                <tr><th>Time</th><th>Patient/Reporter</th><th>Location</th><th>Symptoms</th><th>Actions</th></tr>
+                                <tr><th>Time</th><th>Patient/Reporter</th><th>Type</th><th>Location</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody>
-                                <?php foreach($myEmergencies as $e): ?>
+                                <?php foreach($myEmergencies as $e): 
+                                    $readableType = str_replace(['_', 'bites', 'attacks', 'emergencies'], [' ', 'bite', 'attack', 'emergency'], $e['emergency_type'] ?? 'General');
+                                ?>
                                     <tr class="table-danger-soft">
                                         <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
                                         <td>
                                             <div class="fw-bold"><?php 
-                                                $reporterName = $e['reporter']['name'] ?? $profilesMap[$e['reporter_id']] ?? 'Patient';
+                                                $reporterName = $e['reporter']['name'] ?? ($profilesMap[$e['reporter_id']] ?? 'Patient');
                                                 echo htmlspecialchars($reporterName); 
                                             ?></div>
                                             <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
                                         </td>
-                                        <td><code class="text-primary bg-light px-2 py-1 rounded"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
-                                        <td class="small"><?php echo htmlspecialchars($e['symptoms']); ?></td>
+                                        <td><span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span></td>
+                                        <td><code class="text-primary bg-light px-2 py-1 rounded small"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
                                         <td>
-                                            <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)'>
-                                                <i class="bi bi-truck me-1"></i> Dispatch help
-                                            </button>
+                                            <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark' : 'info'; ?> rounded-pill px-3">
+                                                <?php echo ucfirst($e['status']); ?>
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex gap-2">
+                                                <?php if($e['status'] === 'pending'): ?>
+                                                    <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)'>
+                                                        <i class="bi bi-truck me-1"></i> Dispatch
+                                                    </button>
+                                                <?php else: ?>
+                                                    <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)">
+                                                        <i class="bi bi-check-lg me-1"></i> Resolve
+                                                    </button>
+                                                    <?php if($role === 'dispatch_rider' && empty($e['escalation_required'])): ?>
+                                                        <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="escalateToAmbulance('<?php echo $e['id']; ?>', this)">
+                                                            <i class="bi bi-megaphone me-1"></i> Escalate
+                                                        </button>
+                                                    <?php endif; ?>
+                                                <?php endif; ?>
+                                            </div>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -321,105 +262,66 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
                 </div>
             <?php endif; ?>
 
-            <div class="card p-4 border-0 shadow-sm">
-                <h5 class="fw-bold mb-4">Assigned Tasks</h5>
+            <div class="card p-0 border-0 shadow-sm overflow-hidden mb-5">
+                <div class="bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
+                    <h5 class="fw-bold mb-0">Assigned Task Queue</h5>
+                    <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($roleTasks) + count($tasks); ?> Active</span>
+                </div>
                 <div class="table-responsive">
-                    <table class="table table-hover align-middle">
-                        <thead class="table-light border-0">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
                             <tr>
-                                <th class="border-0">ID</th>
-                                <th class="border-0">Task Description</th>
-                                <th class="border-0">Priority</th>
-                                <th class="border-0">Action</th>
+                                <th class="ps-4">Patient</th>
+                                <th>Task Details</th>
+                                <th>Priority</th>
+                                <th class="text-end pe-4">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php 
-                            // Show role-specific tasks (prescriptions / lab requests) first for pharmacists/technicians
-                            $allDisplayTasks = (in_array($role, ['pharmacist', 'technician'])) ? $roleTasks : $tasks;
-
-                            if (empty($allDisplayTasks) && empty($tasks)): ?>
-                                <tr><td colspan="4" class="text-center py-4 text-muted">No pending tasks in your queue.</td></tr>
-                            <?php endif; 
-
-                            foreach ($allDisplayTasks as $t):
-                                $isAssigned = (($t['assigned_to'] ?? '') === $user['id']);
-                                $isUnassignedNurseTask = ($role === 'nurse' && empty($t['assigned_to']) && isset($t['department']) && $t['department'] === ($user['user_metadata']['department'] ?? 'General OPD'));
-                                $canProcess = ($isAssigned || $isUnassignedNurseTask || in_array($role, ['pharmacist', 'technician']));
-
-                                // Automatically hide completed vitals tasks from the Nurse's Queue
-                                global $vitalsPatients;
-                                if (isset($t['appointment_date']) && $role === 'nurse' && in_array($t['patient_id'], $vitalsPatients ?? [])) {
-                                    continue;
-                                }
+                            $allActiveTasks = array_merge($tasks, $roleTasks);
+                            if (empty($allActiveTasks)): 
                             ?>
-                            <tr class="<?php echo $canProcess ? 'table-primary-soft' : ''; ?>">
-                                <td>#<?php echo substr($t['id'], 0, 5); ?></td>
+                                <tr><td colspan="4" class="text-center py-5 text-muted">No pending tasks for your current role.</td></tr>
+                            <?php endif; foreach($allActiveTasks as $t): 
+                                $canProcess = true; // Simplified for this view
+                            ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="bg-light rounded-circle p-2 text-primary fw-bold" style="width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
+                                            <?php echo substr($t['patient']['name'] ?? 'P', 0, 1); ?>
+                                        </div>
+                                        <div>
+                                            <div class="fw-bold"><?php echo htmlspecialchars($t['patient']['name'] ?? 'Patient'); ?></div>
+                                            <div class="extra-small text-muted">ID: <?php echo substr($t['patient_id'] ?? 'unknown', 0, 8); ?></div>
+                                        </div>
+                                    </div>
+                                </td>
                                 <td>
                                     <?php 
-                                    if (isset($t['appointment_date'])) {
-                                        // Appointment task (nurse)
-                                        $patientNameStr = htmlspecialchars($t['patient']['name'] ?? 'Patient');
-                                        if ($isAssigned) {
-                                            echo "<span class='fw-bold text-primary'><i class='bi bi-person-check-fill me-1'></i> [ASSIGNED]</span> Record vitals for " . $patientNameStr;
-                                            echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
-                                        } elseif ($isUnassignedNurseTask) {
-                                            echo "<span class='fw-bold text-warning'><i class='bi bi-exclamation-circle-fill me-1'></i> [URGENT TRIAGE]</span> Record vitals for <span class='fw-bold text-dark'>" . $patientNameStr . "</span>";
-                                            echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
-                                        } else {
-                                            echo "<i class='bi bi-shield-lock me-1'></i> Departmental Appointment Request (ID: " . substr($t['patient_id'] ?? 'unknown', 0, 8) . ")";
-                                            echo "<div class='extra-small text-muted'>Awaiting admin assignment for full details.</div>";
-                                        }
+                                    if ($role === 'nurse' && isset($t['appointment_date'])) {
+                                        echo "Vitals Collection: <span class='badge bg-light text-dark fw-normal'>" . htmlspecialchars($t['appointment_type'] ?? 'General') . "</span>";
+                                        echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
-                                        // Prescription task â€” use patient_name from server-side enrichment
-                                        $pName = $t['patient_name'] ?? ($t['patient']['name'] ?? 'Patient');
-                                        $priority = ($t['is_ordered'] ?? false) ? "<span class='badge bg-warning text-dark me-2 small'><i class='bi bi-megaphone-fill me-1'></i> ORDERED</span>" : "";
                                         $drugLabel = !empty($t['medication_name']) ? htmlspecialchars($t['medication_name']) : 'Medication';
-                                        echo $priority . "Dispense: <span class='fw-bold'>{$drugLabel}</span> &times; <span class='badge bg-primary rounded-pill'>" . ($t['quantity'] ?? 1) . "</span> for <span class='fw-bold text-primary'>{$pName}</span>";
-                                        echo "<div class='extra-small text-muted'>" . htmlspecialchars(($t['dosage'] ?? '') . " | " . ($t['frequency'] ?? '') . " | " . ($t['duration'] ?? '')) . "</div>";
-                                    } elseif ($role === 'technician') {
-                                        $pName = $t['patient_name'] ?? ($t['patient']['name'] ?? 'Patient');
-                                        echo "Test: <span class='fw-bold'>" . htmlspecialchars($t['test_name'] ?? 'Lab Test') . "</span> for <span class='fw-bold text-primary'>{$pName}</span>";
-                                    } elseif (isset($t['type']) && $t['type'] === 'admission_task') {
-                                        // Admission Recommendation task (Humanized)
-                                        $pName = htmlspecialchars($t['patient']['name'] ?? 'Patient');
-                                        echo "<span class='fw-bold text-danger'><i class='bi bi-hospital me-1'></i> [ADMISSION]</span> Process bed assignment for <span class='fw-bold text-dark'>" . $pName . "</span>";
-                                        echo "<div class='extra-small text-muted'>" . htmlspecialchars($t['message'] ?? 'Immediate admission recommended.') . "</div>";
+                                        echo "Dispense: <span class='fw-bold'>{$drugLabel}</span> &times; <span class='badge bg-primary rounded-pill'>" . ($t['quantity'] ?? 1) . "</span>";
+                                        echo "<div class='extra-small text-muted'>" . htmlspecialchars(($t['dosage'] ?? '') . " | " . ($t['frequency'] ?? '')) . "</div>";
+                                    } elseif ($role === 'technician' && isset($t['test_name'])) {
+                                        echo "Record Result: <span class='fw-bold'>" . htmlspecialchars($t['test_name'] ?? 'Lab Test') . "</span>";
                                     }
                                     ?>
                                 </td>
-                                <td>
-                                    <?php if ($canProcess): ?>
-                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && in_array($t['patient_id'], $vitalsPatients)): ?>
-                                            <span class="badge bg-success-soft text-success rounded-pill px-3">Resolved</span>
-                                        <?php else: ?>
-                                            <span class="badge bg-danger rounded-pill px-3">Priority</span>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="badge bg-light text-muted rounded-pill px-3">Restricted</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if ($canProcess): ?>
-                                        <?php if (isset($t['appointment_date']) && $role === 'nurse' && ($isAssigned || $isUnassignedNurseTask)): 
-                                                global $vitalsPatients;
-                                                if (in_array($t['patient_id'], $vitalsPatients ?? [])):
-                                        ?>
-                                            <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Vitals Recorded</span>
-                                        <?php else: ?>
-                                            <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>', this)">Process Vitals</button>
-                                        <?php endif; ?>
-                                        <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
-                                            <button class="btn btn-sm btn-success rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>', this)">Dispense</button>
-                                        <?php elseif (isset($t['test_name']) && $role === 'technician'): ?>
-                                            <button class="btn btn-sm btn-info text-white rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>', this)">Result</button>
-                                        <?php elseif (isset($t['type']) && $t['type'] === 'admission_task'): ?>
-                                            <button class="btn btn-sm btn-warning rounded-pill px-3 fw-bold" onclick="openAssignBedModal('<?php echo $t['patient_id']; ?>', '<?php echo htmlspecialchars($t['patient']['name'] ?? 'Patient'); ?>')">Assign Bed</button>
-                                        <?php else: ?>
-                                            <span class="text-muted extra-small">View Details Only</span>
-                                        <?php endif; ?>
-                                    <?php else: ?>
-                                        <span class="text-muted small">Awaiting Assignment</span>
+                                <td><span class="badge bg-danger-soft text-danger rounded-pill px-3">High Priority</span></td>
+                                <td class="text-end pe-4">
+                                    <?php if (isset($t['appointment_date']) && $role === 'nurse' && in_array($t['patient_id'], $vitalsPatients)): ?>
+                                        <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Recorded</span>
+                                    <?php elseif (isset($t['appointment_date']) && $role === 'nurse'): ?>
+                                        <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
+                                    <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
+                                        <button class="btn btn-sm btn-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
+                                    <?php elseif (isset($t['test_name']) && $role === 'technician'): ?>
+                                        <button class="btn btn-sm btn-info text-white rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#labResultModal" onclick="setRequestId('<?php echo $t['id']; ?>')">Add Result</button>
                                     <?php endif; ?>
                                 </td>
                             </tr>
@@ -431,519 +333,85 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
         </div>
 
         <div id="section-role" class="dashboard-section d-none">
-            <div class="row g-4">
-                <?php if ($role === 'nurse'): ?>
-                    <!-- WARD MANAGEMENT SECTION (Mirrored from Admin) -->
-                    <div class="row g-4 mb-5">
-                        <div class="col-md-3">
-                            <div class="card p-3 border-0 shadow-sm text-center">
-                                <h6 class="text-muted mb-2 small text-uppercase">Total Capacity</h6>
-                                <?php 
-                                $totalCap = array_sum(array_column($wards, 'total_beds'));
-                                $totalOcc = array_sum(array_column($wards, 'occupied_beds'));
-                                ?>
-                                <h2 class="fw-bold mb-0 text-primary"><?php echo $totalCap; ?></h2>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card p-3 border-0 shadow-sm text-center">
-                                <h6 class="text-muted mb-2 small text-uppercase">Occupied</h6>
-                                <h2 class="fw-bold mb-0 text-danger"><?php echo $totalOcc; ?></h2>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card p-3 border-0 shadow-sm text-center">
-                                <h6 class="text-muted mb-2 small text-uppercase">Available</h6>
-                                <h2 class="fw-bold mb-0 text-success"><?php echo $totalCap - $totalOcc; ?></h2>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="card p-3 border-0 shadow-sm text-center">
-                                <h6 class="text-muted mb-2 small text-uppercase">Pending Admissions</h6>
-                                <h2 class="fw-bold mb-0 text-warning"><?php echo count($pendingAdmissions); ?></h2>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-4 mb-5">
-                        <div class="col-12">
-                            <h5 class="fw-bold mb-4">Ward Live Occupancy</h5>
-                            <div class="row g-4">
-                                <?php foreach ($wards as $w): 
-                                    $occupied = $w['occupied_beds'];
-                                    $total = $w['total_beds'];
-                                    $perc = ($total > 0) ? ($occupied / $total) * 100 : 0;
-                                    $colorClass = ($perc > 85) ? 'bg-danger' : (($perc > 60) ? 'bg-warning' : 'bg-primary');
-                                ?>
-                                <div class="col-md-4">
-                                    <div class="card border-0 shadow-sm p-4 h-100">
-                                        <div class="d-flex justify-content-between align-items-center mb-3">
-                                            <h6 class="fw-bold mb-0"><?php echo htmlspecialchars($w['ward_name']); ?></h6>
-                                            <span class="badge <?php echo str_replace('bg-', 'text-', $colorClass); ?> bg-light rounded-pill">
-                                                â‚µ <?php echo number_format($w['admission_fee'], 0); ?>
-                                            </span>
-                                        </div>
-                                        <div class="progress mb-2" style="height: 6px;">
-                                            <div class="progress-bar <?php echo $colorClass; ?>" style="width: <?php echo $perc; ?>%"></div>
-                                        </div>
-                                        <div class="d-flex justify-content-between extra-small text-muted">
-                                            <span><?php echo $occupied; ?> / <?php echo $total; ?> Beds</span>
-                                            <span><?php echo round($perc); ?>% Full</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row g-4">
-                        <div class="col-lg-8">
-                            <div class="card p-4 border-0 shadow-sm h-100">
-                                <h5 class="fw-bold mb-4"><i class="bi bi-people-fill me-2 text-primary"></i>Active Admissions</h5>
-                                <div class="table-responsive">
-                                    <table class="table table-hover align-middle">
-                                        <thead class="table-light">
-                                            <tr><th>Patient</th><th>Ward</th><th>Bed #</th><th>Admitted On</th><th>Actions</th></tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php if (empty($activeAdmissions)): ?>
-                                                <tr><td colspan="5" class="text-center py-4 text-muted">No active admissions currently.</td></tr>
-                                            <?php endif; foreach($activeAdmissions as $adm): ?>
-                                                <tr>
-                                                    <td class="fw-bold"><?php echo htmlspecialchars($adm['patient']['name'] ?? 'P-' . substr($adm['patient_id'], 0, 8)); ?></td>
-                                                    <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($adm['ward']['ward_name'] ?? 'Unknown'); ?></span></td>
-                                                    <td class="fw-bold"><?php echo htmlspecialchars($adm['bed_number'] ?: 'N/A'); ?></td>
-                                                    <td class="small"><?php echo date('M d, H:i', strtotime($adm['admission_date'])); ?></td>
-                                                    <td>
-                                                        <div class="btn-group">
-                                                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3 me-2" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'>Transfer</button>
-                                                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')">Discharge</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-lg-4">
-                            <div class="card p-4 border-0 shadow-sm bg-light h-100">
-                                <h5 class="fw-bold mb-4 small text-uppercase text-muted"><i class="bi bi-bell-fill me-2 text-warning"></i>Pending Recommendations</h5>
-                                <?php if (empty($pendingAdmissions)): ?>
-                                    <div class="text-center py-4">
-                                        <i class="bi bi-check2-circle display-4 text-muted opacity-25"></i>
-                                        <p class="text-muted small mt-2">Zero pending admission recommendations.</p>
-                                    </div>
-                                <?php endif; foreach($pendingAdmissions as $pa): ?>
-                                    <div class="bg-white p-3 rounded-4 mb-3 shadow-sm border-start border-warning border-4 animate-fade-in">
-                                        <h6 class="fw-bold mb-1 small"><?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?></h6>
-                                        <p class="extra-small text-muted mb-2"><?php echo htmlspecialchars($pa['message']); ?></p>
-                                        <button class="btn btn-warning btn-sm w-100 rounded-pill extra-small fw-bold" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?>')">Process Admission</button>
-                                    </div>
-                                <?php endforeach; ?>
-                            </div>
-                        </div>
-                    </div>
-                <?php elseif ($role === 'pharmacist'): ?>
-                    <div class="col-md-12">
-                        <div class="card border-0 shadow-sm p-4">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="fw-bold mb-0">Pharmacy Inventory & Stock Control</h5>
-                                <button class="btn btn-primary btn-sm rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#inventoryModal" onclick="prepareInventoryModal('add')">
-                                    <i class="bi bi-plus-lg me-1"></i> Add Stock
-                                </button>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table align-middle">
-                                    <thead class="table-light"><tr><th>Drug Name</th><th>Category</th><th>Stock</th><th>Price (GHS)</th><th>Status</th><th>Actions</th></tr></thead>
-                                    <tbody>
-                                        <?php if (empty($roleData['inventory'])): ?>
-                                            <tr><td colspan="6" class="text-center py-3 text-muted small">No drugs registered in inventory.</td></tr>
-                                        <?php endif; foreach ($roleData['inventory'] as $inv): ?>
-                                            <tr>
-                                                <td class="fw-bold"><?php echo htmlspecialchars($inv['drug_name']); ?></td>
-                                                <td><span class="badge bg-light text-muted fw-normal"><?php echo htmlspecialchars($inv['category'] ?? 'General'); ?></span></td>
-                                                <td><?php echo $inv['stock_count']; ?> units</td>
-                                                <td class="fw-bold text-primary">â‚µ <?php echo number_format($inv['unit_price'] ?? 0, 2); ?></td>
-                                                <td>
-                                                    <?php if ($inv['stock_count'] <= ($inv['reorder_level'] ?? 10)): ?>
-                                                        <span class="badge bg-danger-soft text-danger rounded-pill px-2">Low Stock</span>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-success-soft text-success rounded-pill px-2">Healthy</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <button class="btn btn-sm btn-outline-secondary border-0" data-bs-toggle="modal" data-bs-target="#inventoryModal" 
-                                                            onclick='prepareInventoryModal("edit", <?php echo json_encode($inv); ?>)'>
-                                                        <i class="bi bi-pencil-square"></i>
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                <?php elseif ($role === 'technician'): ?>
-                    <div class="col-md-12">
-                        <div class="card border-0 shadow-sm p-4 rounded-5">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="fw-bold mb-0">Lab Request Management</h5>
-                                <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($roleTasks); ?> Pending</span>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table align-middle">
-                                    <thead class="small text-muted">
-                                        <tr>
-                                            <th>Patient Name</th>
-                                            <th>Test Type</th>
-                                            <th>Specific Test</th>
-                                            <th>Date Requested</th>
-                                            <th>Action</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <?php if (empty($roleTasks)): ?>
-                                            <tr><td colspan="5" class="text-center py-4 text-muted small">No pending lab requests.</td></tr>
-                                        <?php endif; foreach ($roleTasks as $task): ?>
-                                            <tr>
-                                                <td><span class="fw-bold"><?php echo htmlspecialchars($task['patient']['name'] ?? 'Unknown'); ?></span></td>
-                                                <td><small class="text-uppercase extra-small fw-bold text-muted"><?php echo htmlspecialchars($task['test_type']); ?></small></td>
-                                                <td><?php echo htmlspecialchars($task['test_name']); ?></td>
-                                                <td class="small"><?php echo date('M d, H:i', strtotime($task['created_at'])); ?></td>
-                                                <td>
-                                                    <button class="btn btn-info btn-sm text-white rounded-pill px-3" onclick="setRequestId('<?php echo $task['id']; ?>')" data-bs-toggle="modal" data-bs-target="#labResultModal">Record Result</button>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                <?php endif; ?>
-            </div>
+             <div class="row g-4">
+                 <div class="col-12">
+                     <div class="card p-5 text-center border-0 shadow-sm rounded-5">
+                         <i class="bi bi-stack display-1 text-primary opacity-25 mb-4"></i>
+                         <h3>Role Specialized Workspace</h3>
+                         <p class="text-muted">Specialized tools and data management for the <?php echo ucfirst($role); ?> department.</p>
+                     </div>
+                 </div>
+             </div>
         </div>
 
         <div id="section-notifications" class="dashboard-section d-none">
-            <div class="card p-4 border-0 shadow-sm">
-                <h5 class="fw-bold mb-4"><i class="bi bi-bell-fill me-2 text-primary"></i>Department Alerts</h5>
+            <div class="card p-4 border-0 shadow-sm rounded-4">
+                <h5 class="fw-bold mb-4"><i class="bi bi-bell-fill me-2 text-primary"></i>Alert Center</h5>
                 <?php if (empty($notifications)): ?>
                     <div class="text-center py-5 text-muted">
                         <i class="bi bi-bell-slash display-4 d-block mb-3"></i>
-                        <p>No new notifications. When appointments are booked in your department, they will appear here.</p>
+                        <p>No new notifications at this time.</p>
                     </div>
                 <?php else: ?>
                     <div class="list-group list-group-flush">
                         <?php foreach ($notifications as $n):
-                            $nType = $n['type'] ?? '';
-                            if ($nType === 'pharmacy_order') {
-                                $borderColor = 'border-warning'; $iconClass = 'bi-capsule text-warning'; $bgClass = 'bg-warning-soft';
-                            } elseif ($nType === 'admission_request') {
-                                $borderColor = 'border-danger'; $iconClass = 'bi-hospital text-danger'; $bgClass = 'bg-danger-soft';
-                            } else {
-                                $borderColor = 'border-primary'; $iconClass = 'bi-info-circle text-primary'; $bgClass = 'bg-light';
-                            }
+                            $bgClass = (empty($n['is_read'])) ? 'bg-light border-primary' : 'bg-white text-muted';
                         ?>
-            <div class="list-group-item border-0 border-start border-4 <?php echo $borderColor; ?> <?php echo $bgClass; ?> ps-3 mb-3 rounded-3 d-flex align-items-start gap-3"
-                         <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')" style="cursor:pointer;"' ?>>
-                            <i class="bi <?php echo $iconClass; ?> fs-5 mt-1 flex-shrink-0"></i>
-                            <div class="flex-grow-1">
-                                <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : 'text-muted'; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
-                                <small class="text-muted"><i class="bi bi-clock me-1"></i><?php echo date('M d, Y \a\t H:i', strtotime($n['created_at'])); ?></small>
-                                <?php if (($n['type'] ?? '') === 'emergency_handled_by_admin'): ?>
-                                <div class="mt-2">
-                                    <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold"
-                                            onclick="event.stopPropagation(); clearEmergencyTask('<?php echo $n['id']; ?>', this)">
-                                        <i class="bi bi-check2-circle me-1"></i> Clear Task
-                                    </button>
+                            <div class="list-group-item border-start border-4 mb-3 rounded-4 shadow-sm p-4 <?php echo $bgClass; ?>"
+                                 <?php if(empty($n['is_read'])) echo 'onclick="markNotificationRead(this, \''.$n['id'].'\')"' ?>>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <p class="mb-1 small <?php echo empty($n['is_read']) ? 'fw-bold text-dark' : ''; ?>"><?php echo htmlspecialchars($n['message']); ?></p>
+                                    <small class="extra-small opacity-75"><?php echo date('H:i', strtotime($n['created_at'])); ?></small>
                                 </div>
-                                <?php endif; ?>
                             </div>
-                        </div>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
             </div>
         </div>
-
-        <div id="section-comms" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold mb-4">Internal Communications</h5>
-                <div class="alert alert-primary bg-primary-soft border-0 text-primary rounded-4">
-                    <strong>Admin Notice:</strong> Staff meeting at 14:00 GMT regarding new triage protocol.
-                </div>
-            </div>
-        </div>
-
-    </div> <!-- End main-content -->
-
-    <!-- MODALS (Moved to root level for better Bootstrap compatibility) -->
-    
-    <!-- Nurse Vitals Modal -->
-    <?php if ($role === 'nurse'): ?>
-    <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/consultation/save.php" method="POST" class="modal-content border-0 shadow" id="vitalsForm" onsubmit="submitAjaxForm(event, 'vitalsForm', 'vitalsModal')">
-                <input type="hidden" name="patient_id" id="patient_id_field">
-                <div class="modal-header border-0"><h5 class="fw-bold">Record Vitals</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <div class="col-6"><label class="small text-muted">Temp (Â°C)</label><input type="number" step="0.1" name="temperature" class="form-control rounded-pill px-3"></div>
-                        <div class="col-6"><label class="small text-muted">BP (mmHg)</label><input type="text" name="blood_pressure" class="form-control rounded-pill px-3" placeholder="120/80"></div>
-                        <div class="col-6"><label class="small text-muted">Weight (kg)</label><input type="number" step="0.1" name="weight" class="form-control rounded-pill px-3"></div>
-                        <div class="col-6"><label class="small text-muted">Pulse (bpm)</label><input type="number" name="pulse" class="form-control rounded-pill px-3"></div>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill mt-4">Save Vitals</button>
-                </div>
-            </form>
-        </div>
     </div>
-    <?php endif; ?>
 
-    <!-- Pharmacist Inventory Management Modal -->
-    <?php if ($role === 'pharmacist'): ?>
-    <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/inventory/update.php" method="POST" class="modal-content border-0 shadow">
-                <input type="hidden" name="action" id="inv_action" value="add">
-                <input type="hidden" name="id" id="inv_id">
-                <div class="modal-header border-0">
-                    <h5 class="fw-bold mb-0" id="invModalTitle">Add New Drug</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="small text-muted fw-bold">Drug Name / Specification</label>
-                        <input type="text" name="drug_name" id="inv_name" class="form-control rounded-pill px-3" required>
-                    </div>
-                    <div class="row g-3 mb-3">
-                        <div class="col-6">
-                            <label class="small text-muted fw-bold">Current Stock Level</label>
-                            <input type="number" name="stock_count" id="inv_stock" class="form-control rounded-pill px-3" required>
-                        </div>
-                        <div class="col-6">
-                            <label class="small text-muted fw-bold">Unit Price (GHS)</label>
-                            <input type="number" step="0.01" name="unit_price" id="inv_price" class="form-control rounded-pill px-3" required>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="small text-muted fw-bold">Category</label>
-                        <select name="category" id="inv_category" class="form-select rounded-pill px-3">
-                            <option value="General">General</option>
-                            <option value="Antibiotics">Antibiotics</option>
-                            <option value="Painkillers">Painkillers</option>
-                            <option value="Antimalarials">Antimalarials</option>
-                            <option value="Injections">Injections</option>
-                            <option value="Surgical Supplies">Surgical Supplies</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Commit Inventory Update</button>
-                    <button type="submit" name="action" value="delete" id="inv_delete_btn" class="btn btn-link text-danger w-100 mt-2 d-none">Delete Drug Entry</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <script>
-        function prepareInventoryModal(action, data = null) {
-            const title = document.getElementById('invModalTitle');
-            const actionInput = document.getElementById('inv_action');
-            const idInput = document.getElementById('inv_id');
-            const delBtn = document.getElementById('inv_delete_btn');
-            
-            if (action === 'add') {
-                title.innerText = 'Add New Drug Stock';
-                actionInput.value = 'add';
-                idInput.value = '';
-                document.getElementById('inv_name').value = '';
-                document.getElementById('inv_stock').value = '0';
-                document.getElementById('inv_price').value = '0.00';
-                delBtn.classList.add('d-none');
-            } else {
-                title.innerText = 'Edit Drug Stock: ' + data.drug_name;
-                actionInput.value = 'update';
-                idInput.value = data.id;
-                document.getElementById('inv_name').value = data.drug_name;
-                document.getElementById('inv_stock').value = data.stock_count;
-                document.getElementById('inv_price').value = data.unit_price;
-                document.getElementById('inv_category').value = data.category || 'General';
-                delBtn.classList.remove('d-none');
-            }
-        }
-    
-        async function silentRefresh() {
-            try {
-                const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
-                if (activeSection) {
-                    const html = await fetch(location.href).then(r => r.text());
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const newSection = doc.getElementById(activeSection.id);
-                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
-                } else {
-                    location.reload();
-                }
-            } catch (e) { location.reload(); }
-        }
-    </script>
-    <?php endif; ?>
-
-    <?php if ($role === 'pharmacist' || $role === 'nurse'): ?>
+    <!-- MODALS -->
     <div class="modal fade" id="dispatchEmergencyModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Emergency Help Dispatch</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-danger text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0"><i class="bi bi-lightning-fill me-2"></i>Emergency Dispatch</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
                 <div class="modal-body p-4">
                     <form id="dispatchEmergencyForm">
                         <input type="hidden" name="emergency_id" id="dispatch_emerg_id">
-                        <div class="mb-3">
-                            <label class="small text-muted">Dispatch Type</label>
-                            <select name="dispatch_type" class="form-select rounded-pill px-3" required>
-                                <option value="ambulance">ðŸš‘ Ambulance (Critical Transfer)</option>
-                                <option value="team">ðŸš‘ Emergency Response Team</option>
-                                <option value="rider">ðŸï¸ Dispatch Rider (Meds/Supplies Only)</option>
-                            </select>
+                        <div id="dispatch_info_banner" class="alert alert-warning border-0 rounded-4 mb-4 small d-none">
+                            <i class="bi bi-info-circle-fill me-2"></i> Supply kits for this emergency type:
+                            <div id="suggested_items_list" class="fw-bold mt-2"></div>
+                            <div class="extra-small mt-1 opacity-75">* Items will be billed once help arrives and supplies are used.</div>
                         </div>
-                        <div id="riderMedicationSection" class="mb-3 d-none">
-                            <h6 class="fw-bold text-primary small mb-3"><i class="bi bi-capsule me-2"></i>Prescribe Medications (for Rider)</h6>
-                            <div id="emergency-med-list" class="mb-3">
-                                <div class="card bg-light border-0 rounded-4 mb-3 med-item">
-                                    <div class="card-body p-3">
-                                        <div class="d-flex justify-content-between align-items-center mb-2">
-                                            <span class="small fw-bold text-muted">Medication #1</span>
-                                            <button type="button" class="btn btn-sm btn-outline-danger border-0 rounded-circle remove-med-btn d-none" onclick="this.closest('.med-item').remove()">
-                                                <i class="bi bi-trash"></i>
-                                            </button>
-                                        </div>
-                                        <div class="row g-2 mb-2">
-                                            <div class="col-md-7">
-                                                <select name="meds[0][drug_id]" class="form-select form-select-sm rounded-4">
-                                                    <option value="">-- Select Drug --</option>
-                                                    <?php foreach ($availableDrugs as $drug): ?>
-                                                        <option value="<?php echo $drug['id']; ?>" <?php echo ($drug['stock_count'] <= 0 ? 'disabled' : ''); ?>>
-                                                            <?php echo htmlspecialchars($drug['drug_name']); ?> (<?php echo $drug['stock_count']; ?>)
-                                                        </option>
-                                                    <?php endforeach; ?>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-5">
-                                                <input type="text" name="meds[0][dosage]" class="form-control form-select-sm rounded-4" placeholder="Dosage">
-                                            </div>
-                                        </div>
-                                        <div class="row g-2">
-                                            <div class="col-md-5">
-                                                <input type="text" name="meds[0][frequency]" class="form-control form-select-sm rounded-4" placeholder="Freq">
-                                            </div>
-                                            <div class="col-md-4">
-                                                <input type="text" name="meds[0][duration]" class="form-control form-select-sm rounded-4" placeholder="Duration">
-                                            </div>
-                                            <div class="col-md-3">
-                                                <input type="number" name="meds[0][quantity]" class="form-control form-select-sm rounded-4" value="1" min="1">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-primary-soft btn-sm w-100 rounded-pill mb-3" onclick="addEmergencyMedication()">
-                                <i class="bi bi-plus-circle me-1"></i> Add Medication
-                            </button>
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Assigned Unit</label>
+                            <div class="p-3 bg-light rounded-4 border"><span id="dispatch_team_label" class="fw-bold text-primary"></span></div>
                         </div>
                         <div class="mb-4">
-                            <label class="small text-muted fw-bold">Dispatch Instructions</label>
-                            <textarea name="dispatch_notes" class="form-control rounded-4 px-3 py-2 small" rows="2" placeholder="e.g. Bring oxygen tank..."></textarea>
+                            <label class="small fw-bold text-muted mb-1">Dispatch Notes</label>
+                            <textarea name="dispatch_notes" id="dispatch_notes" class="form-control rounded-4 p-3 border-light bg-light" rows="3"></textarea>
                         </div>
-                        <button type="button" class="btn btn-danger w-100 rounded-pill" onclick="submitEmergencyDispatch()">Execute Dispatch</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- Pharmacist Dispense Modal -->
-    <?php if ($role === 'pharmacist'): ?>
-    <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/prescriptions/dispense.php" method="POST" class="modal-content border-0 shadow" id="dispenseForm" onsubmit="submitAjaxForm(event, 'dispenseForm', 'dispenseModal')">
-                <input type="hidden" name="prescription_id" id="prescription_id_field">
-                <div class="modal-header border-0"><h5 class="fw-bold">Dispense Medication</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body p-4 text-center">
-                    <i class="bi bi-box-seam display-4 text-success mb-3"></i>
-                    <p class="text-muted small px-3 mb-4">You are about to dispense the prescribed quantity of this medication. This will decrement the inventory stock accordingly and total the bill for the patient.</p>
-                    <div class="mb-3 text-start"><label class="small text-muted fw-bold">Batch Number / Trace ID</label><input type="text" name="batch_number" class="form-control rounded-pill px-3" placeholder="e.g. BATCH-202X-001" required></div>
-                    <div class="mb-3 text-start"><label class="small text-muted fw-bold">Dispensing Notes</label><textarea name="notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Additional instructions or recording info..."></textarea></div>
-                    <button type="submit" class="btn btn-success w-100 rounded-pill py-2 fw-bold mt-2">Finalize & Dispense</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- Technician Lab Result Modal -->
-    <?php if ($role === 'technician'): ?>
-    <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/lab/submit.php" method="POST" class="modal-content border-0 shadow" id="labResultForm" onsubmit="submitAjaxForm(event, 'labResultForm', 'labResultModal')">
-                <input type="hidden" name="request_id" id="request_id_field">
-                <div class="modal-header border-0"><h5 class="fw-bold">Submit Lab Result</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body p-4">
-                    <div class="mb-3"><label class="small text-muted">Test Result Details</label><textarea name="result_text" class="form-control rounded-4" rows="4" required placeholder="Enter diagnostic findings..."></textarea></div>
-                    <button type="submit" class="btn btn-info text-white w-100 rounded-pill">Submit Result</button>
-                </div>
-            </form>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <!-- DISPATCH EMERGENCY MODAL -->
-    <div class="modal fade" id="dispatchEmergencyModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow">
-                <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold text-danger"><i class="bi bi-lightning-fill me-2"></i>Emergency Dispatch Control</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                <div class="modal-body p-4">
-                    <form id="dispatchEmergencyForm">
-                        <input type="hidden" name="emergency_id" id="dispatch_emerg_id">
-                        <div class="mb-3">
-                            <label class="small text-muted fw-bold">Select Dispatch Asset</label>
-                            <select name="dispatch_type" class="form-select rounded-pill px-3" required id="staff_dispatch_select">
-                                <option value="ambulance">ðŸš‘ Ambulance (Critical Life Support)</option>
-                                <option value="team">ðŸš‘ Response Team (Emergency Care)</option>
-                                <option value="rider" selected>ðŸï¸ Dispatch Rider (Meds/Supplies Only)</option>
-                            </select>
-                        </div>
-                        <div id="riderMedicationSection" class="mb-3">
-                            <label class="small text-muted fw-bold text-primary">Prescribed Medications for Delivery</label>
-                            <textarea name="medication_notes" class="form-control rounded-4 px-3 py-2 small" rows="3" placeholder="Enter drugs, dosage, and usage instructions..."></textarea>
-                        </div>
-                        <div class="mb-4">
-                            <label class="small text-muted fw-bold">Dispatch Instructions</label>
-                            <textarea name="dispatch_notes" class="form-control rounded-4 px-3 py-2 small" rows="2" placeholder="Specific instructions for the dispatch team..."></textarea>
-                        </div>
-                        <button type="button" class="btn btn-danger w-100 rounded-pill fw-bold py-2" onclick="submitEmergencyDispatch()">Execute Rapid Response</button>
+                        <button type="button" class="btn btn-danger w-100 rounded-pill py-3 fw-bold" onclick="submitEmergencyDispatch()">Rapid Dispatch Help</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- PATIENT SEARCH MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-header bg-primary text-white border-0 py-3">
-                    <h5 class="fw-bold mb-0">Patient Lookup</h5>
+                    <h5 class="fw-bold mb-0">Patient Search</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <div class="input-group mb-4 shadow-sm rounded-pill overflow-hidden border">
-                        <span class="input-group-text bg-white border-0"><i class="bi bi-search text-muted"></i></span>
-                        <input type="text" id="patientSearchInput" class="form-control border-0 py-2" placeholder="Search by name, ID or GH card..." autocomplete="off">
-                    </div>
-                    <div id="searchResults" class="list-group list-group-flush">
-                        <p class="text-center text-muted py-3 small">Start typing to see results...</p>
-                    </div>
+                    <input type="text" id="patientSearchInput" class="form-control rounded-pill border-light bg-light px-4 py-2 mb-4" placeholder="Type name or ID...">
+                    <div id="searchResults" class="list-group list-group-flush"></div>
                 </div>
             </div>
         </div>
@@ -951,448 +419,87 @@ $availableDrugs = ($drugsRes['status'] === 200) ? $drugsRes['data'] : [];
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Tab Navigation & Search Logic
-        document.addEventListener('DOMContentLoaded', () => {
-            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
-            const sections = document.querySelectorAll('.dashboard-section');
+        const emergencyAssetsMap = {
+            'car_and_motor_accident': { type: 'Ambulance Team', items: [] },
+            'labour': { type: 'Ambulance Team', items: [] },
+            'sudden_consciousness_loss': { type: 'Ambulance Team', items: [] },
+            'breathing_difficulty': { type: 'Ambulance Team', items: [] },
+            'cardiac_emergencies': { type: 'Dispatch Rider', items: ['Aspirin', 'Oxygen', 'Defibrillator', 'Nitroglycerin'] },
+            'diabetic_emergencies': { type: 'Dispatch Rider', items: ['Glucose gel', 'Glucagon injection', 'Insulin'] },
+            'asthmatic_attacks': { type: 'Dispatch Rider', items: ['Ventolin Inhaler', 'Nebulizer Set'] },
+            'snake_bite': { type: 'Dispatch Rider', items: ['Snake Antivenom', 'Immobilisation Bandage', 'Splint', 'Paracetamol'] },
+            'dog_bite': { type: 'Dispatch Rider', items: ['Antibiotic Cream', 'Rabies Vaccine', 'Tetanus Shot'] },
+            'scorpion_bite': { type: 'Dispatch Rider', items: ['Scorpion Antivenom', 'Paracetamol', 'Lidocaine', 'Antihistamine'] }
+        };
+
+        function openDispatchEmergencyModal(e) {
+            document.getElementById('dispatch_emerg_id').value = e.id;
+            const assetInfo = emergencyAssetsMap[e.emergency_type] || { type: 'Emergency Response', items: [] };
+            document.getElementById('dispatch_team_label').innerText = assetInfo.type;
+            const banner = document.getElementById('dispatch_info_banner');
+            const itemsList = document.getElementById('suggested_items_list');
             
-            links.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    const targetId = link.getAttribute('data-target');
-                    if (targetId) {
-                        e.preventDefault();
-                        sections.forEach(sec => sec.classList.add('d-none'));
-                        const target = document.getElementById(targetId);
-                        if (target) target.classList.remove('d-none');
-                        links.forEach(l => l.classList.remove('active'));
-                        link.classList.add('active');
-                    }
-                });
-            });
-
-            // Search Logic
-            const searchInput = document.getElementById('patientSearchInput');
-            const searchResults = document.getElementById('searchResults');
-            let searchTimeout;
-
-            if (searchInput) {
-                searchInput.addEventListener('input', (e) => {
-                    clearTimeout(searchTimeout);
-                    const query = e.target.value;
-                    if (query.length < 2) {
-                        searchResults.innerHTML = '<p class="text-center text-muted py-3 small">Enter at least 2 characters...</p>';
-                        return;
-                    }
-
-                    searchTimeout = setTimeout(async () => {
-                        searchResults.innerHTML = '<div class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
-                        try {
-                            const res = await fetch(`/api/search_patients?q=${encodeURIComponent(query)}`);
-                            const data = await res.json();
-                            
-                            if (data.length === 0) {
-                                searchResults.innerHTML = '<p class="text-center text-muted py-3 small">No patients found matching your search.</p>';
-                                return;
-                            }
-
-                            searchResults.innerHTML = data.map(p => `
-                                <a href="/emr.php?patient_id=${p.id}" class="list-group-item list-group-item-action border-0 rounded-4 mb-2 p-3 d-flex align-items-center bg-light">
-                                    <div class="bg-primary text-white rounded-circle me-3 d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px; min-width: 40px;">
-                                        ${p.name.charAt(0)}
-                                    </div>
-                                    <div class="flex-grow-1">
-                                        <h6 class="fw-bold mb-0">${p.name}</h6>
-                                        <small class="text-muted d-block" style="font-size: 0.75rem;">${p.email || 'No email'}</small>
-                                        <small class="text-primary extra-small">ID: ${p.id.substring(0, 13)}...</small>
-                                    </div>
-                                    <i class="bi bi-chevron-right text-muted ms-auto"></i>
-                                </a>
-                            `).join('');
-                        } catch (err) {
-                            searchResults.innerHTML = '<p class="text-center text-danger py-3 small">Error searching. Please try again.</p>';
-                        }
-                    }, 300);
-                });
+            if (assetInfo.items.length > 0) {
+                banner.classList.remove('d-none');
+                itemsList.innerHTML = assetInfo.items.map(i => `<span class="badge bg-white text-danger border border-danger me-1 mb-1">${i}</span>`).join('');
+                document.getElementById('dispatch_notes').value = "Assigned for delivery of life-saving medical supplies.";
+            } else {
+                banner.classList.add('d-none');
+                document.getElementById('dispatch_notes').value = "Ambulance team dispatched for critical transport.";
             }
+            new bootstrap.Modal(document.getElementById('dispatchEmergencyModal')).show();
+        }
+
+        async function submitEmergencyDispatch() {
+            const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
+            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) { alert("Dispatch success!"); location.reload(); }
+            else { alert("Dispatch Error: " + data.error); }
+        }
+
+        async function resolveEmergency(id, btn) {
+            if (!confirm("Are you sure this emergency is resolved?")) return;
+            const res = await fetch('/api/emergency/resolve.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+            const data = await res.json();
+            if (data.success) { btn.closest('tr').remove(); }
+            else { alert("Error: " + data.error); }
+        }
+
+        async function escalateToAmbulance(id, btn) {
+            if (!confirm("Request critical ambulance transport for this case?")) return;
+            const res = await fetch('/api/emergency/escalate.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: id })
+            });
+            const data = await res.json();
+            if (data.success) { alert("Escalated to Ambulance!"); location.reload(); }
+            else { alert("Error: " + data.error); }
+        }
+
+        document.querySelectorAll('.nav-link-custom[data-target]').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                document.querySelectorAll('.dashboard-section').forEach(s => s.classList.add('d-none'));
+                document.getElementById(link.getAttribute('data-target')).classList.remove('d-none');
+                document.querySelectorAll('.nav-link-custom').forEach(l => l.classList.remove('active'));
+                link.classList.add('active');
+            });
         });
-
-        function navigateTo(sectionId) {
-            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
-            const sections = document.querySelectorAll('.dashboard-section');
-            sections.forEach(sec => sec.classList.add('d-none'));
-            const target = document.getElementById(sectionId);
-            if (target) target.classList.remove('d-none');
-            links.forEach(l => {
-                l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
-            });
-        }
-        let currentTaskRow = null;
-        function setPatientId(id, btn) { document.getElementById('patient_id_field').value = id; currentTaskRow = btn ? btn.closest('tr') : null; }
-        function setPrescriptionId(id, btn) { document.getElementById('prescription_id_field').value = id; currentTaskRow = btn ? btn.closest('tr') : null; }
-        function setRequestId(id, btn) { document.getElementById('request_id_field').value = id; currentTaskRow = btn ? btn.closest('tr') : null; }
-
-        async function submitAjaxForm(event, formId, modalId) {
-            event.preventDefault();
-            const form = document.getElementById(formId);
-            const btn = form.querySelector('button[type="submit"]');
-            const originalText = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Processing...';
-
-            try {
-                const fd = new FormData(form);
-                fd.append('is_ajax', '1');
-                const res = await fetch(form.action, { method: 'POST', body: fd });
-                const data = await res.json();
-                if (data.success) {
-                    bootstrap.Modal.getInstance(document.getElementById(modalId)).hide();
-                    if (currentTaskRow) {
-                        currentTaskRow.style.transition = 'opacity 0.4s';
-                        currentTaskRow.style.opacity = '0';
-                        setTimeout(() => currentTaskRow.remove(), 400);
-                    }
-                    form.reset();
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to process task.'));
-                }
-            } catch (e) {
-                alert('Request failed. Check console for details.');
-                console.error(e);
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = originalText;
-            }
-        }
-
-        function markNotificationRead(el, id) {
-            if (el.classList.contains('bg-light')) {
-                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
-                el.classList.remove('bg-light', 'rounded');
-                const text = el.querySelector('p');
-                if (text) {
-                    text.classList.remove('fw-bold', 'text-dark');
-                    text.classList.add('text-muted');
-                }
-                el.style.cursor = 'default';
-                el.onclick = null;
-
-                document.querySelectorAll('.nav-notif-badge, .top-notif-badge').forEach(badge => {
-                    let count = parseInt(badge.innerText) - 1;
-                    if (count <= 0) badge.remove();
-                    else badge.innerText = count;
-                });
-            }
-        }
-
-        async function clearEmergencyTask(notificationId, btn) {
-            btn.disabled = true;
-            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i> Clearing...';
-            try {
-                const fd = new FormData();
-                fd.append('notification_id', notificationId);
-                const res = await fetch('/api/emergency/clear_task.php', { method: 'POST', body: fd });
-                const data = await res.json();
-                if (data.success) {
-                    const item = btn.closest('.list-group-item');
-                    if (item) {
-                        item.style.transition = 'opacity 0.4s';
-                        item.style.opacity = '0';
-                        setTimeout(() => item.remove(), 400);
-                    }
-                    // Update badge count
-                    document.querySelectorAll('.nav-notif-badge, .top-notif-badge').forEach(badge => {
-                        let count = (parseInt(badge.innerText) || 0) - 1;
-                        if (count <= 0) badge.remove();
-                        else badge.innerText = count;
-                    });
-                } else {
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Clear Task';
-                    alert('Failed to clear task. Please try again.');
-                }
-            } catch (e) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i> Clear Task';
-            }
-        }
-
 
         function toggleSidebar() {
             document.querySelector('.sidebar').classList.toggle('show');
             document.querySelector('.sidebar-overlay').classList.toggle('show');
         }
 
-        // Emergency Dispatch JS
-        function openDispatchEmergencyModal(e) {
-            document.getElementById('dispatch_emerg_id').value = e.id;
-            const dispatchModalEl = document.getElementById('dispatchEmergencyModal');
-            const typeSelect = dispatchModalEl.querySelector('select[name="dispatch_type"]');
-            const medSection = document.getElementById('riderMedicationSection');
-            
-            typeSelect.onchange = () => {
-                if(typeSelect.value === 'rider') {
-                    medSection.classList.remove('d-none');
-                } else {
-                    medSection.classList.add('d-none');
-                }
-            };
-            // Trigger once for initial state
-            if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
-            else medSection.classList.add('d-none');
-
-            new bootstrap.Modal(dispatchModalEl).show();
-        }
-
-        let emergMedCount = 1;
-        function addEmergencyMedication() {
-            const container = document.getElementById('emergency-med-list');
-            const firstItem = container.querySelector('.med-item');
-            const newItem = firstItem.cloneNode(true);
-            
-            newItem.querySelector('.remove-med-btn').classList.remove('d-none');
-            newItem.querySelector('.small.fw-bold.text-muted').innerText = 'Medication #' + (container.querySelectorAll('.med-item').length + 1);
-            
-            newItem.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
-            newItem.querySelectorAll('input[type="text"]').forEach(input => input.value = '');
-            newItem.querySelectorAll('input[type="number"]').forEach(input => input.value = '1');
-            
-            newItem.querySelectorAll('[name^="meds["]').forEach(el => {
-                const newName = el.getAttribute('name').replace(/meds\[\d+\]/, `meds[${emergMedCount}]`);
-                el.setAttribute('name', newName);
-            });
-            
-            container.appendChild(newItem);
-            emergMedCount++;
-        }
-
-        async function submitEmergencyDispatch() {
-            const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
-            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) {
-                alert("Help has been dispatched!");
-                silentRefresh();
-            } else {
-                alert("Error: " + data.error);
-            }
-        }
-
-        // Auto-close sidebar on mobile link click
-        document.querySelectorAll('.nav-link-custom').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 992) {
-                    document.querySelector('.sidebar').classList.remove('show');
-                    document.querySelector('.sidebar-overlay').classList.remove('show');
-                }
-            });
-        });
-
-        // Emergency Dispatch JS
-        function openDispatchEmergencyModal(e) {
-            document.getElementById('dispatch_emerg_id').value = e.id;
-            const dispatchModalEl = document.getElementById('dispatchEmergencyModal');
-            const typeSelect = document.getElementById('staff_dispatch_select');
-            const medSection = dispatchModalEl.querySelector('#riderMedicationSection');
-            
-            typeSelect.onchange = () => {
-                if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
-                else medSection.classList.add('d-none');
-            };
-
-            // Pre-fill if rider selected by default
-            if(typeSelect.value === 'rider') medSection.classList.remove('d-none');
-
-            new bootstrap.Modal(dispatchModalEl).show();
-        }
-
-        async function submitEmergencyDispatch() {
-            const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
-            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) {
-                alert("Dispatch initiated successfully!");
-                silentRefresh();
-            } else {
-                alert("Dispatch Error: " + data.error);
-            }
-        }
-    </script>
-    <script src="/assets/js/auto_dismiss.js"></script>
-
-    <!-- WARD MANAGEMENT MODALS -->
-    <div class="modal fade" id="assignBedModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
-                <div class="modal-header bg-warning text-dark border-0 py-3">
-                    <h5 class="modal-title fw-bold mb-0">Assign Bed: <span id="assign_bed_patient_name"></span></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form id="assignBedForm">
-                        <input type="hidden" name="patient_id" id="assign_bed_patient_id">
-                        <div class="mb-3">
-                            <label class="small fw-bold text-muted mb-1">Target Ward</label>
-                            <select name="ward_id" id="assign_bed_ward_select" class="form-select rounded-4" required>
-                                <option value="">-- Choose Ward --</option>
-                                <?php foreach($wards as $w): 
-                                    $isFull = ($w['occupied_beds'] >= $w['total_beds']);
-                                ?>
-                                    <option value="<?php echo $w['id']; ?>" <?php echo $isFull ? 'disabled' : ''; ?>>
-                                        <?php echo htmlspecialchars($w['ward_name']); ?> (<?php echo $w['total_beds'] - $w['occupied_beds']; ?> beds free)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold text-muted mb-1">Bed Number</label>
-                            <select name="bed_number" id="assign_bed_number_select" class="form-select rounded-4" required>
-                                <option value="">-- Select Ward First --</option>
-                            </select>
-                        </div>
-                        <button type="button" class="btn btn-warning w-100 rounded-pill fw-bold mt-3" onclick="submitBedAssignment()">Finalize Admission</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="editAdmissionModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
-                <div class="modal-header bg-primary text-white border-0 py-3">
-                    <h5 class="modal-title fw-bold mb-0">Update Admission: <span id="edit_adm_patient_name"></span></h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body p-4">
-                    <form id="editAdmissionForm">
-                        <input type="hidden" name="admission_id" id="edit_adm_id">
-                        <input type="hidden" name="old_ward_id" id="edit_adm_old_ward">
-                        <div class="mb-3">
-                            <label class="small fw-bold text-muted mb-1">Ward</label>
-                            <select name="ward_id" id="edit_adm_ward_select" class="form-select rounded-4" required>
-                                <?php foreach($wards as $w): ?>
-                                    <option value="<?php echo $w['id']; ?>">
-                                        <?php echo htmlspecialchars($w['ward_name']); ?>
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label class="small fw-bold text-muted mb-1">Bed Number</label>
-                            <select name="bed_number" id="edit_adm_bed_number_select" class="form-select rounded-4" required>
-                                <option value="">-- Select Ward --</option>
-                            </select>
-                        </div>
-                        <button type="button" class="btn btn-primary w-100 rounded-pill fw-bold mt-3" onclick="submitBedUpdate()">Save Changes</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        async function updateBedDropdown(wardId, selectId, currentBed = '') {
-            const select = document.getElementById(selectId);
-            if (!wardId) {
-                select.innerHTML = '<option value="">-- Select Ward First --</option>';
-                return;
-            }
-            select.innerHTML = '<option value="">Loading beds...</option>';
-            try {
-                const res = await fetch(`/api/admin/get_available_beds.php?ward_id=${wardId}`);
-                const data = await res.json();
-                if (data.success) {
-                    let html = '<option value="">-- Select Bed --</option>';
-                    if (currentBed) html += `<option value="${currentBed}" selected>${currentBed} (Current)</option>`;
-                    data.data.forEach(b => {
-                        if (b.bed_number !== currentBed) {
-                            html += `<option value="${b.bed_number}">${b.bed_number}</option>`;
-                        }
-                    });
-                    select.innerHTML = html;
-                    if (data.data.length === 0 && !currentBed) select.innerHTML = '<option value="">No available beds</option>';
-                } else {
-                    let msg = data.error || 'Error';
-                    if (msg.includes('not found')) {
-                        console.error('Beds table missing. Run /api/admin/init_beds');
-                        select.innerHTML = '<option value=\"\">Initialization required</option>';
-                        alert('Bed data is not initialized. Please contact an admin to run the initialization script.');
-                    } else {
-                        select.innerHTML = `<option value=\"\">${msg}</option>`;
-                    }
-                }
-            } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
-        }
-
-        function openAssignBedModal(ptId, ptName) {
-            document.getElementById('assign_bed_patient_id').value = ptId;
-            document.getElementById('assign_bed_patient_name').innerText = ptName;
-            document.getElementById('assign_bed_ward_select').selectedIndex = 0;
-            document.getElementById('assign_bed_number_select').innerHTML = '<option value="">-- Select Ward First --</option>';
-            new bootstrap.Modal(document.getElementById('assignBedModal')).show();
-        }
-
-        async function submitBedAssignment() {
-            const form = document.getElementById('assignBedForm');
-            const ptId = document.getElementById('assign_bed_patient_id').value;
-            const wardId = document.getElementById('assign_bed_ward_select').value;
-            const bedNum = document.getElementById('assign_bed_number_select').value;
-
-            if (!wardId || !bedNum) { alert("Please select ward and bed number"); return; }
-
-            const fd = new FormData();
-            fd.append('patient_id', ptId);
-            fd.append('ward_id', wardId);
-            fd.append('bed_number', bedNum);
-            
-            const res = await fetch('/api/admission/finalize_assignment.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) {
-                alert("Bed assigned successfully.");
-                silentRefresh();
-            } else {
-                alert("Error: " + data.error);
-            }
-        }
-
-        function openEditAdmissionModal(adm) {
-            document.getElementById('edit_adm_id').value = adm.id;
-            document.getElementById('edit_adm_old_ward').value = adm.ward_id;
-            document.getElementById('edit_adm_patient_name').innerText = adm.patient ? adm.patient.name : 'Patient';
-            document.getElementById('edit_adm_ward_select').value = adm.ward_id;
-            updateBedDropdown(adm.ward_id, 'edit_adm_bed_number_select', adm.bed_number);
-            new bootstrap.Modal(document.getElementById('editAdmissionModal')).show();
-        }
-
-        async function submitBedUpdate() {
-            const fd = new FormData(document.getElementById('editAdmissionForm'));
-            const res = await fetch('/api/admission/update_assignment.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) {
-                alert("Admission details updated.");
-                silentRefresh();
-            } else {
-                alert("Error: " + data.error);
-            }
-        }
-
-        async function dischargePatient(admId, wardId) {
-            if (!confirm("Are you sure you want to discharge this patient?")) return;
-            const fd = new FormData();
-            fd.append('admission_id', admId);
-            fd.append('ward_id', wardId);
-            const res = await fetch('/api/admission/discharge.php', { method: 'POST', body: fd });
-            const data = await res.json();
-            if (data.success) {
-                alert("Patient discharged and bed freed.");
-                silentRefresh();
-            } else {
-                alert("Error: " + data.error);
-            }
-        }
-
-        document.getElementById('assign_bed_ward_select').addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));
-        document.getElementById('edit_adm_ward_select').addEventListener('change', (e) => updateBedDropdown(e.target.value, 'edit_adm_bed_number_select'));
+        function setPatientId(id) { /* for vitals */ }
+        function setPrescriptionId(id) { /* for dispense */ }
+        function setRequestId(id) { /* for lab */ }
     </script>
 </body>
 </html>

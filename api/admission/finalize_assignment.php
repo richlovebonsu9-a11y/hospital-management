@@ -13,6 +13,7 @@ if (!in_array($role, ['admin', 'doctor', 'nurse'])) { exit; }
 $patientId = $_POST['patient_id'] ?? '';
 $wardId = $_POST['ward_id'] ?? '';
 $bedNumber = $_POST['bed_number'] ?? '';
+$anticipatedDays = max(1, (int)($_POST['anticipated_days'] ?? 1));
 
 if (!$patientId || !$wardId) {
     echo json_encode(['success' => false, 'error' => 'Missing data']);
@@ -27,7 +28,8 @@ $admRes = $sb->request('POST', '/rest/v1/admissions', [
     'ward_id' => $wardId,
     'bed_number' => $bedNumber,
     'status' => 'active',
-    'assigned_by' => $u['id']
+    'assigned_by' => $u['id'],
+    'anticipated_days' => $anticipatedDays
 ], true);
 
 if ($admRes['status'] === 201 || $admRes['status'] === 200) {
@@ -58,17 +60,19 @@ if ($admRes['status'] === 201 || $admRes['status'] === 200) {
         }
 
         if ($invoiceId) {
-            $fee = (float)$wInfo['admission_fee'];
+            $dailyRate = (float)$wInfo['admission_fee'];
+            $totalFee = $dailyRate * $anticipatedDays;
+
             $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=ghana_card,nhis_membership_number', null, true);
             $pData = ($profileRes['status'] === 200 && !empty($profileRes['data'])) ? $profileRes['data'][0] : [];
             $hasNHIS = (!empty($pData['ghana_card']) && !empty($pData['nhis_membership_number']));
-            $chargedFee = $fee * ($hasNHIS ? 0.5 : 1.0);
+            $chargedFee = $totalFee * ($hasNHIS ? 0.5 : 1.0);
 
             $sb->request('POST', '/rest/v1/invoice_items', [
                 'invoice_id' => $invoiceId,
-                'description' => 'Admission Fee: ' . $wInfo['ward_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
+                'description' => 'Admission Fee (' . $anticipatedDays . ' days): ' . $wInfo['ward_name'] . ($hasNHIS ? ' (NHIS 50% Off)' : ''),
                 'quantity' => 1,
-                'unit_price' => $fee,
+                'unit_price' => $totalFee,
                 'amount' => $chargedFee
             ], true);
             $sb->request('PATCH', '/rest/v1/invoices?id=eq.' . $invoiceId, ['total_amount' => $currentTotal + $chargedFee], true);

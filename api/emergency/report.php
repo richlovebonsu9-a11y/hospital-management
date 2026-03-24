@@ -3,47 +3,54 @@ session_start();
 require_once __DIR__ . '/../../src/lib/Supabase.php';
 use App\Lib\Supabase;
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') { header('Location: /emergency'); exit; }
+header('Content-Type: application/json');
 
-$sb = new Supabase();
-$userId = null;
-if (isset($_COOKIE['sb_user'])) {
-    $u = json_decode($_COOKIE['sb_user'], true);
-    $userId = $u['id'] ?? null;
-}
-
-$severity      = trim($_POST['severity'] ?? '');
-$symptoms      = trim($_POST['symptoms'] ?? '');
-$ghanaPostGps  = trim($_POST['ghana_post_gps'] ?? '');
-
-if (!$severity || !$ghanaPostGps) {
-    header('Location: /emergency?error=missing_fields'); exit;
-}
-
-$body = [
-    'reporter_id'    => $userId,
-    'ghana_post_gps' => $ghanaPostGps,
-    'severity'       => $severity,
-    'symptoms'       => $symptoms,
-    'status'         => 'pending', // Use standard status to avoid constraint issues if SQL wasn't run
-];
-$res = $sb->request('POST', '/rest/v1/emergencies', $body, true, ['Prefer' => 'return=representation']);
-$emergencyId = $res['data'][0]['id'] ?? null;
-
-if (!$emergencyId) {
-    $err = urlencode($res['data']['message'] ?? 'unknown_db_error');
-    header("Location: /emergency?error=failed&msg={$err}&status={$res['status']}");
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['success' => false, 'error' => 'Invalid request method']);
     exit;
 }
 
-// Notify admins (best-effort — insert notification row)
-if ($emergencyId) {
-    $sb->request('POST', '/rest/v1/notifications', [
-        'user_id' => null, // broadcast — admin queries unread
-        'message' => "🚨 New emergency ({$severity}) reported at {$ghanaPostGps}. ID: {$emergencyId}",
-    ]);
+$sb = new Supabase();
+$patientId = $_SESSION['user_id'] ?? null;
+
+if (!$patientId) {
+    echo json_encode(['success' => false, 'error' => 'User not logged in']);
+    exit;
 }
 
-$redirect = $emergencyId ? "/emergency_tracking?id={$emergencyId}" : '/emergency?error=failed';
-header('Location: ' . $redirect);
-exit;
+$emergencyType = $_POST['emergency_type'] ?? 'general';
+$location = $_POST['location'] ?? 'N/A';
+$gps = $_POST['gps'] ?? 'N/A';
+$symptoms = $_POST['symptoms'] ?? 'No symptoms reported';
+
+$data = [
+    'reporter_id' => $patientId,
+    'emergency_type' => $emergencyType,
+    'location' => $location,
+    'ghana_post_gps' => $gps,
+    'symptoms' => $symptoms,
+    'status' => 'pending'
+];
+
+$res = $sb->request('POST', '/rest/v1/emergencies', $data, true);
+
+if ($res['status'] >= 200 && $res['status'] < 300) {
+    // 1. Notify Admins
+    $sb->request('POST', '/rest/v1/notifications', [
+        'role' => 'admin',
+        'message' => "HIGH ALERT: A " . str_replace('_', ' ', $emergencyType) . " emergency has been reported at " . $location . ".",
+        'type' => 'emergency_alert'
+    ], true);
+
+    // 2. Specialized Routing Notifications (for Task Queue)
+    $teamRole = in_array($emergencyType, ['car_and_motor_accident', 'labour', 'sudden_consciousness_loss', 'breathing_difficulty']) ? 'ambulance' : 'dispatch_rider';
+    $sb->request('POST', '/rest/v1/notifications', [
+        'role' => $teamRole,
+        'message' => "NEW ASSIGNMENT: Urgent " . str_replace('_', ' ', $emergencyType) . " reported.",
+        'type' => 'emergency_alert'
+    ], true);
+
+    echo json_encode(['success' => true]);
+} else {
+    echo json_encode(['success' => false, 'error' => $res['data']['message'] ?? 'Failed to report emergency']);
+}
