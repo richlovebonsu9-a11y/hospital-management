@@ -18,7 +18,7 @@ ALTER TABLE emergencies ADD COLUMN IF NOT EXISTS escalation_required BOOLEAN DEF
 ALTER TABLE emergencies ADD COLUMN IF NOT EXISTS response_fee DECIMAL(10,2) DEFAULT 0;
 ";
 
-$res = $sb->request('POST', '/rpc/exec_sql', ['sql' => $sql], true);
+$res = $sb->request('POST', '/rest/v1/rpc/exec_sql', ['query' => $sql], true);
 
 if ($res['status'] >= 200 && $res['status'] < 300) {
     echo json_encode(['success' => true, 'message' => 'Emergency system migration successful']);
