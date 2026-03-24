@@ -60,7 +60,7 @@ if ($profilesRes['status'] === 200) {
 $apptCountRes = $sb->request('GET', '/rest/v1/appointments?select=id', null, true);
 $totalAppointments = ($apptCountRes['status'] === 200) ? count($apptCountRes['data']) : 0;
 
-$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?status=in.(active,pending,assigned)&select=*,reporter_id,assigned_to&order=created_at.desc', null, true);
+$emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=*,reporter_id,assigned_to&order=created_at.desc', null, true);
 $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [];
 $emergError = ($emergenciesRes['status'] !== 200) ? ($emergenciesRes['error'] ?? 'Unknown Error') : null;
 
@@ -645,11 +645,20 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                         <span class="badge <?php echo $cls; ?> rounded-pill px-3 text-capitalize"><?php echo $s; ?></span>
                                     </td>
                                     <td>
+                                        <?php 
+                                            $symptomsRaw = $e['symptoms'] ?? '';
+                                            $symptomsParts = explode(' ||VOICE_NOTE|| ', $symptomsRaw);
+                                            $symptomsText = $symptomsParts[0];
+                                            $voiceNoteBase64 = $symptomsParts[1] ?? null;
+                                            
+                                            // Lean JS info
+                                            $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type'], 'symptoms' => $symptomsText];
+                                        ?>
                                         <div class="btn-group shadow-sm rounded-pill overflow-hidden">
-                                            <button class="btn btn-sm btn-light border-end" onclick='openAssignEmergencyModal(<?php echo json_encode($e); ?>)' title="Assign Staff"><i class="bi bi-person-plus text-primary"></i></button>
-                                            <button class="btn btn-sm btn-light border-end" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)' title="Dispatch Help"><i class="bi bi-truck text-danger"></i></button>
+                                            <button class="btn btn-sm btn-light border-end" onclick='openAssignEmergencyModal(<?php echo json_encode($jsInfo); ?>)' title="Assign Staff"><i class="bi bi-person-plus text-primary"></i></button>
+                                            <button class="btn btn-sm btn-light border-end" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)' title="Dispatch Help"><i class="bi bi-truck text-danger"></i></button>
                                             <?php if($e['status'] !== 'resolved'): ?>
-                                                <button class="btn btn-sm btn-light" onclick="resolveEmergency('<?php echo $e['id']; ?>')" title="Resolve"><i class="bi bi-check-circle text-success"></i></button>
+                                                <button class="btn btn-sm btn-light" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)" title="Resolve"><i class="bi bi-check-circle text-success"></i></button>
                                             <?php endif; ?>
                                         </div>
                                     </td>
@@ -1999,14 +2008,15 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         function openAssignEmergencyModal(e) {
             document.getElementById('assign_emerg_id').value = e.id;
             
-            // Parse symptoms and voice note from embedded string
-            const symptomsRaw = e.symptoms || '';
-            const parts = symptomsRaw.split(' ||VOICE_NOTE|| ');
-            const symptomsText = parts[0] || 'No symptoms reported.';
-            const voiceBase64 = parts[1] || null;
-
+            // Text is passed directly now
+            const symptomsText = e.symptoms || 'No symptoms reported.';
             document.getElementById('assign_emerg_context').innerText = symptomsText;
             
+            // Retrieve voice note from the DOM row instead of passing it (reduces payload)
+            const row = document.getElementById('emerg-row-' + e.id);
+            const sourceAudio = row ? row.querySelector('audio source') : null;
+            const voiceBase64 = sourceAudio ? sourceAudio.getAttribute('src') : null;
+
             const audioContainer = document.getElementById('assign_emerg_audio_container');
             const audioPlayer = document.getElementById('assign_emerg_audio_player');
             

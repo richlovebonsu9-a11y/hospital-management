@@ -272,8 +272,10 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                         </td>
                                         <td>
                                             <div class="d-flex gap-2">
-                                                <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): ?>
-                                                    <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)'>
+                                                <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): 
+                                                    $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type']];
+                                                ?>
+                                                    <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
                                                         <i class="bi bi-truck me-1"></i> Dispatch
                                                     </button>
                                                 <?php else: ?>
