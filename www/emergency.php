@@ -66,15 +66,15 @@ session_start();
                             <select name="emergency_type" class="form-select rounded-pill px-4 py-3 border-light bg-light fw-bold" required>
                                 <option value="">-- Choose Situation --</option>
                                 <optgroup label="Ambulance Dispatch Required">
-                                    <option value="car_accident">Car and Motor Accident</option>
+                                    <option value="car_and_motor_accident">Car and Motor Accident</option>
                                     <option value="labour">Labour / Maternity</option>
                                     <option value="sudden_consciousness_loss">Sudden Consciousness Loss</option>
                                     <option value="breathing_difficulty">Breathing Difficulty</option>
                                 </optgroup>
                                 <optgroup label="Dispatch Rider Specialist Needed">
-                                    <option value="cardiac">Cardiac Emergency</option>
-                                    <option value="diabetic">Diabetic Emergency</option>
-                                    <option value="asthmatic">Asthmatic Attack</option>
+                                    <option value="cardiac_emergencies">Cardiac Emergency</option>
+                                    <option value="diabetic_emergencies">Diabetic Emergency</option>
+                                    <option value="asthmatic_attacks">Asthmatic Attack</option>
                                     <option value="snake_bite">Snake Bite</option>
                                     <option value="dog_bite">Dog Bite</option>
                                     <option value="scorpion_bite">Scorpion Bite</option>
