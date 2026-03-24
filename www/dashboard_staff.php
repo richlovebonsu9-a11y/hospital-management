@@ -71,13 +71,24 @@ if ($role === 'nurse') {
 }
 
 // EMERGENCY ROUTING
+$eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=*,reporter:profiles(name)&order=created_at.desc', null, true);
 $myEmergencies = [];
-if ($role === 'ambulance') {
-    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&or=(assigned_to.eq.' . $userId . ',status.eq.pending)&emergency_type=in.(car_and_motor_accident,labour,sudden_consciousness_loss,breathing_difficulty)&select=*&order=created_at.desc', null, true);
-    $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
-} elseif ($role === 'dispatch_rider') {
-    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&or=(assigned_to.eq.' . $userId . ',status.eq.pending)&emergency_type=in.(cardiac_emergencies,diabetic_emergencies,asthmatic_attacks,snake_bite,dog_bite,scorpion_bite)&select=*&order=created_at.desc', null, true);
-    $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
+if ($eRes['status'] === 200 && ($role === 'ambulance' || $role === 'dispatch_rider')) {
+    foreach ($eRes['data'] as $e) {
+        if ($e['assigned_to'] === $userId) {
+            $myEmergencies[] = $e;
+        } elseif ($e['status'] === 'pending') {
+            if ($role === 'ambulance') {
+                if (in_array($e['emergency_type'] ?? '', ['car_and_motor_accident','labour','sudden_consciousness_loss','breathing_difficulty']) || !empty($e['escalation_required'])) {
+                    $myEmergencies[] = $e;
+                }
+            } elseif ($role === 'dispatch_rider') {
+                if (in_array($e['emergency_type'] ?? '', ['cardiac_emergencies','diabetic_emergencies','asthmatic_attacks','snake_bite','dog_bite','scorpion_bite']) && empty($e['escalation_required'])) {
+                    $myEmergencies[] = $e;
+                }
+            }
+        }
+    }
 }
 
 // Notifications

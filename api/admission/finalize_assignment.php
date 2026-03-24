@@ -114,6 +114,8 @@ if ($admRes['status'] === 201 || $admRes['status'] === 200) {
     }
 } else {
     $errorMsg = 'Failed to create admission record';
-    if ($admRes['status'] === 400) { $errorMsg = 'Database error: Column mismatch or invalid ID'; }
+    if ($admRes['status'] === 400) { 
+        $errorMsg = 'Database error: ' . ($admRes['data']['message'] ?? $admRes['data']['error'] ?? 'Column mismatch or invalid ID'); 
+    }
     echo json_encode(['success' => false, 'error' => $errorMsg, 'debug' => $admRes]);
 }

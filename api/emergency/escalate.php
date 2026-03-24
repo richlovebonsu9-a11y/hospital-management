@@ -28,8 +28,7 @@ if (!$emergency) {
 $updateRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, [
     'escalation_required' => true,
     'assigned_to' => null, 
-    'status' => 'pending',
-    'emergency_type' => 'car_and_motor_accident' // Force to ambulance team
+    'status' => 'pending'
 ], true);
 
 if ($updateRes['status'] >= 200 && $updateRes['status'] < 300) {
