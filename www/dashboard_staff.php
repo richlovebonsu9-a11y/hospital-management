@@ -71,22 +71,30 @@ if ($role === 'nurse') {
 }
 
 // EMERGENCY ROUTING
-$eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=*,reporter:profiles(name)&order=created_at.desc', null, true);
+$eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=*&order=created_at.desc', null, true);
 $myEmergencies = [];
 if ($eRes['status'] === 200 && ($role === 'ambulance' || $role === 'dispatch_rider')) {
+    $dispatchTypes = ['cardiac_emergencies','diabetic_emergencies','asthmatic_attacks','snake_bite','dog_bite','scorpion_bite'];
+    $ambulanceTypes = ['car_and_motor_accident','labour','sudden_consciousness_loss','breathing_difficulty'];
+    
     foreach ($eRes['data'] as $e) {
+        $etype = $e['emergency_type'] ?? '';
+        $estatus = $e['status'] ?? '';
+        $isEscalated = !empty($e['escalation_required']);
+        
+        // Always show if directly assigned to this user
         if ($e['assigned_to'] === $userId) {
             $myEmergencies[] = $e;
-        } elseif ($e['status'] === 'pending') {
-            if ($role === 'ambulance') {
-                if (in_array($e['emergency_type'] ?? '', ['car_and_motor_accident','labour','sudden_consciousness_loss','breathing_difficulty']) || !empty($e['escalation_required'])) {
-                    $myEmergencies[] = $e;
-                }
-            } elseif ($role === 'dispatch_rider') {
-                if (in_array($e['emergency_type'] ?? '', ['cardiac_emergencies','diabetic_emergencies','asthmatic_attacks','snake_bite','dog_bite','scorpion_bite']) && empty($e['escalation_required'])) {
-                    $myEmergencies[] = $e;
-                }
+        // Show pending/unassigned emergencies of the right type
+        } elseif (in_array($estatus, ['pending', 'assigned']) && empty($e['assigned_to'])) {
+            if ($role === 'ambulance' && (in_array($etype, $ambulanceTypes) || $isEscalated)) {
+                $myEmergencies[] = $e;
+            } elseif ($role === 'dispatch_rider' && in_array($etype, $dispatchTypes) && !$isEscalated) {
+                $myEmergencies[] = $e;
             }
+        // Show escalated emergencies to ambulance even if assigned to dispatch
+        } elseif ($role === 'ambulance' && $isEscalated && in_array($estatus, ['pending','assigned'])) {
+            $myEmergencies[] = $e;
         }
     }
 }
