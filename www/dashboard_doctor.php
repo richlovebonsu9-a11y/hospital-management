@@ -103,7 +103,7 @@ if ($pMapRes['status'] === 200) {
             </div>
             <hr class="my-4">
             <a href="/" class="nav-link-custom"><i class="bi bi-house"></i> Back to Home</a>
-            <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            <a href="/api/auth/logout" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>
     </div>
 
@@ -123,7 +123,7 @@ if ($pMapRes['status'] === 200) {
             </div>
             <div class="d-flex align-items-center">
                 <div class="dropdown me-4">
-                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-toggle="dropdown">
+                    <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm position-relative p-2" data-bs-dropdown="dropdown">
                         <i class="bi bi-bell fs-5 text-secondary"></i>
                         <?php if ($unreadCount > 0): ?>
                         <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger top-notif-badge" style="padding: 0.35em 0.5em;">
@@ -515,8 +515,7 @@ if ($pMapRes['status'] === 200) {
                 }
             } catch (e) { location.reload(); }
         }
-    </script>
-    <script>
+
         document.addEventListener('DOMContentLoaded', () => {
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
@@ -594,7 +593,7 @@ if ($pMapRes['status'] === 200) {
 
         function markNotificationRead(el, id) {
             if (el.classList.contains('bg-light')) {
-                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                fetch('/api/notifications/read?id=' + id, {method: 'POST'});
                 el.classList.remove('bg-light', 'rounded');
                 const text = el.querySelector('p');
                 if (text) {
@@ -618,7 +617,7 @@ if ($pMapRes['status'] === 200) {
             try {
                 const fd = new FormData();
                 fd.append('notification_id', notificationId);
-                const res = await fetch('/api/emergency/clear_task.php', { method: 'POST', body: fd });
+                const res = await fetch('/api/emergency/clear_task', { method: 'POST', body: fd });
                 const data = await res.json();
                 if (data.success) {
                     const item = btn.closest('.p-2');
@@ -650,16 +649,6 @@ if ($pMapRes['status'] === 200) {
             document.querySelector('.sidebar').classList.toggle('show');
             document.querySelector('.sidebar-overlay').classList.toggle('show');
         }
-
-        // Auto-close sidebar on mobile link click
-        document.querySelectorAll('.nav-link-custom').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 992) {
-                    document.querySelector('.sidebar').classList.remove('show');
-                    document.querySelector('.sidebar-overlay').classList.remove('show');
-                }
-            });
-        });
 
         // Emergency Dispatch JS
         function openDispatchEmergencyModal(e) {
@@ -703,7 +692,7 @@ if ($pMapRes['status'] === 200) {
 
         async function submitEmergencyDispatch() {
             const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
-            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/emergency/dispatch', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Dispatch initiated successfully!");

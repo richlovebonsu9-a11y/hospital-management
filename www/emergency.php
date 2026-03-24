@@ -32,7 +32,7 @@ session_start();
         <div class="row justify-content-center">
             <div class="col-md-6">
                 <div class="card border-0 shadow-lg rounded-5 p-4">
-                    <form action="/api/emergency/report.php" method="POST">
+                    <form action="/api/emergency/report" method="POST">
                         <div class="mb-5 text-center">
                             <label class="form-label fw-bold h5 mb-3">Select Severity</label>
                             <div class="d-flex justify-content-center gap-3">

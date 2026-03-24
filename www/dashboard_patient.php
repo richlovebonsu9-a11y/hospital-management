@@ -154,7 +154,7 @@ foreach ($appointments as $a) {
             <a href="#" class="nav-link-custom" data-target="section-profile"><i class="bi bi-person"></i> Profile</a>
             <hr class="my-4">
             <a href="/" class="nav-link-custom"><i class="bi bi-house"></i> Back to Home</a>
-            <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            <a href="/api/auth/logout" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>
     </div>
 
@@ -251,12 +251,12 @@ foreach ($appointments as $a) {
                     </p>
                 </div>
                 <div class="d-flex gap-2">
-                    <form action="/api/guardian/manage.php" method="POST">
+                    <form action="/api/guardian/manage" method="POST">
                         <input type="hidden" name="link_id" value="<?php echo $link['id']; ?>">
                         <input type="hidden" name="action" value="approve">
                         <button type="submit" class="btn btn-success rounded-pill px-4 btn-sm">Approve</button>
                     </form>
-                    <form action="/api/guardian/manage.php" method="POST">
+                    <form action="/api/guardian/manage" method="POST">
                         <input type="hidden" name="link_id" value="<?php echo $link['id']; ?>">
                         <input type="hidden" name="action" value="decline">
                         <button type="submit" class="btn btn-outline-danger rounded-pill px-4 btn-sm">Decline</button>
@@ -477,7 +477,7 @@ foreach ($appointments as $a) {
                                             <div class="text-end">
                                                 <span class="badge <?php echo ($p['status'] === 'dispensed') ? 'bg-success' : 'bg-primary'; ?> rounded-pill px-2 mb-2 d-block"><?php echo $p['status']; ?></span>
                                                 <?php if ($p['status'] === 'pending' && !($p['is_ordered'] ?? false)): ?>
-                                                    <form action="/api/prescriptions/request_fulfillment.php" method="POST">
+                                                    <form action="/api/prescriptions/request_fulfillment" method="POST">
                                                         <input type="hidden" name="prescription_id" value="<?php echo $p['id']; ?>">
                                                         <button type="submit" class="btn btn-sm btn-outline-success rounded-pill extra-small py-0">Order for Pickup</button>
                                                     </form>
@@ -645,7 +645,7 @@ foreach ($appointments as $a) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/api/lab/create.php" method="POST">
+                    <form action="/api/lab/create" method="POST">
                         <input type="hidden" name="patient_id" value="<?php echo $userId; ?>">
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-muted">Diagnostic Test Type</label>
@@ -695,7 +695,7 @@ foreach ($appointments as $a) {
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/api/billing/process_payment.php" method="POST">
+                    <form action="/api/billing/process_payment" method="POST">
                         <input type="hidden" name="invoice_id" value="<?php echo $pendingInvoice['id'] ?? ''; ?>">
                         <p class="text-muted small mb-4">Total Amount Due: <span class="fw-bold text-primary">₵ <?php echo number_format($pendingInvoice['total_amount'] ?? 0, 2); ?></span></p>
                         
@@ -809,7 +809,7 @@ foreach ($appointments as $a) {
 
         async function markNotificationRead(el, id) {
             try {
-                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                fetch('/api/notifications/read?id=' + id, {method: 'POST'});
                 const text = el.querySelector('p');
                 if (text) {
                     text.classList.remove('fw-bold');

@@ -191,7 +191,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             </div>
             <hr class="my-4">
             <a href="/" class="nav-link-custom"><i class="bi bi-house"></i> Back to Home</a>
-            <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            <a href="/api/auth/logout" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>
     </div>
 
@@ -1035,7 +1035,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Assign Staff to Appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
-                    <form action="/api/admin/assign_appointment.php" method="POST">
+                    <form action="/api/admin/assign_appointment" method="POST">
                         <input type="hidden" name="appointment_id" id="assign_appt_id">
                         <div class="mb-3">
                             <label class="small text-muted">Department Context</label>
@@ -1088,7 +1088,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/api/admin/manage_inventory.php" method="POST">
+                    <form action="/api/admin/manage_inventory" method="POST">
                         <input type="hidden" name="action" id="inv_action" value="add">
                         <input type="hidden" name="id" id="inv_id">
                         <div class="mb-3">
@@ -1345,7 +1345,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         async function fetchReports(type, start, end) {
             try {
-                const res = await fetch(`/api/admin/get_reports.php?type=${type}&start_date=${start}&end_date=${end}`);
+                const res = await fetch(`/api/admin/get_reports?type=${type}&start_date=${start}&end_date=${end}`);
                 const data = await res.json();
                 if (data.success) {
                     if (type === 'inventory') renderInventoryReports(data.report);
@@ -1465,7 +1465,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             
             select.innerHTML = '<option value="">Loading beds...</option>';
             try {
-                const res = await fetch(`/api/admin/get_available_beds.php?ward_id=${wardId}`);
+                const res = await fetch(`/api/admin/get_available_beds?ward_id=${wardId}`);
                 const data = await res.json();
                 if (data.success) {
                     let html = '<option value="">-- Select Bed --</option>';
@@ -1624,7 +1624,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             fd.append('link_id', linkId);
             fd.append('action', 'approve');
 
-            const res = await fetch('/api/admin/approve_guardian.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/admin/approve_guardian', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Link approved successfully!");
@@ -1636,7 +1636,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         async function removeGuardianLink(linkId) {
             if (!confirm("Are you sure you want to remove this guardian-patient link? This cannot be undone.")) return;
-            const res = await fetch('/api/admin/remove_guardian_link.php', {
+            const res = await fetch('/api/admin/remove_guardian_link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ link_id: linkId })
@@ -1678,7 +1678,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             modal.show();
 
             try {
-                const res = await fetch(`/api/billing/get_invoice_details.php?id=${id}`);
+                const res = await fetch(`/api/billing/get_invoice_details?id=${id}`);
                 const data = await res.json();
                 
                 if (data.items && data.items.length > 0) {
@@ -1743,7 +1743,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> Syncing...';
 
             try {
-                const response = await fetch('/api/admin/reconcile_staff.php');
+                const response = await fetch('/api/admin/reconcile_staff');
                 const result = await response.json();
                 
                 if (result.success) {
@@ -1795,7 +1795,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         async function markNotificationRead(el, id) {
             if (el.classList.contains('bg-light')) {
-                await fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                await fetch('/api/notifications/read?id=' + id, {method: 'POST'});
                 el.classList.remove('bg-light');
                 const p = el.querySelector('p');
                 if (p) {
@@ -1820,7 +1820,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             try {
                 const fd = new FormData();
                 fd.append('notification_id', notificationId);
-                const res = await fetch('/api/emergency/clear_task.php', { method: 'POST', body: fd });
+                const res = await fetch('/api/emergency/clear_task', { method: 'POST', body: fd });
                 const data = await res.json();
                 if (data.success) {
                     const item = btn.closest('.p-2');
@@ -1868,7 +1868,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             fd.append('admission_id', admId);
             fd.append('ward_id', wardId);
             
-            const res = await fetch('/api/admission/discharge.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/admission/discharge', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Patient discharged and bed freed.");
@@ -1899,7 +1899,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             fd.append('ward_id', wardId);
             fd.append('bed_number', bedNum);
             
-            const res = await fetch('/api/admission/finalize_assignment.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/admission/finalize_assignment', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Bed assigned successfully.");
@@ -1923,7 +1923,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const fd = new FormData(document.getElementById('editAdmissionForm'));
             const bedNum = document.getElementById('edit_adm_bed_number_select').value;
             fd.set('bed_number', bedNum); // Ensure select value is sent
-            const res = await fetch('/api/admission/update_assignment.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/admission/update_assignment', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Admission details updated.");
@@ -1941,7 +1941,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         async function submitEmergencyAssignment() {
             const fd = new FormData(document.getElementById('assignEmergencyForm'));
-            const res = await fetch('/api/emergency/assign.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/emergency/assign', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 alert("Staff assigned to emergency.");
@@ -1996,7 +1996,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         async function submitEmergencyDispatch() {
             const emergId = document.getElementById('dispatch_emerg_id').value;
             const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
-            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/emergency/dispatch', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('dispatchEmergencyModal')).hide();
@@ -2016,7 +2016,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const fd = new FormData();
             fd.append('emergency_id', id);
             fd.append('resolution_notes', 'Resolved by admin.');
-            const res = await fetch('/api/emergency/resolve.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/emergency/resolve', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) {
                 const row = document.getElementById('emerg-row-' + id);
@@ -2042,7 +2042,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
                     try {
                         const fd = new FormData(staffForm);
-                        const res = await fetch('/api/admin/add_staff.php', { method: 'POST', body: fd });
+                        const res = await fetch('/api/admin/add_staff', { method: 'POST', body: fd });
                         const text = await res.text();
                         
                         let data;

@@ -16,10 +16,10 @@ $role = $currentUser['user_metadata']['role'] ?? 'patient';
 $targetPatientId = $_GET['patient_id'] ?? $currentUser['id'];
 
 // Determine redirect dashboard
-$dashboardLink = '/dashboard_patient.php';
-if ($role === 'guardian') $dashboardLink = '/dashboard_guardian.php';
-if ($role === 'admin') $dashboardLink = '/dashboard_admin.php';
-if (in_array($role, ['doctor', 'nurse', 'pharmacist', 'technician'])) $dashboardLink = '/dashboard_staff.php';
+$dashboardLink = '/dashboard_patient';
+if ($role === 'guardian') $dashboardLink = '/dashboard_guardian';
+if ($role === 'admin') $dashboardLink = '/dashboard_admin';
+if (in_array($role, ['doctor', 'nurse', 'pharmacist', 'technician'])) $dashboardLink = '/dashboard_staff';
 
 // 1. Permission Check
 $canView = ($targetPatientId === $currentUser['id']); // Self
@@ -321,7 +321,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/api/consultation/save.php" method="POST">
+                    <form action="/api/consultation/save" method="POST">
                         <input type="hidden" name="patient_id" value="<?php echo $targetPatientId; ?>">
                         <div class="row g-3">
                             <div class="col-6">
@@ -357,7 +357,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/api/consultation/save.php" method="POST">
+                    <form action="/api/consultation/save" method="POST">
                         <input type="hidden" name="patient_id" value="<?php echo $targetPatientId; ?>">
                         
                         <div class="row g-3 mb-4">
@@ -460,7 +460,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form action="/api/lab/create.php" method="POST">
+                    <form action="/api/lab/create" method="POST">
                         <input type="hidden" name="patient_id" value="<?php echo $targetPatientId; ?>">
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-muted">Diagnostic Test Type</label>

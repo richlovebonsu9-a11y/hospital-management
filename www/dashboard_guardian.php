@@ -66,7 +66,7 @@ if ($pMapRes['status'] === 200) {
             <a href="#" class="nav-link-custom" data-target="section-emergency"><i class="bi bi-exclamation-triangle-fill"></i> Emergency</a>
             <hr class="my-4">
             <a href="/" class="nav-link-custom"><i class="bi bi-house"></i> Back to Home</a>
-            <a href="/api/auth/logout.php" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
+            <a href="/api/auth/logout" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
         </nav>
     </div>
 
@@ -300,7 +300,7 @@ if ($pMapRes['status'] === 200) {
                 <div class="alert border-0 rounded-4 bg-danger text-white mb-4">
                     <strong>⚠ Warning:</strong> Only use this for genuine medical emergencies. Misuse may result in account suspension.
                 </div>
-                <form action="/api/emergency/report.php" method="POST">
+                <form action="/api/emergency/report" method="POST">
                     <div class="mb-3">
                         <label class="form-label text-muted small">Select Affected Dependant</label>
                         <select name="patient_id" class="form-select rounded-pill px-3" required>
@@ -335,7 +335,7 @@ if ($pMapRes['status'] === 200) {
     <!-- Modals -->
     <div class="modal fade" id="linkPatientModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/profile/update.php" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/profile/update" method="POST" class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0"><h5 class="fw-bold">Link New Patient</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
                     <p class="text-muted small">Enter the patient's full name and email address as registered in the system.</p>
@@ -360,7 +360,7 @@ if ($pMapRes['status'] === 200) {
 
     <div class="modal fade" id="bookApptModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
-            <form action="/api/appointments/book.php" method="POST" class="modal-content border-0 shadow">
+            <form action="/api/appointments/book" method="POST" class="modal-content border-0 shadow">
                 <input type="hidden" name="patient_id" id="appt_patient_id">
                 <div class="modal-header border-0"><h5 class="fw-bold">Book Dependant Appointment</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
@@ -430,7 +430,7 @@ if ($pMapRes['status'] === 200) {
 
         async function markNotificationRead(el, id) {
             try {
-                fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
+                fetch('/api/notifications/read?id=' + id, {method: 'POST'});
                 const text = el.querySelector('p');
                 if (text) {
                     text.classList.remove('fw-bold');

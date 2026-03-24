@@ -161,7 +161,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 <button class="btn btn-outline-primary w-100 rounded-pill btn-sm mb-2" data-bs-toggle="modal" data-bs-target="#searchModal">
                     <i class="bi bi-search me-1"></i> Patient Lookup
                 </button>
-                <a href="/api/auth/logout.php" class="btn btn-light w-100 rounded-pill btn-sm text-danger mt-3">
+                <a href="/api/auth/logout" class="btn btn-light w-100 rounded-pill btn-sm text-danger mt-3">
                     <i class="bi bi-box-arrow-right me-1"></i> Logout
                 </a>
             </div>
@@ -452,7 +452,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
         async function submitEmergencyDispatch() {
             const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
-            const res = await fetch('/api/emergency/dispatch.php', { method: 'POST', body: fd });
+            const res = await fetch('/api/emergency/dispatch', { method: 'POST', body: fd });
             const data = await res.json();
             if (data.success) { alert("Dispatch success!"); location.reload(); }
             else { alert("Dispatch Error: " + data.error); }
@@ -460,7 +460,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
         async function resolveEmergency(id, btn) {
             if (!confirm("Are you sure this emergency is resolved?")) return;
-            const res = await fetch('/api/emergency/resolve.php', {
+            const res = await fetch('/api/emergency/resolve', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
@@ -472,7 +472,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
         async function escalateToAmbulance(id, btn) {
             if (!confirm("Request critical ambulance transport for this case?")) return;
-            const res = await fetch('/api/emergency/escalate.php', {
+            const res = await fetch('/api/emergency/escalate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: id })
