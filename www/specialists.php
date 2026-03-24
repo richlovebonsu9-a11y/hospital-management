@@ -156,7 +156,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                 <!-- Neurology -->
                 <div class="col-md-4 col-lg-3 specialist-item" data-dept="neurology">
                     <div class="specialist-card">
-                        <img src="https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400&q=80" alt="Dr. Kwame Ofori" class="specialist-img mb-3">
+                        <img src="https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&q=80" alt="Dr. Kwame Ofori" class="specialist-img mb-3">
                         <span class="department-badge">Neurology</span>
                         <h5 class="fw-bold mb-1">Dr. Kwame Ofori</h5>
                         <p class="text-muted small mb-3">Consultant Neurologist · 11 yrs exp.</p>
@@ -178,7 +178,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                 <!-- Pediatrics 2 -->
                 <div class="col-md-4 col-lg-3 specialist-item" data-dept="pediatrics">
                     <div class="specialist-card">
-                        <img src="https://images.unsplash.com/photo-1582750433449-648ed127bb54?w=400&q=80" alt="Dr. Grace Tetteh" class="specialist-img mb-3">
+                        <img src="https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=400&q=80" alt="Dr. Grace Tetteh" class="specialist-img mb-3">
                         <span class="department-badge">Pediatrics</span>
                         <h5 class="fw-bold mb-1">Dr. Grace Tetteh</h5>
                         <p class="text-muted small mb-3">Neonatologist · 8 yrs exp.</p>
