@@ -39,8 +39,12 @@ if ($role === 'nurse') {
     // Fetch Pending Admission Recommendations (Standardized type)
     $notifRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_recommendation&is_read=eq.false&select=*&order=created_at.desc', null, true);
     if ($notifRes['status'] === 200) {
+        $seenPatients = [];
         foreach ($notifRes['data'] as $notif) {
             $pId = $notif['related_id'];
+            if (isset($seenPatients[$pId])) continue;
+            $seenPatients[$pId] = true;
+            
             $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $pId . '&select=name', null, true);
             $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
             
@@ -330,7 +334,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 <div class="card p-4 border-0 shadow-sm mb-5 border-start border-warning border-4 animate-fade-in">
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-hospital me-2"></i>Pending Admission Tasks</h5>
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><?php echo count($pendingAdmissions); ?> Recommendations</span>
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill pending-adm-count"><?php echo count($pendingAdmissions); ?> Recommendations</span>
                     </div>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -791,6 +795,30 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
         }
 
+        // NOTIFICATIONS
+        async function markNotificationRead(el, id) {
+            try {
+                const fd = new FormData();
+                fd.append('id', id);
+                const res = await fetch('/api/notifications/mark_read.php', { method: 'POST', body: fd });
+                if (res.ok) {
+                    el.classList.remove('bg-light', 'border-primary', 'fw-bold', 'text-dark');
+                    el.classList.add('bg-white', 'text-muted');
+                    el.removeAttribute('onclick');
+
+                    // Decrement notification badges
+                    document.querySelectorAll('.nav-notif-badge').forEach(b => {
+                        let count = parseInt(b.innerText) || 0;
+                        if(count > 0) {
+                            count--;
+                            b.innerText = count;
+                            if(count === 0) b.style.display = 'none';
+                        }
+                    });
+                }
+            } catch (e) { console.error('Error marking as read', e); }
+        }
+
         async function submitBedAssignment() {
             const ptId = document.getElementById('assign_bed_patient_id').value;
             const wardId = document.getElementById('assign_bed_ward_select').value;
@@ -812,7 +840,23 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             const data = await res.json();
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('assignBedModal'))?.hide();
-                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully. Notifications synced.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
+                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully. Notifications synced.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true });
+                
+                // Dynamically remove the row and update counts
+                const openBtn = document.querySelector(`button[onclick*="openAssignBedModal('${ptId}'"]`);
+                if(openBtn) {
+                    const row = openBtn.closest('tr') || openBtn.closest('.bg-white');
+                    if(row) row.remove();
+                }
+                document.querySelectorAll('.pending-adm-count').forEach(b => {
+                    let text = b.innerText;
+                    let count = parseInt(text) || 0;
+                    if(count > 0) {
+                        count--;
+                        b.innerText = text.replace(/\d+/, count);
+                        if(count === 0) b.style.display = 'none';
+                    }
+                });
             } else {
                 Swal.fire({ title: 'Error', text: data.error || 'Assignment failed.', icon: 'error', confirmButtonColor: '#dc3545' });
             }

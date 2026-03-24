@@ -116,8 +116,12 @@ $activeAdmissions = ($admissionsRes['status'] === 200) ? $admissionsRes['data'] 
 $pendingAdmissions = [];
 $pendingNotifsRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_recommendation&select=*&order=created_at.desc', null, true);
 if ($pendingNotifsRes['status'] === 200) {
+    $seenPatients = [];
     foreach ($pendingNotifsRes['data'] as $notif) {
         $pId = $notif['related_id'];
+        if (isset($seenPatients[$pId])) continue;
+        $seenPatients[$pId] = true;
+        
         $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $pId . '&select=name', null, true);
         $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
         
@@ -834,7 +838,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 </div>
                 <div class="col-lg-4">
                     <div class="card p-4 border-0 shadow-sm bg-light">
-                        <h5 class="fw-bold mb-4 small text-uppercase text-muted">Pending Recommendations</h5>
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h5 class="fw-bold mb-0 small text-uppercase text-muted">Pending Recommendations</h5>
+                            <span class="badge bg-warning text-dark rounded-pill pending-adm-count"><?php echo count($pendingAdmissions); ?></span>
+                        </div>
                         <?php if (empty($pendingAdmissions)): ?>
                             <p class="text-muted small text-center py-3">No pending recommendations.</p>
                         <?php endif; foreach($pendingAdmissions as $pa): ?>
@@ -2063,7 +2070,24 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('assignBedModal'))?.hide();
-                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
+                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true });
+                
+                // Dynamically remove the row and update counts
+                const openBtn = document.querySelector(`button[onclick*="openAssignBedModal('${ptId}'"]`);
+                if(openBtn) {
+                    const row = openBtn.closest('.bg-white') || openBtn.closest('tr'); // handles admin card layout
+                    if(row) row.remove();
+                }
+                
+                document.querySelectorAll('.pending-adm-count').forEach(b => {
+                    let text = b.innerText;
+                    let count = parseInt(text) || 0;
+                    if(count > 0) {
+                        count--;
+                        b.innerText = count;// If there's extra text, handles pure numbers
+                        if(count === 0) b.style.display = 'none';
+                    }
+                });
             } else {
                 Swal.fire({ title: 'Error', text: data.error || 'Assignment failed.', icon: 'error', confirmButtonColor: '#dc3545' });
                 if (data.debug) console.error("API Debug Info:", data.debug);
