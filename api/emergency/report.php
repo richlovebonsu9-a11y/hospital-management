@@ -21,13 +21,14 @@ if (!$patientId) {
 
 $emergencyType = $_POST['emergency_type'] ?? 'general';
 $gps = $_POST['ghana_post_gps'] ?? 'N/A';
-$location = $_POST['location'] ?? $gps;
 $symptoms = $_POST['symptoms'] ?? 'No symptoms reported';
+$severity = $_POST['severity'] ?? 'medium';
+
 
 $data = [
     'reporter_id' => $patientId,
     'emergency_type' => $emergencyType,
-    'location' => $location,
+    'severity' => $severity,
     'ghana_post_gps' => $gps,
     'symptoms' => $symptoms,
     'status' => 'pending'
@@ -39,7 +40,7 @@ if ($res['status'] >= 200 && $res['status'] < 300) {
     // 1. Notify Admins
     $sb->request('POST', '/rest/v1/notifications', [
         'role' => 'admin',
-        'message' => "HIGH ALERT: A " . str_replace('_', ' ', $emergencyType) . " emergency has been reported at " . $location . ".",
+        'message' => "HIGH ALERT: A " . str_replace('_', ' ', $emergencyType) . " emergency has been reported at {$gps}.",
         'type' => 'emergency_alert'
     ], true);
 
