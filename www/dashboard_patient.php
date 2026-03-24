@@ -822,13 +822,10 @@ foreach ($appointments as $a) {
         async function markNotificationRead(el, id) {
             try {
                 fetch('/api/notifications/read?id=' + id, {method: 'POST'});
-                const text = el.querySelector('p');
-                if (text) {
-                    text.classList.remove('fw-bold');
-                    text.classList.add('text-muted');
-                }
-                el.style.pointerEvents = 'none';
-                el.onclick = null;
+                el.style.transition = 'all 0.3s ease';
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0.95)';
+                setTimeout(() => el.remove(), 300);
 
                 const badges = document.querySelectorAll('.top-notif-badge');
                 badges.forEach(badge => {

@@ -2118,14 +2118,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         async function markNotificationRead(el, id) {
             if (el.classList.contains('bg-light')) {
                 await fetch('/api/notifications/read?id=' + id, {method: 'POST'});
-                el.classList.remove('bg-light');
-                const p = el.querySelector('p');
-                if (p) {
-                    p.classList.remove('fw-bold', 'text-dark');
-                    p.classList.add('text-muted');
-                }
-                el.style.cursor = 'default';
-                el.onclick = null;
+                el.style.transition = 'all 0.3s ease';
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0.95)';
+                setTimeout(() => el.remove(), 300);
                 
                 // Update badge count
                 document.querySelectorAll('.top-notif-badge').forEach(badge => {

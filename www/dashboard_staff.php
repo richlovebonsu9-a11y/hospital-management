@@ -179,7 +179,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             <div class="bg-primary text-white rounded-circle p-2 me-3 shadow-sm">
                 <i class="bi bi-hospital-fill fs-4"></i>
             </div>
-            <h5 class="fw-bold mb-0 tracking-tight">HealthCore</h5>
+            <h5 class="fw-bold mb-0 tracking-tight">Kobby Moore Hospital</h5>
         </div>
         
         <nav>
@@ -867,9 +867,10 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 fd.append('id', id);
                 const res = await fetch('/api/notifications/mark_read.php', { method: 'POST', body: fd });
                 if (res.ok) {
-                    el.classList.remove('bg-light', 'border-primary', 'fw-bold', 'text-dark');
-                    el.classList.add('bg-white', 'text-muted');
-                    el.removeAttribute('onclick');
+                    el.style.transition = 'all 0.3s ease';
+                    el.style.opacity = '0';
+                    el.style.transform = 'scale(0.95)';
+                    setTimeout(() => el.remove(), 300);
 
                     // Decrement notification badges
                     document.querySelectorAll('.nav-notif-badge').forEach(b => {

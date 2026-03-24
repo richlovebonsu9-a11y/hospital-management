@@ -611,14 +611,10 @@ if ($pMapRes['status'] === 200) {
         function markNotificationRead(el, id) {
             if (el.classList.contains('bg-light')) {
                 fetch('/api/notifications/read?id=' + id, {method: 'POST'});
-                el.classList.remove('bg-light', 'rounded');
-                const text = el.querySelector('p');
-                if (text) {
-                    text.classList.remove('fw-bold', 'text-dark');
-                    text.classList.add('text-muted');
-                }
-                el.style.cursor = 'default';
-                el.onclick = null;
+                el.style.transition = 'all 0.3s ease';
+                el.style.opacity = '0';
+                el.style.transform = 'scale(0.95)';
+                setTimeout(() => el.remove(), 300);
 
                 document.querySelectorAll('.top-notif-badge, .nav-notif-badge').forEach(badge => {
                     let count = (parseInt(badge.innerText) || 0) - 1;
