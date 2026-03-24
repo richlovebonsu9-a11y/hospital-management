@@ -22,6 +22,11 @@ if (!$patientId || !$wardId) {
 
 $sb = new Supabase();
 
+// Auto-repair potentially missing columns on the fly (one-time fix safe to run)
+$sb->request('POST', '/rest/v1/rpc/exec_sql', [
+    'query' => "ALTER TABLE admissions ADD COLUMN IF NOT EXISTS anticipated_days INTEGER DEFAULT 1; ALTER TABLE admissions ADD COLUMN IF NOT EXISTS assigned_by UUID REFERENCES profiles(id);"
+], true);
+
 // 1. Create Active Admission Record
 $admRes = $sb->request('POST', '/rest/v1/admissions', [
     'patient_id' => $patientId,
@@ -115,7 +120,7 @@ if ($admRes['status'] === 201 || $admRes['status'] === 200) {
 } else {
     $errorMsg = 'Failed to create admission record';
     if ($admRes['status'] === 400) { 
-        $errorMsg = 'Database error: ' . ($admRes['data']['message'] ?? $admRes['data']['error'] ?? 'Column mismatch or invalid ID'); 
+        $errorMsg = 'DB Error: ' . json_encode($admRes['data']); 
     }
     echo json_encode(['success' => false, 'error' => $errorMsg, 'debug' => $admRes]);
 }
