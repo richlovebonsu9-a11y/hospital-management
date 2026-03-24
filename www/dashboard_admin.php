@@ -608,14 +608,20 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                         <span class="badge <?php echo ($e['severity'] === 'high') ? 'bg-danger' : 'bg-warning'; ?>-soft text-<?php echo ($e['severity'] === 'high') ? 'danger' : 'warning'; ?> rounded-pill px-2 mb-1">
                                             <?php echo strtoupper($e['severity']); ?>
                                         </span>
-                                        <div class="small text-truncate mb-2" style="max-width: 150px;" title="<?php echo htmlspecialchars($e['symptoms'] ?? ''); ?>">
-                                            <?php echo htmlspecialchars($e['symptoms'] ?? 'No notes provided'); ?>
+                                        <?php 
+                                            $symptomsRaw = $e['symptoms'] ?? '';
+                                            $symptomsParts = explode(' ||VOICE_NOTE|| ', $symptomsRaw);
+                                            $symptomsText = $symptomsParts[0];
+                                            $voiceNoteBase64 = $symptomsParts[1] ?? null;
+                                        ?>
+                                        <div class="small text-truncate mb-2" style="max-width: 150px;" title="<?php echo htmlspecialchars($symptomsText); ?>">
+                                            <?php echo htmlspecialchars($symptomsText ?: 'No notes provided'); ?>
                                         </div>
-                                        <?php if(!empty($e['voice_note'])): ?>
+                                        <?php if(!empty($voiceNoteBase64)): ?>
                                             <div class="d-flex align-items-center gap-1">
                                                 <i class="bi bi-mic-fill text-danger extra-small"></i>
                                                 <audio controls style="height: 20px; width: 100px;">
-                                                    <source src="<?php echo $e['voice_note']; ?>" type="audio/webm">
+                                                    <source src="<?php echo $voiceNoteBase64; ?>" type="audio/webm">
                                                 </audio>
                                             </div>
                                         <?php endif; ?>
@@ -1223,6 +1229,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <div class="modal-content border-0 shadow">
                 <div class="modal-header border-0 pb-0"><h5 class="modal-title fw-bold">Assign Response Staff</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                 <div class="modal-body p-4">
+                    <div id="assign_emerg_details_box" class="alert alert-light border rounded-4 mb-4">
+                        <label class="extra-small fw-bold text-muted text-uppercase mb-1">Emergency Context</label>
+                        <div id="assign_emerg_context" class="small text-dark"></div>
+                        <div id="assign_emerg_audio_container" class="mt-2 d-none">
+                            <audio id="assign_emerg_audio_player" controls style="height: 24px; width: 100%;"></audio>
+                        </div>
+                    </div>
                     <form id="assignEmergencyForm">
                         <input type="hidden" name="emergency_id" id="assign_emerg_id">
                         <div class="mb-3">
@@ -1985,6 +1998,26 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         // EMERGENCY MANAGEMENT JS
         function openAssignEmergencyModal(e) {
             document.getElementById('assign_emerg_id').value = e.id;
+            
+            // Parse symptoms and voice note from embedded string
+            const symptomsRaw = e.symptoms || '';
+            const parts = symptomsRaw.split(' ||VOICE_NOTE|| ');
+            const symptomsText = parts[0] || 'No symptoms reported.';
+            const voiceBase64 = parts[1] || null;
+
+            document.getElementById('assign_emerg_context').innerText = symptomsText;
+            
+            const audioContainer = document.getElementById('assign_emerg_audio_container');
+            const audioPlayer = document.getElementById('assign_emerg_audio_player');
+            
+            if (voiceBase64) {
+                audioPlayer.src = voiceBase64;
+                audioContainer.classList.remove('d-none');
+            } else {
+                audioPlayer.src = '';
+                audioContainer.classList.add('d-none');
+            }
+
             new bootstrap.Modal(document.getElementById('assignEmergencyModal')).show();
         }
 

@@ -24,30 +24,50 @@ $gps = $_POST['ghana_post_gps'] ?? 'N/A';
 $symptoms = $_POST['symptoms'] ?? 'No symptoms reported';
 $severity = $_POST['severity'] ?? 'medium';
 
+// AI-Powered Triage: Detect "Red Flags" and auto-escalate
+$redFlags = ['unconscious', 'fainting', 'not breathing', 'chest pain', 'heart attack', 'severe bleeding', 'heavy bleeding', 'crushed', 'paralyzed', 'seizure', 'stroke'];
+$riskDetected = false;
+$lowerSymptoms = strtolower($symptoms);
+foreach ($redFlags as $flag) {
+    if (strpos($lowerSymptoms, $flag) !== false) {
+        $riskDetected = true;
+        break;
+    }
+}
+if ($riskDetected && $severity !== 'critical') {
+    $severity = 'critical'; // Auto-escalate to Critical if red flags found
+}
+
 $teamRole = in_array($emergencyType, ['car_and_motor_accident', 'labour', 'sudden_consciousness_loss', 'breathing_difficulty']) ? 'ambulance' : 'dispatch_rider';
 
-// Round-Robin / Least Loaded Assignment Logic
+// Round-Robin / Least Loaded Assignment Logic (Bypassed if type is 'other')
 $assignedTo = null;
-$staffRes = $sb->request('GET', '/rest/v1/profiles?role=eq.' . $teamRole . '&select=id', null, true);
-if ($staffRes['status'] === 200 && !empty($staffRes['data'])) {
-    $staffIds = array_column($staffRes['data'], 'id');
-    
-    // Find how many active tasks each staff has
-    $activeTasksRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=assigned_to', null, true);
-    $counts = [];
-    foreach($staffIds as $sid) $counts[$sid] = 0;
-    
-    if ($activeTasksRes['status'] === 200) {
-        foreach($activeTasksRes['data'] as $at) {
-            if ($at['assigned_to'] && isset($counts[$at['assigned_to']])) {
-                $counts[$at['assigned_to']]++;
+if ($emergencyType !== 'other') {
+    $staffRes = $sb->request('GET', '/rest/v1/profiles?role=eq.' . $teamRole . '&select=id', null, true);
+    if ($staffRes['status'] === 200 && !empty($staffRes['data'])) {
+        $staffIds = array_column($staffRes['data'], 'id');
+        
+        $activeTasksRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=assigned_to', null, true);
+        $counts = [];
+        foreach($staffIds as $sid) $counts[$sid] = 0;
+        
+        if ($activeTasksRes['status'] === 200) {
+            foreach($activeTasksRes['data'] as $at) {
+                if ($at['assigned_to'] && isset($counts[$at['assigned_to']])) {
+                    $counts[$at['assigned_to']]++;
+                }
             }
         }
+        
+        asort($counts);
+        $assignedTo = key($counts);
     }
-    
-    // Pick the staff member with the minimum tasks
-    asort($counts);
-    $assignedTo = key($counts);
+}
+
+// Workaround: Embed voice note Base64 into symptoms field if provided
+$embeddedSymptoms = $symptoms;
+if (!empty($_POST['voice_note_base64'])) {
+    $embeddedSymptoms .= " ||VOICE_NOTE|| " . $_POST['voice_note_base64'];
 }
 
 $data = [
@@ -55,8 +75,7 @@ $data = [
     'emergency_type' => $emergencyType,
     'severity' => $severity,
     'ghana_post_gps' => $gps,
-    'symptoms' => $symptoms,
-    'voice_note' => $_POST['voice_note_base64'] ?? null,
+    'symptoms' => $embeddedSymptoms,
     'assigned_to' => $assignedTo,
     'status' => $assignedTo ? 'assigned' : 'pending'
 ];
@@ -93,7 +112,7 @@ if ($res['status'] >= 200 && $res['status'] < 300) {
         ], true);
     }
 
-    echo json_encode(['success' => true]);
+    echo json_encode(['success' => true, 'emergency_id' => $emergencyId]);
 }
  else {
     echo json_encode(['success' => false, 'error' => $res['data']['message'] ?? 'Failed to report emergency']);

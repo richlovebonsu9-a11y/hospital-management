@@ -219,7 +219,13 @@ session_start();
                                     <option value="dog_bite">Dog Bite</option>
                                     <option value="scorpion_bite">Scorpion Bite</option>
                                 </optgroup>
+                                <option value="other">Other / Describe below</option>
                             </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label id="symptomsLabel" class="form-label fw-bold text-uppercase">3. Primary Symptoms / Details</label>
+                            <textarea name="symptoms" id="symptomsTextarea" class="form-control p-4" rows="3" placeholder="Briefly describe what is happening... Stay calm, type clearly." required></textarea>
                         </div>
 
                         <div class="mb-4">
@@ -327,6 +333,22 @@ session_start();
             }
         };
 
+        // Other Type Handler
+        const typeSelect = document.querySelector('select[name="emergency_type"]');
+        const symptomsLabel = document.getElementById('symptomsLabel');
+        const symptomsTextarea = document.getElementById('symptomsTextarea');
+
+        typeSelect.onchange = function() {
+            if (this.value === 'other') {
+                symptomsLabel.innerHTML = '3. Describe Emergency <span class="badge bg-danger ms-2">REQUIRED</span>';
+                symptomsTextarea.placeholder = "REQUIRED: Please describe the situation in detail. This request will be reviewed by our clinical administrator immediately.";
+                symptomsTextarea.focus();
+            } else {
+                symptomsLabel.innerText = '3. Primary Symptoms / Details';
+                symptomsTextarea.placeholder = "Briefly describe what is happening... Stay calm, type clearly.";
+            }
+        };
+
         document.querySelector('form').onsubmit = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
@@ -345,16 +367,16 @@ session_start();
                 if (data.success) {
                     Swal.fire({
                         title: 'Response Team Triggered!',
-                        html: '<p class="lead">Please remain calm.</p><p>Specialized help has been dispatched to your exact location and our experts are monitoring the situation.</p>',
+                        html: '<p class="lead text-white-50">Please remain calm.</p><p>Specialized help has been dispatched. You are now being redirected to the <b>Live Emergency Tracker</b> for first-aid guidance and responder location.</p>',
                         icon: 'success',
                         background: '#1E293B',
                         color: '#fff',
                         iconColor: '#10B981',
-                        confirmButtonColor: '#2563EB',
-                        confirmButtonText: 'Return to Dashboard',
+                        confirmButtonColor: '#10B981',
+                        confirmButtonText: 'Open Live Tracker',
                         allowOutsideClick: false
                     }).then(() => {
-                        window.location.href = '/dashboard';
+                        window.location.href = '/emergency_tracker?id=' + (data.emergency_id || '');
                     });
                 } else {
                     Swal.fire({

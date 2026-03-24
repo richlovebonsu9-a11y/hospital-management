@@ -246,18 +246,27 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                         </td>
                                         <td>
                                             <span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span>
-                                            <?php if(!empty($e['voice_note'])): ?>
+                                            <?php 
+                                                $symptomsRaw = $e['symptoms'] ?? '';
+                                                $symptomsParts = explode(' ||VOICE_NOTE|| ', $symptomsRaw);
+                                                $symptomsText = $symptomsParts[0];
+                                                $voiceNoteBase64 = $symptomsParts[1] ?? null;
+                                                
+                                                if(!empty($voiceNoteBase64)): 
+                                            ?>
                                                 <div class="mt-2 d-flex align-items-center gap-1">
                                                     <i class="bi bi-mic-fill text-danger extra-small"></i>
                                                     <audio controls style="height: 24px; width: 130px; border-radius: 12px; border: 1px solid #fee2e2;">
-                                                        <source src="<?php echo $e['voice_note']; ?>" type="audio/webm">
+                                                        <source src="<?php echo $voiceNoteBase64; ?>" type="audio/webm">
                                                     </audio>
                                                 </div>
                                             <?php endif; ?>
                                         </td>
                                         <td><code class="text-primary bg-light px-2 py-1 rounded small"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
                                         <td>
-                                            <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark' : 'info'; ?> rounded-pill px-3">
+                                            <div class="small fw-semibold mb-1">Symptoms:</div>
+                                            <div class="small text-muted text-wrap" style="max-width: 200px;"><?php echo htmlspecialchars($symptomsText); ?></div>
+                                            <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark' : 'info'; ?> rounded-pill px-3 mt-2">
                                                 <?php echo ucfirst($e['status']); ?>
                                             </span>
                                         </td>
