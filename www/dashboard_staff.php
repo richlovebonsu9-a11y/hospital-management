@@ -422,6 +422,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
+        const STAFF_ROLE = '<?php echo $role; ?>';
         const emergencyAssetsMap = {
             'car_and_motor_accident': { type: 'Ambulance Team', items: [] },
             'labour': { type: 'Ambulance Team', items: [] },
@@ -455,6 +456,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
         async function submitEmergencyDispatch() {
             const fd = new FormData(document.getElementById('dispatchEmergencyForm'));
+            const emergencyId = document.getElementById('dispatch_emerg_id').value;
             const btn = document.querySelector('#dispatchEmergencyForm button[onclick]');
             if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Dispatching...'; }
             try {
@@ -462,8 +464,29 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 const data = await res.json();
                 if (data.success) {
                     bootstrap.Modal.getInstance(document.getElementById('dispatchEmergencyModal'))?.hide();
-                    await Swal.fire({ title: 'Dispatched!', text: 'Help is on the way to the patient.', icon: 'success', confirmButtonColor: '#dc3545', confirmButtonText: 'Got it', timer: 4000, timerProgressBar: true });
-                    location.reload();
+                    
+                    if (STAFF_ROLE === 'ambulance') {
+                        // Auto-recommend admission for ambulance
+                        await Swal.fire({ title: 'Dispatched!', text: 'Help is on the way. Automatically recommending patient admission...', icon: 'success', confirmButtonColor: '#dc3545', confirmButtonText: 'OK', timer: 3000, timerProgressBar: true });
+                        await recommendAdmission(emergencyId, true);
+                    } else {
+                        // Optional for dispatch rider
+                        const admitResult = await Swal.fire({
+                            title: 'Dispatched!',
+                            html: '<p>Help is on the way to the patient.</p><div class="mt-3 p-3 bg-light rounded-3 border"><i class="bi bi-hospital text-primary me-2"></i><b>Recommend Hospital Admission?</b><div class="small text-muted mt-1">This will notify admin &amp; nursing staff to assign a ward and bed for this patient.</div></div>',
+                            icon: 'success',
+                            confirmButtonColor: '#1a73e8',
+                            confirmButtonText: '<i class="bi bi-hospital me-1"></i> Yes, Recommend Admission',
+                            showDenyButton: true,
+                            denyButtonText: 'No, Skip',
+                            denyButtonColor: '#6c757d',
+                        });
+                        if (admitResult.isConfirmed) {
+                            await recommendAdmission(emergencyId, false);
+                        } else {
+                            location.reload();
+                        }
+                    }
                 } else {
                     Swal.fire({ title: 'Dispatch Failed', text: data.error || 'An unknown error occurred.', icon: 'error', confirmButtonColor: '#dc3545' });
                 }
@@ -472,6 +495,29 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             } finally {
                 if (btn) { btn.disabled = false; btn.innerHTML = 'Rapid Dispatch Help'; }
             }
+        }
+
+        async function recommendAdmission(emergencyId, isAutomatic) {
+            try {
+                const afd = new FormData();
+                afd.append('emergency_id', emergencyId);
+                const aRes = await fetch('/api/emergency/admit', { method: 'POST', body: afd });
+                const aData = await aRes.json();
+                if (aData.success) {
+                    await Swal.fire({
+                        title: isAutomatic ? 'Admission Recommended Automatically' : 'Admission Recommended!',
+                        html: `<p>Admin and nursing staff have been notified to assign a ward and bed for <b>${aData.patient || 'the patient'}</b>.</p>`,
+                        icon: 'info',
+                        confirmButtonColor: '#1a73e8',
+                        confirmButtonText: 'Got it'
+                    });
+                } else {
+                    await Swal.fire({ title: 'Admission Note Failed', text: aData.error || 'Could not send admission recommendation.', icon: 'warning', confirmButtonColor: '#dc3545' });
+                }
+            } catch (e) {
+                await Swal.fire({ title: 'Error', text: 'Could not send admission recommendation.', icon: 'error', confirmButtonColor: '#dc3545' });
+            }
+            location.reload();
         }
 
         async function resolveEmergency(id, btn) {

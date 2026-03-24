@@ -16,7 +16,7 @@ if (empty($emergencyId)) {
 $sb = new Supabase();
 
 // 1. Fetch Emergency for patient_id
-$eRes = $sb->request('GET', '/rest/v1/emergencies?id=eq.' . $emergencyId . '&select=reporter_id,emergency_type');
+$eRes = $sb->request('GET', '/rest/v1/emergencies?id=eq.' . $emergencyId . '&select=reporter_id,emergency_type', null, true);
 $emergency = ($eRes['status'] === 200 && !empty($eRes['data'])) ? $eRes['data'][0] : null;
 
 if (!$emergency) {
