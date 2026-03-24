@@ -35,16 +35,16 @@ $patientId = $emergency['reporter_id'];
 
 // Pricing and Items mapping
 $emergencyDataConfig = [
-    'cardiac_emergencies' => ['fee' => 250, 'items' => ['Aspirin', 'Oxygen', 'Defibrillator', 'Nitroglycerin']],
-    'diabetic_emergencies' => ['fee' => 150, 'items' => ['Glucose gel', 'Glucagon injection', 'Insulin']],
-    'asthmatic_attacks' => ['fee' => 120, 'items' => ['Ventolin Inhaler', 'Nebulizer Set']],
-    'snake_bite' => ['fee' => 300, 'items' => ['Snake Antivenom', 'Immobilisation Bandage']],
-    'dog_bite' => ['fee' => 200, 'items' => ['Antibiotic Cream', 'Rabies Vaccine', 'Tetanus Shot']],
-    'scorpion_bite' => ['fee' => 180, 'items' => ['Scorpion Antivenom', 'Lidocaine', 'Antihistamine']],
-    'car_and_motor_accident' => ['fee' => 500, 'items' => []],
-    'labour' => ['fee' => 450, 'items' => []],
-    'sudden_consciousness_loss' => ['fee' => 450, 'items' => []],
-    'breathing_difficulty' => ['fee' => 400, 'items' => []]
+    'cardiac_emergencies'      => ['fee' => 250, 'items' => ['Aspirin', 'Oxygen', 'Defibrillator', 'Nitroglycerin']],
+    'diabetic_emergencies'     => ['fee' => 150, 'items' => ['Glucose gel', 'Glucagon injection', 'Insulin']],
+    'asthmatic_attacks'        => ['fee' => 120, 'items' => ['Ventolin Inhaler', 'Nebulizer Set']],
+    'snake_bite'               => ['fee' => 300, 'items' => ['Snake Antivenom', 'Immobilisation Bandage']],
+    'dog_bite'                 => ['fee' => 200, 'items' => ['Antibiotic Cream', 'Rabies Vaccine', 'Tetanus Shot']],
+    'scorpion_bite'            => ['fee' => 180, 'items' => ['Scorpion Antivenom', 'Lidocaine', 'Antihistamine']],
+    'car_and_motor_accident'   => ['fee' => 500, 'items' => []],
+    'labour'                   => ['fee' => 450, 'items' => []],
+    'sudden_consciousness_loss'=> ['fee' => 450, 'items' => []],
+    'breathing_difficulty'     => ['fee' => 400, 'items' => []],
 ];
 
 $config = $emergencyDataConfig[$type] ?? ['fee' => 100, 'items' => []];
@@ -53,8 +53,8 @@ $itemsToDeduct = $config['items'];
 
 // 2. Update Emergency Status
 $updateRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, [
-    'status' => 'dispatched',
-    'assigned_to' => $staffId,
+    'status'       => 'dispatched',
+    'assigned_to'  => $staffId,
     'response_fee' => $responseFee
 ], true);
 
@@ -63,36 +63,87 @@ if ($updateRes['status'] < 200 || $updateRes['status'] >= 300) {
     exit;
 }
 
-// 3. Inventory & Billing
+// 3. Deduct Inventory (drug_inventory table) and calculate billed amount
 $billedAmount = $responseFee;
-$itemDetails = [];
+$itemDetails  = [];
 
 foreach ($itemsToDeduct as $itemName) {
-    $invRes = $sb->request('GET', '/rest/v1/inventory?drug_name=ilike.*' . urlencode($itemName) . '*&select=*', null, true);
+    $invRes = $sb->request('GET', '/rest/v1/drug_inventory?drug_name=ilike.*' . urlencode($itemName) . '*&select=*', null, true);
     if ($invRes['status'] === 200 && !empty($invRes['data'])) {
         $item = $invRes['data'][0];
         if ($item['stock_count'] > 0) {
-            $sb->request('PATCH', '/rest/v1/inventory?id=eq.' . $item['id'], ['stock_count' => $item['stock_count'] - 1], true);
-            $billedAmount += ($item['unit_price'] ?? 0);
+            $sb->request('PATCH', '/rest/v1/drug_inventory?id=eq.' . $item['id'], [
+                'stock_count' => $item['stock_count'] - 1
+            ], true);
+            $billedAmount += (float)($item['unit_price'] ?? 0);
             $itemDetails[] = $item['drug_name'];
         }
     }
 }
 
-// 4. Create Bill
-$sb->request('POST', '/rest/v1/bills', [
-    'patient_id' => $patientId,
-    'amount' => $billedAmount,
-    'type' => 'Emergency Response',
-    'status' => 'unpaid',
-    'description' => "Emergency: " . str_replace('_', ' ', $type) . ". Includes dispatch fee and items: " . implode(', ', $itemDetails)
-], true);
+// 4. Create Invoice in the correct table
+$typeName = str_replace('_', ' ', $type);
+$invRes = $sb->request('POST', '/rest/v1/invoices', [
+    'patient_id'   => $patientId,
+    'total_amount' => $billedAmount,
+    'status'       => 'unpaid',
+    'nhis_note'    => 'Emergency Response: ' . $typeName
+], true, ['Prefer' => 'return=representation']);
 
-// 5. Notify Patient
+$invoiceId = null;
+if ($invRes['status'] === 201 && !empty($invRes['data'])) {
+    $invoiceId = $invRes['data'][0]['id'];
+}
+
+// 4b. Create Invoice Line Items for transparency
+if ($invoiceId) {
+    // Base dispatch fee
+    $sb->request('POST', '/rest/v1/invoice_items', [
+        'invoice_id'  => $invoiceId,
+        'description' => 'Emergency Dispatch Fee: ' . ucwords($typeName),
+        'quantity'    => 1,
+        'unit_price'  => $responseFee,
+        'amount'      => $responseFee
+    ], true);
+
+    // Individual item lines
+    foreach ($itemsToDeduct as $itemName) {
+        $invRes2 = $sb->request('GET', '/rest/v1/drug_inventory?drug_name=ilike.*' . urlencode($itemName) . '*&select=drug_name,unit_price&limit=1', null, true);
+        if ($invRes2['status'] === 200 && !empty($invRes2['data'])) {
+            $d = $invRes2['data'][0];
+            $itemCost = (float)($d['unit_price'] ?? 0);
+            if ($itemCost > 0) {
+                $sb->request('POST', '/rest/v1/invoice_items', [
+                    'invoice_id'  => $invoiceId,
+                    'description' => 'Emergency Supply: ' . $d['drug_name'],
+                    'quantity'    => 1,
+                    'unit_price'  => $itemCost,
+                    'amount'      => $itemCost
+                ], true);
+            }
+        }
+    }
+}
+
+// 5. Notify Patient with bill details
+$itemsText = !empty($itemDetails) ? ' Supplies used: ' . implode(', ', $itemDetails) . '.' : '';
 $sb->request('POST', '/rest/v1/notifications', [
     'user_id' => $patientId,
-    'message' => "Emergency help has been dispatched! Our team is on the way.",
-    'type' => 'emergency_dispatch'
+    'message'  => "Emergency help has been dispatched! Our team is on the way. An invoice of GHS {$billedAmount} has been added to your account.{$itemsText}",
+    'type'     => 'emergency_dispatch'
 ], true);
 
-echo json_encode(['success' => true]);
+// 6. Notify Admins about the dispatch
+$adminsRes = $sb->request('GET', '/rest/v1/profiles?role=eq.admin&select=id', null, true);
+if ($adminsRes['status'] === 200) {
+    foreach ($adminsRes['data'] as $admin) {
+        $sb->request('POST', '/rest/v1/notifications', [
+            'user_id'    => $admin['id'],
+            'message'    => "Emergency dispatched: " . ucwords($typeName) . " — Emergency team is on the way to the patient.",
+            'type'       => 'emergency_alert',
+            'related_id' => $emergencyId
+        ], true);
+    }
+}
+
+echo json_encode(['success' => true, 'invoice_id' => $invoiceId, 'billed' => $billedAmount]);
