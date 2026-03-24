@@ -293,6 +293,53 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                         <h2 class="fw-bold mb-1 text-info"><?php echo count($staffMembers); ?></h2>
                         <small class="text-success small">System-wide</small>
                     </div>
+            </div>
+
+            <!-- PENDING ADMISSIONS TASK QUEUE (ADMIN) -->
+            <div class="row mb-5">
+                <div class="col-12">
+                    <div class="card p-4 border-0 shadow-sm border-start border-4 border-primary">
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <div>
+                                <h5 class="fw-bold mb-1"><i class="bi bi-hospital text-primary me-2"></i>Emergency Admission Queue</h5>
+                                <p class="text-muted small mb-0">Patients flagged by field staff for immediate ward assignment.</p>
+                            </div>
+                            <span class="badge bg-primary-soft text-primary rounded-pill px-3 fw-bold"><?php echo count($pendingAdmissions); ?> Pending Action</span>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead class="table-light border-0">
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Patient</th>
+                                        <th>Recommendation Notes</th>
+                                        <th class="text-end">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($pendingAdmissions)): ?>
+                                        <tr><td colspan="4" class="text-center py-5 text-muted">
+                                            <i class="bi bi-check2-all fs-2 d-block mb-2"></i>
+                                            All admission requests cleared.
+                                        </td></tr>
+                                    <?php else: foreach($pendingAdmissions as $adm): ?>
+                                        <tr>
+                                            <td><small class="fw-bold"><?php echo date('H:i', strtotime($adm['created_at'])); ?></small></td>
+                                            <td class="fw-bold text-dark"><?php echo htmlspecialchars($adm['patient']['name']); ?></td>
+                                            <td><small class="text-muted"><?php echo htmlspecialchars($adm['message']); ?></small></td>
+                                            <td class="text-end">
+                                                <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm" 
+                                                        onclick="openAssignBedModal('<?php echo $adm['patient_id']; ?>', '<?php echo htmlspecialchars($adm['patient']['name']); ?>')">
+                                                    Assign Bed
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -561,9 +608,17 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                         <span class="badge <?php echo ($e['severity'] === 'high') ? 'bg-danger' : 'bg-warning'; ?>-soft text-<?php echo ($e['severity'] === 'high') ? 'danger' : 'warning'; ?> rounded-pill px-2 mb-1">
                                             <?php echo strtoupper($e['severity']); ?>
                                         </span>
-                                        <div class="small text-truncate" style="max-width: 150px;" title="<?php echo htmlspecialchars($e['symptoms'] ?? ''); ?>">
+                                        <div class="small text-truncate mb-2" style="max-width: 150px;" title="<?php echo htmlspecialchars($e['symptoms'] ?? ''); ?>">
                                             <?php echo htmlspecialchars($e['symptoms'] ?? 'No notes provided'); ?>
                                         </div>
+                                        <?php if(!empty($e['voice_note'])): ?>
+                                            <div class="d-flex align-items-center gap-1">
+                                                <i class="bi bi-mic-fill text-danger extra-small"></i>
+                                                <audio controls style="height: 20px; width: 100px;">
+                                                    <source src="<?php echo $e['voice_note']; ?>" type="audio/webm">
+                                                </audio>
+                                            </div>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <?php if(!empty($e['assigned_to'])): ?>

@@ -223,12 +223,28 @@ session_start();
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-uppercase">3. Primary Symptoms / Details</label>
-                            <textarea name="symptoms" class="form-control p-4" rows="3" placeholder="Briefly describe what is happening... Stay calm, type clearly." required></textarea>
+                            <label class="form-label fw-bold text-uppercase d-flex justify-content-between align-items-center">
+                                4. Voice Note (Optional)
+                                <span id="recordingIndicator" class="badge bg-danger rounded-pill px-2 d-none animate-pulse" style="font-size: 0.65rem;">REC</span>
+                            </label>
+                            <div class="d-flex align-items-center gap-3 p-3 glass-card bg-opacity-10 border border-dashed border-secondary rounded-4 shadow-sm">
+                                <button type="button" id="recordBtn" class="btn btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center shadow-sm transition-all" style="width: 52px; height: 52px; min-width: 52px;">
+                                    <i class="bi bi-mic-fill fs-4"></i>
+                                </button>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div id="recordStatus" class="text-secondary extra-small fw-semibold mb-1">
+                                        Click to capture audio context
+                                    </div>
+                                    <div id="playbackContainer" class="d-none">
+                                        <audio id="audioPlayback" controls style="height: 32px; width: 100%; max-width: 200px;"></audio>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="voice_note_base64" id="voiceNoteBase64">
+                            </div>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-uppercase">4. GhanaPostGPS Address</label>
+                            <label class="form-label fw-bold text-uppercase">5. GhanaPostGPS Address</label>
                             <div class="position-relative">
                                 <i class="bi bi-geo-alt-fill position-absolute top-50 start-0 translate-middle-y ms-3 text-danger"></i>
                                 <input type="text" name="ghana_post_gps" class="form-control px-4 py-3 ps-5 fw-bold" required placeholder="AK-485-9323" value="<?php echo $_SESSION['user']['user_metadata']['ghana_post_gps'] ?? ''; ?>">
@@ -254,6 +270,63 @@ session_start();
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // Media Recorder Logic
+        let mediaRecorder;
+        let audioChunks = [];
+        const recordBtn = document.getElementById('recordBtn');
+        const recordStatus = document.getElementById('recordStatus');
+        const playbackContainer = document.getElementById('playbackContainer');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const voiceInput = document.getElementById('voiceNoteBase64');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+
+        recordBtn.onclick = async () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstart = () => {
+                    recordBtn.classList.replace('btn-outline-danger', 'btn-danger');
+                    recordBtn.classList.add('pulse-highlight');
+                    recordBtn.innerHTML = '<i class="bi bi-stop-fill fs-4"></i>';
+                    recordStatus.innerText = "Recording... Stop when done.";
+                    recordingIndicator.classList.remove('d-none');
+                };
+                mediaRecorder.onstop = async () => {
+                    recordBtn.classList.replace('btn-danger', 'btn-outline-danger');
+                    recordBtn.classList.remove('pulse-highlight');
+                    recordBtn.innerHTML = '<i class="bi bi-mic-fill fs-4"></i>';
+                    recordingIndicator.classList.add('d-none');
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => {
+                        const base64data = reader.result;
+                        voiceInput.value = base64data;
+                        audioPlayback.src = base64data;
+                        playbackContainer.classList.remove('d-none');
+                        recordStatus.innerText = "Voice note attached successfully.";
+                    };
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+            } catch (err) {
+                console.error("Mic Error:", err);
+                recordStatus.innerText = "Permissions required.";
+                Swal.fire({ title: 'Microphone Needed', text: 'Help us hear you. Please enable mic access.', icon: 'info', background: '#1E293B', color: '#fff' });
+            }
+        };
+
         document.querySelector('form').onsubmit = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');

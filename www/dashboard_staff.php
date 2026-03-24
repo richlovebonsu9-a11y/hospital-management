@@ -36,8 +36,23 @@ if ($role === 'nurse') {
     $admRes = $sb->request('GET', '/rest/v1/admissions?status=eq.admitted&select=*,patient:profiles(*),ward:wards(*)', null, true);
     $activeAdmissions = ($admRes['status'] === 200) ? $admRes['data'] : [];
         
-    $notifRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_request&is_read=eq.false&select=*,patient:profiles(*)', null, true);
-    $pendingAdmissions = ($notifRes['status'] === 200) ? $notifRes['data'] : [];
+    // Fetch Pending Admission Recommendations (Standardized type)
+    $notifRes = $sb->request('GET', '/rest/v1/notifications?type=eq.admission_recommendation&is_read=eq.false&select=*&order=created_at.desc', null, true);
+    if ($notifRes['status'] === 200) {
+        foreach ($notifRes['data'] as $notif) {
+            $pId = $notif['related_id'];
+            $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $pId . '&select=name', null, true);
+            $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
+            
+            $pendingAdmissions[] = [
+                'id' => $notif['id'],
+                'patient_id' => $pId,
+                'patient' => ['name' => $pName],
+                'message' => $notif['message'],
+                'created_at' => $notif['created_at']
+            ];
+        }
+    }
 
     $vitalsRes = $sb->request('GET', '/rest/v1/consultations?created_at=gte.' . date('Y-m-d') . 'T00:00:00&select=patient_id', null, true);
     if ($vitalsRes['status'] === 200) $vitalsPatients = array_column($vitalsRes['data'], 'patient_id');
@@ -229,7 +244,17 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                             ?></div>
                                             <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
                                         </td>
-                                        <td><span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span></td>
+                                        <td>
+                                            <span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span>
+                                            <?php if(!empty($e['voice_note'])): ?>
+                                                <div class="mt-2 d-flex align-items-center gap-1">
+                                                    <i class="bi bi-mic-fill text-danger extra-small"></i>
+                                                    <audio controls style="height: 24px; width: 130px; border-radius: 12px; border: 1px solid #fee2e2;">
+                                                        <source src="<?php echo $e['voice_note']; ?>" type="audio/webm">
+                                                    </audio>
+                                                </div>
+                                            <?php endif; ?>
+                                        </td>
                                         <td><code class="text-primary bg-light px-2 py-1 rounded small"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
                                         <td>
                                             <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark' : 'info'; ?> rounded-pill px-3">
@@ -243,6 +268,11 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                         <i class="bi bi-truck me-1"></i> Dispatch
                                                     </button>
                                                 <?php else: ?>
+                                                    <?php if($role === 'dispatch_rider'): ?>
+                                                        <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm text-dark" onclick="recommendAdmission('<?php echo $e['id']; ?>', false)">
+                                                            <i class="bi bi-hospital me-1"></i> Admit
+                                                        </button>
+                                                    <?php endif; ?>
                                                     <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)">
                                                         <i class="bi bi-check-lg me-1"></i> Resolve
                                                     </button>
@@ -253,6 +283,44 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                     <?php endif; ?>
                                                 <?php endif; ?>
                                             </div>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            <?php endif; ?>
+
+            <?php if ($role === 'nurse' && !empty($pendingAdmissions)): ?>
+                <div class="card p-4 border-0 shadow-sm mb-5 border-start border-warning border-4 animate-fade-in">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="fw-bold mb-0 text-warning"><i class="bi bi-hospital me-2"></i>Pending Admission Tasks</h5>
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><?php echo count($pendingAdmissions); ?> Recommendations</span>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Patient</th>
+                                    <th>Recommendation Details</th>
+                                    <th>Requested At</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach($pendingAdmissions as $pa): ?>
+                                    <tr>
+                                        <td>
+                                            <div class="fw-bold"><?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?></div>
+                                            <small class="text-muted extra-small">ID: <?php echo substr($pa['patient_id'], 0, 8); ?></small>
+                                        </td>
+                                        <td><div class="small text-muted" style="max-width: 400px;"><?php echo htmlspecialchars($pa['message']); ?></div></td>
+                                        <td><small class="text-muted"><?php echo date('H:i', strtotime($pa['created_at'])); ?> GMT</small></td>
+                                        <td class="text-end">
+                                            <button class="btn btn-warning btn-sm rounded-pill px-4 fw-bold shadow-sm" onclick="openAssignBedModal('<?php echo $pa['patient_id']; ?>', '<?php echo htmlspecialchars($pa['patient']['name'] ?? 'Patient'); ?>')">
+                                                <i class="bi bi-door-open me-1"></i> Assign Ward & Bed
+                                            </button>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -418,11 +486,142 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             </div>
         </div>
     </div>
+    <!-- ASSIGN BED MODAL -->
+    <div class="modal fade" id="assignBedModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Assign Bed: <span id="assign_bed_patient_name"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="assignBedForm">
+                        <input type="hidden" name="patient_id" id="assign_bed_patient_id">
+                        <div class="mb-3">
+                            <label class="small text-muted text-uppercase fw-bold">Target Ward</label>
+                            <select name="ward_id" id="assign_bed_ward_select" class="form-select rounded-pill px-3 py-2 border-2" required>
+                                <option value="">-- Choose Ward --</option>
+                                <?php foreach($wards as $w): 
+                                    $isFull = ($w['occupied_beds'] >= $w['total_beds']);
+                                ?>
+                                    <option value="<?php echo $w['id']; ?>" <?php echo $isFull ? 'disabled' : ''; ?>>
+                                        <?php echo htmlspecialchars($w['ward_name']); ?> (<?php echo $w['total_beds'] - $w['occupied_beds']; ?> beds free)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="small text-muted text-uppercase fw-bold">Bed Number</label>
+                            <select name="bed_number" id="assign_bed_number_select" class="form-select rounded-pill px-3 py-2 border-2" required>
+                                <option value="">-- Select Ward First --</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label class="small text-muted text-uppercase fw-bold">Anticipated Days</label>
+                            <input type="number" name="anticipated_days" class="form-control rounded-pill px-3 py-2 border-2" value="3" min="1">
+                        </div>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm" onclick="submitBedAssignment()">
+                            <i class="bi bi-check2-circle me-1"></i> Finalize Admission
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
+    <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         const STAFF_ROLE = '<?php echo $role; ?>';
+        // Shared Refresh Logic
+        async function silentRefresh() {
+            try {
+                const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
+                if (activeSection) {
+                    const html = await fetch(location.href).then(r => r.text());
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const newSection = doc.getElementById(activeSection.id);
+                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
+                } else {
+                    location.reload();
+                }
+            } catch (e) { location.reload(); }
+        }
+
+        // BED ASSIGNMENT JS
+        function openAssignBedModal(ptId, ptName) {
+            document.getElementById('assign_bed_patient_id').value = ptId;
+            document.getElementById('assign_bed_patient_name').innerText = ptName;
+            document.getElementById('assign_bed_ward_select').selectedIndex = 0;
+            document.getElementById('assign_bed_number_select').innerHTML = '<option value="">-- Select Ward First --</option>';
+            new bootstrap.Modal(document.getElementById('assignBedModal')).show();
+        }
+
+        async function updateBedDropdown(wardId, selectId, currentBed = '') {
+            const select = document.getElementById(selectId);
+            if (!wardId) {
+                select.innerHTML = '<option value="">-- Select Ward First --</option>';
+                return;
+            }
+            
+            select.innerHTML = '<option value="">Loading beds...</option>';
+            try {
+                const res = await fetch(`/api/admin/get_available_beds?ward_id=${wardId}`);
+                const data = await res.json();
+                if (data.success) {
+                    let html = '<option value="">-- Select Bed --</option>';
+                    if (currentBed) html += `<option value="${currentBed}" selected>${currentBed} (Current)</option>`;
+                    data.data.forEach(b => {
+                        if (b.bed_number !== currentBed) {
+                            html += `<option value="${b.bed_number}">${b.bed_number}</option>`;
+                        }
+                    });
+                    select.innerHTML = html;
+                    if (data.data.length === 0 && !currentBed) {
+                        select.innerHTML = '<option value="">No available beds</option>';
+                    }
+                } else {
+                    select.innerHTML = '<option value="">Error loading beds</option>';
+                }
+            } catch (e) { select.innerHTML = '<option value="">Error</option>'; }
+        }
+
+        async function submitBedAssignment() {
+            const ptId = document.getElementById('assign_bed_patient_id').value;
+            const wardId = document.getElementById('assign_bed_ward_select').value;
+            const bedNum = document.getElementById('assign_bed_number_select').value;
+            const days = document.querySelector('[name="anticipated_days"]').value;
+
+            if (!wardId || !bedNum) {
+                Swal.fire({ title: 'Incomplete', text: 'Please select both a ward and a bed number.', icon: 'warning', confirmButtonColor: '#1a73e8' });
+                return;
+            }
+
+            const fd = new FormData();
+            fd.append('patient_id', ptId);
+            fd.append('ward_id', wardId);
+            fd.append('bed_number', bedNum);
+            fd.append('anticipated_days', days);
+            
+            const res = await fetch('/api/admission/finalize_assignment', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('assignBedModal'))?.hide();
+                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully. Notifications synced.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
+            } else {
+                Swal.fire({ title: 'Error', text: data.error || 'Assignment failed.', icon: 'error', confirmButtonColor: '#dc3545' });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const wardSelect = document.getElementById('assign_bed_ward_select');
+            if (wardSelect) {
+                wardSelect.addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));
+            }
+        });
+
+        // DISPATCH MODAL JS (Keep existing)
         const emergencyAssetsMap = {
             'car_and_motor_accident': { type: 'Ambulance Team', items: [] },
             'labour': { type: 'Ambulance Team', items: [] },
@@ -470,22 +669,9 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                         await Swal.fire({ title: 'Dispatched!', text: 'Help is on the way. Automatically recommending patient admission...', icon: 'success', confirmButtonColor: '#dc3545', confirmButtonText: 'OK', timer: 3000, timerProgressBar: true });
                         await recommendAdmission(emergencyId, true);
                     } else {
-                        // Optional for dispatch rider
-                        const admitResult = await Swal.fire({
-                            title: 'Dispatched!',
-                            html: '<p>Help is on the way to the patient.</p><div class="mt-3 p-3 bg-light rounded-3 border"><i class="bi bi-hospital text-primary me-2"></i><b>Recommend Hospital Admission?</b><div class="small text-muted mt-1">This will notify admin &amp; nursing staff to assign a ward and bed for this patient.</div></div>',
-                            icon: 'success',
-                            confirmButtonColor: '#1a73e8',
-                            confirmButtonText: '<i class="bi bi-hospital me-1"></i> Yes, Recommend Admission',
-                            showDenyButton: true,
-                            denyButtonText: 'No, Skip',
-                            denyButtonColor: '#6c757d',
-                        });
-                        if (admitResult.isConfirmed) {
-                            await recommendAdmission(emergencyId, false);
-                        } else {
-                            location.reload();
-                        }
+                        // Dispatch rider just reloads to see the assigned task actions
+                        await Swal.fire({ title: 'Dispatched!', text: 'Help is on the way. You can recommend admission from the task actions.', icon: 'success', confirmButtonColor: '#1a73e8', timer: 3000, timerProgressBar: true });
+                        location.reload();
                     }
                 } else {
                     Swal.fire({ title: 'Dispatch Failed', text: data.error || 'An unknown error occurred.', icon: 'error', confirmButtonColor: '#dc3545' });

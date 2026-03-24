@@ -41,6 +41,9 @@ if ($updateRes['status'] < 200 || $updateRes['status'] >= 300) {
     exit;
 }
 
+// 2.5 Cleanup: Delete any active 'emergency_alert' notifications for this emergency to clear queues
+$sb->request('DELETE', '/rest/v1/notifications?related_id=eq.' . $emergencyId . '&type=eq.emergency_alert', null, true);
+
 // 3. Fetch patient name for notifications
 $pRes  = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=name', null, true);
 $pName = ($pRes['status'] === 200 && !empty($pRes['data'])) ? $pRes['data'][0]['name'] : 'Patient';
