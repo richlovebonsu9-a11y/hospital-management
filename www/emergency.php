@@ -37,7 +37,7 @@ session_start();
                             <label class="form-label fw-bold h5 mb-3">Select Severity</label>
                             <div class="d-flex justify-content-center gap-3">
                                 <div class="severity-option">
-                                    <input type="radio" name="severity" value="medium" id="sev_medium" class="d-none" required>
+                                    <input type="radio" name="severity" value="medium" id="sev_medium" class="d-none" required checked>
                                     <div onclick="selectSeverity('medium', this)" class="severity-btn bg-warning p-3 rounded-4 text-white text-center d-block">
                                         <i class="bi bi-heart-pulse h1"></i>
                                         <div class="fw-bold mt-2 text-uppercase">Medium</div>
@@ -93,7 +93,10 @@ session_start();
                         </div>
 
                         <div class="d-grid mt-5">
-                            <button type="submit" class="btn btn-danger btn-lg py-3 fw-bold rounded-pill shadow-lg text-uppercase">Request Immediate Dispatch &rarr;</button>
+                            <button type="submit" id="submitBtn" class="btn btn-danger btn-lg py-3 fw-bold rounded-pill shadow-lg text-uppercase">
+                                <span class="normal-text">Request Immediate Dispatch &rarr;</span>
+                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> Dispatching...</span>
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -108,11 +111,44 @@ session_start();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         function selectSeverity(val, el) {
-            const radio = document.querySelector(`input[value="${val}"]`);
+            const radio = document.getElementById('sev_' + val);
             if (radio) radio.checked = true;
-            document.querySelectorAll('.severity-btn').forEach(btn => btn.classList.remove('active'));
-            el.classList.add('active');
+            document.querySelectorAll('.severity-btn').forEach(btn => btn.classList.remove('active', 'border-white', 'shadow-lg'));
+            el.classList.add('active', 'border-white', 'shadow-lg');
         }
+
+        document.querySelector('form').onsubmit = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.disabled = true;
+            btn.querySelector('.normal-text').classList.add('d-none');
+            btn.querySelector('.loading-text').classList.remove('d-none');
+
+            try {
+                const formData = new FormData(this);
+                const res = await fetch('/api/emergency/report', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('Emergency reported successfully! Help is on the way.');
+                    window.location.href = '/dashboard';
+                } else {
+                    alert('Error: ' + (data.error || 'Failed to report emergency.'));
+                    btn.disabled = false;
+                    btn.querySelector('.normal-text').classList.remove('d-none');
+                    btn.querySelector('.loading-text').classList.add('d-none');
+                }
+            } catch (err) {
+                alert('Connection error. Please try again.');
+                btn.disabled = false;
+                btn.querySelector('.normal-text').classList.remove('d-none');
+                btn.querySelector('.loading-text').classList.add('d-none');
+            }
+        };
+
 
         document.addEventListener('DOMContentLoaded', () => {
             const checked = document.querySelector('input[name="severity"]:checked');
