@@ -161,7 +161,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 <button class="btn btn-outline-primary w-100 rounded-pill btn-sm mb-2" data-bs-toggle="modal" data-bs-target="#searchModal">
                     <i class="bi bi-search me-1"></i> Patient Lookup
                 </button>
-                <a href="/api/logout.php" class="btn btn-light w-100 rounded-pill btn-sm text-danger mt-3">
+                <a href="/api/auth/logout.php" class="btn btn-light w-100 rounded-pill btn-sm text-danger mt-3">
                     <i class="bi bi-box-arrow-right me-1"></i> Logout
                 </a>
             </div>
