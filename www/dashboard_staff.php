@@ -61,7 +61,7 @@ if ($role === 'nurse') {
     $rxRes = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,patient:profiles(*)', null, true);
     $roleTasks = ($rxRes['status'] === 200) ? $rxRes['data'] : [];
     
-    $invRes = $sb->request('GET', '/rest/v1/inventory?select=*&order=drug_name.asc', null, true);
+    $invRes = $sb->request('GET', '/rest/v1/drug_inventory?select=*&order=drug_name.asc', null, true);
     $roleData['inventory'] = ($invRes['status'] === 200) ? $invRes['data'] : [];
     $availableDrugs = $roleData['inventory'];
 
@@ -428,15 +428,68 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         </div>
 
         <div id="section-role" class="dashboard-section d-none">
-             <div class="row g-4">
-                 <div class="col-12">
-                     <div class="card p-5 text-center border-0 shadow-sm rounded-5">
-                         <i class="bi bi-stack display-1 text-primary opacity-25 mb-4"></i>
-                         <h3>Role Specialized Workspace</h3>
-                         <p class="text-muted">Specialized tools and data management for the <?php echo ucfirst($role); ?> department.</p>
-                     </div>
-                 </div>
-             </div>
+             <?php if ($role === 'pharmacist'): ?>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card p-4 border-0 shadow-sm rounded-4 mb-4">
+                            <div class="d-flex justify-content-between align-items-center mb-4">
+                                <h5 class="fw-bold mb-0"><i class="bi bi-box-seam me-2 text-primary"></i>Inventory Management</h5>
+                                <button class="btn btn-primary-soft btn-sm rounded-pill px-4" onclick="location.reload()">
+                                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh Stock
+                                </button>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-light border-0">
+                                        <tr>
+                                            <th class="border-0">Drug Name</th>
+                                            <th class="border-0">Category</th>
+                                            <th class="border-0 text-center">Current Stock</th>
+                                            <th class="border-0 text-end">Unit Price</th>
+                                            <th class="border-0 text-end">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if (empty($roleData['inventory'])): ?>
+                                            <tr><td colspan="5" class="text-center py-5 text-muted">No inventory data found.</td></tr>
+                                        <?php endif; foreach($roleData['inventory'] as $drug): 
+                                            $lowStock = ($drug['stock_count'] <= 10);
+                                        ?>
+                                            <tr>
+                                                <td class="fw-bold"><?php echo htmlspecialchars($drug['drug_name']); ?></td>
+                                                <td><span class="badge bg-light text-secondary border rounded-pill px-3"><?php echo htmlspecialchars($drug['category'] ?? 'General'); ?></span></td>
+                                                <td class="text-center">
+                                                    <span class="badge <?php echo $lowStock ? 'bg-danger' : 'bg-success-soft text-success'; ?> rounded-pill px-3">
+                                                        <?php echo $drug['stock_count']; ?>
+                                                    </span>
+                                                    <?php if($lowStock): ?><i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Low Stock"></i><?php endif; ?>
+                                                </td>
+                                                <td class="text-end fw-bold text-primary">₵ <?php echo number_format($drug['unit_price'] ?? 0, 2); ?></td>
+                                                <td class="text-end">
+                                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
+                                                            onclick="openUpdateStockModal('<?php echo $drug['id']; ?>', '<?php echo addslashes($drug['drug_name']); ?>', '<?php echo $drug['stock_count']; ?>')">
+                                                        Update Stock
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+             <?php else: ?>
+                <div class="row g-4">
+                    <div class="col-12">
+                        <div class="card p-5 text-center border-0 shadow-sm rounded-5">
+                            <i class="bi bi-stack display-1 text-primary opacity-25 mb-4"></i>
+                            <h3>Role Specialized Workspace</h3>
+                            <p class="text-muted">Specialized tools and data management for the <?php echo ucfirst($role); ?> department.</p>
+                        </div>
+                    </div>
+                </div>
+             <?php endif; ?>
         </div>
 
         <div id="section-notifications" class="dashboard-section d-none">
@@ -511,7 +564,6 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             </div>
         </div>
     </div>
-    <!-- ASSIGN BED MODAL -->
     <div class="modal fade" id="assignBedModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
@@ -548,6 +600,115 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                         <button type="button" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm" onclick="submitBedAssignment()">
                             <i class="bi bi-check2-circle me-1"></i> Finalize Admission
                         </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DISPENSE MODAL (PHARMACIST) -->
+    <div class="modal fade" id="dispenseModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-success text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0"><i class="bi bi-capsule me-2"></i>Dispense Medication</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="dispenseForm">
+                        <input type="hidden" name="prescription_id" id="dispense_rx_id">
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Batch Number</label>
+                            <input type="text" name="batch_number" class="form-control rounded-4 p-3 bg-light border-0" placeholder="e.g. BATCH-2024-001" required>
+                        </div>
+                        <div class="mb-4">
+                            <label class="small fw-bold text-muted mb-1">Pharmacist Notes</label>
+                            <textarea name="notes" class="form-control rounded-4 p-3 bg-light border-0" rows="3" placeholder="Any specific instructions..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-success w-100 rounded-pill py-3 fw-bold" onclick="submitDispense()">Confirm & Dispense</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VITALS MODAL (NURSE) -->
+    <div class="modal fade" id="vitalsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0"><i class="bi bi-heart-pulse me-2"></i>Record Vitals</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="vitalsForm">
+                        <input type="hidden" name="patient_id" id="vitals_patient_id">
+                        <div class="row g-3 mb-4">
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">BP (mmHg)</label>
+                                <input type="text" name="blood_pressure" class="form-control rounded-4 p-3 bg-light border-0" placeholder="e.g. 120/80">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Temp (°C)</label>
+                                <input type="number" step="0.1" name="temperature" class="form-control rounded-4 p-3 bg-light border-0" placeholder="36.5">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Weight (kg)</label>
+                                <input type="number" step="0.1" name="weight" class="form-control rounded-4 p-3 bg-light border-0" placeholder="70.5">
+                            </div>
+                            <div class="col-6">
+                                <label class="small fw-bold text-muted mb-1">Pulse Rate</label>
+                                <input type="number" name="pulse" class="form-control rounded-4 p-3 bg-light border-0" placeholder="72">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill py-3 fw-bold" onclick="submitVitals()">Save Vitals</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LAB RESULT MODAL (TECHNICIAN) -->
+    <div class="modal fade" id="labResultModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-info text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0"><i class="bi bi-microscope me-2"></i>Report Lab Result</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="labResultForm">
+                        <input type="hidden" name="request_id" id="lab_request_id">
+                        <div class="mb-4">
+                            <label class="small fw-bold text-muted mb-1">Test Result Details</label>
+                            <textarea name="result_text" class="form-control rounded-4 p-3 bg-light border-0" rows="5" placeholder="Detailed findings..." required></textarea>
+                        </div>
+                        <button type="button" class="btn btn-info text-white w-100 rounded-pill py-3 fw-bold" onclick="submitLabResult()">Finalize Report</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- UPDATE STOCK MODAL (PHARMACIST) -->
+    <div class="modal fade" id="updateStockModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
+                <div class="modal-header bg-primary text-white border-0 py-3">
+                    <h5 class="modal-title fw-bold mb-0">Update Stock Level</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="updateStockForm">
+                        <input type="hidden" id="stock_drug_id">
+                        <div class="mb-4">
+                            <label class="small fw-bold text-muted mb-2 d-block">Drug: <span id="stock_drug_name" class="text-dark"></span></label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-light border-0 rounded-start-4 ps-3"><i class="bi bi-box"></i></span>
+                                <input type="number" id="stock_new_count" class="form-control rounded-end-4 p-3 bg-light border-0" placeholder="New stock count..." required>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm" onclick="submitStockUpdate()">Update Inventory</button>
                     </form>
                 </div>
             </div>
@@ -645,6 +806,44 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 wardSelect.addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));
             }
         });
+
+        // PHARMACIST JS
+        function openUpdateStockModal(id, name, current) {
+            document.getElementById('stock_drug_id').value = id;
+            document.getElementById('stock_drug_name').innerText = name;
+            document.getElementById('stock_new_count').value = current;
+            new bootstrap.Modal(document.getElementById('updateStockModal')).show();
+        }
+
+        async function submitStockUpdate() {
+            const id = document.getElementById('stock_drug_id').value;
+            const count = document.getElementById('stock_new_count').value;
+            
+            const btn = document.querySelector('#updateStockModal .btn-primary');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+
+            const formData = new FormData();
+            formData.append('id', id);
+            formData.append('stock_count', count);
+
+            try {
+                const res = await fetch('/api/pharmacist/update_stock.php', { method: 'POST', body: formData });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire('Success', 'Inventory updated successfully!', 'success').then(() => {
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire('Error', data.error || 'Failed to update inventory', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'A connection error occurred.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'Update Inventory';
+            }
+        }
 
         // DISPATCH MODAL JS (Keep existing)
         const emergencyAssetsMap = {
@@ -786,9 +985,59 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             document.querySelector('.sidebar-overlay').classList.toggle('show');
         }
 
-        function setPatientId(id) { /* for vitals */ }
-        function setPrescriptionId(id) { /* for dispense */ }
-        function setRequestId(id) { /* for lab */ }
+        function setPatientId(id) { document.getElementById('vitals_patient_id').value = id; }
+        function setPrescriptionId(id) { document.getElementById('dispense_rx_id').value = id; }
+        function setRequestId(id) { document.getElementById('lab_request_id').value = id; }
+
+        async function submitDispense() {
+            const form = document.getElementById('dispenseForm');
+            const fd = new FormData(form);
+            fd.append('is_ajax', '1');
+            const btn = document.querySelector('#dispenseModal .btn-success');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/prescriptions/dispense.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire('Dispensed!', 'Prescription fulfilled successfully.', 'success').then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.error || 'Dispense failed.', 'error');
+                }
+            } catch (e) { Swal.fire('Error', 'Connection failed.', 'error'); }
+            finally { btn.disabled = false; }
+        }
+
+        async function submitVitals() {
+            const form = document.getElementById('vitalsForm');
+            const fd = new FormData(form);
+            fd.append('is_ajax', '1');
+            const btn = document.querySelector('#vitalsModal .btn-primary');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/consultation/save.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire('Saved!', 'Patient vitals recorded.', 'success').then(() => location.reload());
+                } else { Swal.fire('Error', data.error || 'Failed to save.', 'error'); }
+            } catch (e) { Swal.fire('Error', 'Connection failed.', 'error'); }
+            finally { btn.disabled = false; }
+        }
+
+        async function submitLabResult() {
+            const form = document.getElementById('labResultForm');
+            const fd = new FormData(form);
+            fd.append('is_ajax', '1');
+            const btn = document.querySelector('#labResultModal .btn-info');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/lab/submit.php', { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    Swal.fire('Reported!', 'Laboratory results submitted.', 'success').then(() => location.reload());
+                } else { Swal.fire('Error', data.error || 'Submission failed.', 'error'); }
+            } catch (e) { Swal.fire('Error', 'Connection failed.', 'error'); }
+            finally { btn.disabled = false; }
+        }
     </script>
 </body>
 </html>
