@@ -108,8 +108,9 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff Dashboard - Hospital Management</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="/assets/css/dashboard.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/assets/css/style.css">
     <style>
         :root {
             --primary-gradient: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
@@ -117,7 +118,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             --success-green: #2ecc71;
             --soft-bg: #f8faff;
         }
-        body { background: var(--soft-bg); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        body { background: var(--bg-light); font-family: 'Montserrat', sans-serif; }
         .sidebar { background: #fff; border-right: 1px solid #edf2f7; width: 280px; height: 100vh; position: fixed; z-index: 1000; transition: all 0.3s; }
         .main-content { margin-left: 280px; padding: 40px; transition: all 0.3s; }
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin: 4px 15px; transition: all 0.2s; font-weight: 500; }
@@ -433,39 +434,48 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     <div class="col-12">
                         <div class="card p-4 border-0 shadow-sm rounded-4 mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h5 class="fw-bold mb-0"><i class="bi bi-box-seam me-2 text-primary"></i>Inventory Management</h5>
-                                <button class="btn btn-primary-soft btn-sm rounded-pill px-4" onclick="location.reload()">
-                                    <i class="bi bi-arrow-clockwise me-1"></i> Refresh Stock
+                                <h5 class="fw-bold mb-0"><i class="bi bi-box-seam me-2 text-primary"></i>Pharmacy Drug Inventory</h5>
+                                <button class="btn btn-primary rounded-pill px-4" onclick="location.reload()">
+                                    <i class="bi bi-arrow-clockwise me-2"></i> Refresh Stock
                                 </button>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle">
-                                    <thead class="table-light border-0">
+                                    <thead class="table-light">
                                         <tr>
-                                            <th class="border-0">Drug Name</th>
-                                            <th class="border-0">Category</th>
-                                            <th class="border-0 text-center">Current Stock</th>
-                                            <th class="border-0 text-end">Unit Price</th>
-                                            <th class="border-0 text-end">Action</th>
+                                            <th>Drug Name</th>
+                                            <th>Category</th>
+                                            <th>Unit Price</th>
+                                            <th>Stock</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         <?php if (empty($roleData['inventory'])): ?>
-                                            <tr><td colspan="5" class="text-center py-5 text-muted">No inventory data found.</td></tr>
+                                            <tr><td colspan="6" class="text-center py-4 text-muted">Inventory is empty.</td></tr>
                                         <?php endif; foreach($roleData['inventory'] as $drug): 
-                                            $lowStock = ($drug['stock_count'] <= 10);
+                                            $lowStock = ($drug['stock_count'] < 10);
                                         ?>
                                             <tr>
                                                 <td class="fw-bold"><?php echo htmlspecialchars($drug['drug_name']); ?></td>
-                                                <td><span class="badge bg-light text-secondary border rounded-pill px-3"><?php echo htmlspecialchars($drug['category'] ?? 'General'); ?></span></td>
-                                                <td class="text-center">
-                                                    <span class="badge <?php echo $lowStock ? 'bg-danger' : 'bg-success-soft text-success'; ?> rounded-pill px-3">
-                                                        <?php echo $drug['stock_count']; ?>
+                                                <td><span class="badge bg-light text-dark border rounded-pill px-2"><?php echo htmlspecialchars($drug['category'] ?: 'General'); ?></span></td>
+                                                <td>₵ <?php echo number_format($drug['unit_price'], 2); ?></td>
+                                                <td>
+                                                    <span class="fw-bold <?php echo $lowStock ? 'text-danger' : ''; ?>">
+                                                        <?php echo $drug['stock_count']; ?> units
                                                     </span>
-                                                    <?php if($lowStock): ?><i class="bi bi-exclamation-triangle-fill text-danger ms-1" title="Low Stock"></i><?php endif; ?>
                                                 </td>
-                                                <td class="text-end fw-bold text-primary">₵ <?php echo number_format($drug['unit_price'] ?? 0, 2); ?></td>
-                                                <td class="text-end">
+                                                <td>
+                                                    <?php if($drug['stock_count'] <= 0): ?>
+                                                        <span class="badge bg-danger-soft text-danger">Out of Stock</span>
+                                                    <?php elseif($lowStock): ?>
+                                                        <span class="badge bg-warning-soft text-warning">Low Stock</span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success-soft text-success">In Stock</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
                                                     <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
                                                             onclick="openUpdateStockModal('<?php echo $drug['id']; ?>', '<?php echo addslashes($drug['drug_name']); ?>', '<?php echo $drug['stock_count']; ?>')">
                                                         Update Stock
