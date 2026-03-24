@@ -20,6 +20,8 @@ switch ($role) {
     case 'nurse':
     case 'pharmacist':
     case 'technician':
+    case 'ambulance':
+    case 'dispatch_rider':
         header('Location: /dashboard_staff.php');
         break;
     case 'guardian':

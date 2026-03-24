@@ -28,7 +28,7 @@ if ($profilesRes['status'] === 200) {
     foreach ($profilesRes['data'] as $u) {
         $profilesMap[$u['id']] = $u['name'] ?? 'Unknown';
         $r = strtolower($u['role'] ?? 'patient');
-        if (in_array($r, ['doctor', 'nurse', 'pharmacist', 'technician', 'admin'])) {
+        if (in_array($r, ['doctor', 'nurse', 'pharmacist', 'technician', 'admin', 'ambulance', 'dispatch_rider'])) {
             $staffMembers[] = [
                 'id' => $u['id'], 
                 'name' => $u['name'] ?? 'Unknown', 
@@ -967,6 +967,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     <option value="nurse">Nurse</option>
                                     <option value="pharmacist">Pharmacist</option>
                                     <option value="technician">Technician</option>
+                                    <option value="ambulance">Ambulance Team</option>
+                                    <option value="dispatch_rider">Dispatch Rider</option>
                                 </select>
                             </div>
                             <div class="col-6 mb-3">
@@ -2105,6 +2107,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     <option value="nurse">Nurse</option>
                                     <option value="pharmacist">Pharmacist</option>
                                     <option value="technician">Technician</option>
+                                    <option value="ambulance">Ambulance Team</option>
+                                    <option value="dispatch_rider">Dispatch Rider</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
