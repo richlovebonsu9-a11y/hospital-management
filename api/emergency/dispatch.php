@@ -13,7 +13,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $sb = new Supabase();
 $emergencyId = $_POST['emergency_id'] ?? '';
 $dispatchNotes = $_POST['dispatch_notes'] ?? '';
-$staffId = $_SESSION['user_id'] ?? null;
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+$staffId = $_SESSION['user']['id'] ?? null;
 
 if (!$staffId || empty($emergencyId)) {
     echo json_encode(['success' => false, 'error' => 'Unauthorized or missing ID']);

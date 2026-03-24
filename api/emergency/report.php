@@ -11,7 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $sb = new Supabase();
-$patientId = $_SESSION['user_id'] ?? null;
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+$patientId = $_SESSION['user']['id'] ?? null;
 
 if (!$patientId) {
     echo json_encode(['success' => false, 'error' => 'User not logged in']);
@@ -19,8 +20,8 @@ if (!$patientId) {
 }
 
 $emergencyType = $_POST['emergency_type'] ?? 'general';
-$location = $_POST['location'] ?? 'N/A';
-$gps = $_POST['gps'] ?? 'N/A';
+$gps = $_POST['ghana_post_gps'] ?? 'N/A';
+$location = $_POST['location'] ?? $gps;
 $symptoms = $_POST['symptoms'] ?? 'No symptoms reported';
 
 $data = [
