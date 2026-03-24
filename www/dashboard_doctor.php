@@ -79,6 +79,7 @@ if ($pMapRes['status'] === 200) {
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
         .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
         .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
+        .dashboard-section { min-height: 400px; }
     </style>
 </head>
 <body>
@@ -228,7 +229,15 @@ if ($pMapRes['status'] === 200) {
                                         <td><code class="text-primary bg-light px-2 py-1 rounded"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
                                         <td class="small"><?php echo htmlspecialchars($e['symptoms']); ?></td>
                                         <td>
-                                            <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold" onclick='openDispatchEmergencyModal(<?php echo json_encode($e); ?>)'>
+                                            <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold" 
+                                                    onclick='const cleanData = <?php 
+                                                        $stripped = $e;
+                                                        if (isset($stripped["symptoms"]) && strpos($stripped["symptoms"], "||VOICE_NOTE||") !== false) {
+                                                            $parts = explode("||VOICE_NOTE||", $stripped["symptoms"]);
+                                                            $stripped["symptoms"] = trim($parts[0]) . " (Voice Note Available)";
+                                                        }
+                                                        echo json_encode($stripped); 
+                                                    ?>; openDispatchEmergencyModal(cleanData)'>
                                                 <i class="bi bi-truck me-1"></i> Dispatch help
                                             </button>
                                         </td>
@@ -525,11 +534,12 @@ if ($pMapRes['status'] === 200) {
                     const targetId = link.getAttribute('data-target');
                     if (targetId) {
                         e.preventDefault();
-                        sections.forEach(sec => sec.classList.add('d-none'));
-                        const target = document.getElementById(targetId);
-                        if (target) target.classList.remove('d-none');
-                        links.forEach(l => l.classList.remove('active'));
-                        link.classList.add('active');
+                        navigateTo(targetId);
+                        
+                        // Auto-close sidebar on mobile
+                        if (window.innerWidth < 992) {
+                            toggleSidebar();
+                        }
                     }
                 });
             });
@@ -581,11 +591,18 @@ if ($pMapRes['status'] === 200) {
         });
 
         function navigateTo(sectionId) {
-            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
+            console.log('Navigating to:', sectionId);
+            const target = document.getElementById(sectionId);
+            if (!target) {
+                console.error('Target section not found:', sectionId);
+                return;
+            }
+            
             const sections = document.querySelectorAll('.dashboard-section');
             sections.forEach(sec => sec.classList.add('d-none'));
-            const target = document.getElementById(sectionId);
-            if (target) target.classList.remove('d-none');
+            target.classList.remove('d-none');
+            
+            const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             links.forEach(l => {
                 l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
             });

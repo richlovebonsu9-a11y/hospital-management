@@ -278,6 +278,17 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                 <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): 
                                                     $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type']];
                                                 ?>
+                                                    <button class="btn btn-primary-soft btn-sm rounded-pill px-3 fw-bold" 
+                                                    onclick='const cleanData = <?php 
+                                                        $stripped = $e;
+                                                        if (isset($stripped["symptoms"]) && strpos($stripped["symptoms"], "||VOICE_NOTE||") !== false) {
+                                                            $parts = explode("||VOICE_NOTE||", $stripped["symptoms"]);
+                                                            $stripped["symptoms"] = trim($parts[0]) . " (Voice Note Available)";
+                                                        }
+                                                        echo json_encode($stripped); 
+                                                    ?>; editEmergency(cleanData)'>
+                                                <i class="bi bi-pencil-square me-1"></i> Edit
+                                            </button>
                                                     <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
                                                         <i class="bi bi-truck me-1"></i> Dispatch
                                                     </button>

@@ -136,6 +136,7 @@ foreach ($appointments as $a) {
             margin-right: 12px;
             font-size: 1.2rem;
         }
+        .dashboard-section { min-height: 400px; }
     </style>
 </head>
 <body>
@@ -776,13 +777,19 @@ foreach ($appointments as $a) {
         }
 
         function navigateTo(sectionId) {
+            console.log('Navigating to:', sectionId);
+            const target = document.getElementById(sectionId);
+            if (!target) {
+                console.error('Target section not found:', sectionId);
+                return;
+            }
+            
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
             // Hide all sections
             sections.forEach(sec => sec.classList.add('d-none'));
             // Show target
-            const target = document.getElementById(sectionId);
-            if (target) target.classList.remove('d-none');
+            target.classList.remove('d-none');
             // Update active link
             links.forEach(l => {
                 if (l.getAttribute('data-target') === sectionId) {
@@ -798,10 +805,15 @@ foreach ($appointments as $a) {
             const sections = document.querySelectorAll('.dashboard-section');
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    navigateTo(link.getAttribute('data-target'));
-                    if (window.innerWidth < 992) {
-                        toggleSidebar();
+                    const targetId = link.getAttribute('data-target');
+                    if (targetId) {
+                        e.preventDefault();
+                        navigateTo(targetId);
+                        
+                        // Auto-close sidebar on mobile
+                        if (window.innerWidth < 992) {
+                            toggleSidebar();
+                        }
                     }
                 });
             });

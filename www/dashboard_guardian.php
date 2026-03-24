@@ -49,6 +49,7 @@ if ($pMapRes['status'] === 200) {
         .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
         .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
         .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
+        .dashboard-section { min-height: 400px; }
     </style>
 </head>
 <body>
@@ -405,11 +406,17 @@ if ($pMapRes['status'] === 200) {
     </script>
     <script>
         function navigateTo(sectionId) {
+            console.log('Navigating to:', sectionId);
+            const target = document.getElementById(sectionId);
+            if (!target) {
+                console.error('Target section not found:', sectionId);
+                return;
+            }
+            
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
             sections.forEach(sec => sec.classList.add('d-none'));
-            const target = document.getElementById(sectionId);
-            if (target) target.classList.remove('d-none');
+            target.classList.remove('d-none');
             links.forEach(l => {
                 l.classList.toggle('active', l.getAttribute('data-target') === sectionId);
             });
@@ -419,10 +426,15 @@ if ($pMapRes['status'] === 200) {
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             links.forEach(link => {
                 link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    navigateTo(link.getAttribute('data-target'));
-                    if (window.innerWidth < 992) {
-                        toggleSidebar();
+                    const targetId = link.getAttribute('data-target');
+                    if (targetId) {
+                        e.preventDefault();
+                        navigateTo(targetId);
+                        
+                        // Auto-close sidebar on mobile
+                        if (window.innerWidth < 992) {
+                            toggleSidebar();
+                        }
                     }
                 });
             });
