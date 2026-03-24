@@ -9,61 +9,201 @@ session_start();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EMERGENCY NOW - Kobby Moore Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        .emergency-header { background: #dc3545; color: white; padding: 40px 0; }
-        .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; min-width: 140px; }
-        .severity-btn:hover { transform: translateY(-5px); }
-        .severity-btn.active { border-color: white; transform: scale(1.1); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
-        input[name="severity"]:checked + .severity-btn { border-color: white; transform: scale(1.1); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+        body {
+            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            min-height: 100vh;
+            color: white;
+            font-family: 'Montserrat', sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* Pulsing Glow Background */
+        .emergency-glow {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0) 70%);
+            border-radius: 50%;
+            z-index: 0;
+            animation: pulse-glow 4s infinite alternate ease-in-out;
+            pointer-events: none;
+        }
+
+        @keyframes pulse-glow {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+            100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+        }
+
+        .emergency-header {
+            position: relative;
+            z-index: 10;
+            padding: 60px 0 20px;
+        }
+        
+        .emergency-header h1 {
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-shadow: 0 4px 15px rgba(239,68,68,0.4);
+            color: #fff;
+        }
+
+        .hope-message {
+            font-size: 1.25rem;
+            color: #94A3B8;
+            font-weight: 400;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+            z-index: 10;
+            color: #fff;
+        }
+
+        .form-label {
+            color: #E2E8F0;
+            letter-spacing: 0.5px;
+            font-size: 0.95rem;
+        }
+
+        .form-select, .form-control {
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            color: #fff !important;
+            border-radius: 1rem;
+            transition: all 0.3s;
+        }
+
+        .form-select:focus, .form-control:focus {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: #EF4444 !important;
+            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2) !important;
+        }
+
+        option, optgroup {
+            background: #1E293B;
+            color: #fff;
+        }
+
+        /* Severity Buttons Redesign */
+        .severity-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            min-width: 130px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .severity-btn i { font-size: 2rem; margin-bottom: 0.5rem; display: block; opacity: 0.7; transition: all 0.3s; }
+        .severity-btn .fw-bold { font-size: 0.9rem; letter-spacing: 1px; color: #94A3B8; transition: all 0.3s; }
+
+        .severity-btn:hover { transform: translateY(-3px); background: rgba(255, 255, 255, 0.1); }
+
+        /* Medium Active */
+        #sev_medium:checked + .severity-btn {
+            background: rgba(245, 158, 11, 0.2);
+            border-color: #F59E0B;
+            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+        }
+        #sev_medium:checked + .severity-btn i, #sev_medium:checked + .severity-btn .fw-bold { color: #FCD34D; opacity: 1; }
+
+        /* High Active */
+        #sev_high:checked + .severity-btn {
+            background: rgba(249, 115, 22, 0.2);
+            border-color: #F97316;
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+        }
+        #sev_high:checked + .severity-btn i, #sev_high:checked + .severity-btn .fw-bold { color: #FDBA74; opacity: 1; }
+
+        /* Critical Active */
+        #sev_critical:checked + .severity-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #EF4444;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+            animation: pulse-border 1.5s infinite alternate;
+        }
+        #sev_critical:checked + .severity-btn i, #sev_critical:checked + .severity-btn .fw-bold { color: #FCA5A5; opacity: 1; }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
+            100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+        }
+
+        .btn-danger-glow {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+            border: none;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+            transition: all 0.3s;
+        }
+        .btn-danger-glow:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(239, 68, 68, 0.6);
+            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+        }
+
+        /* Particles Layer */
+        .particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 50px 50px; opacity: 0.15; }
     </style>
 </head>
-<body class="bg-light">
+<body>
+    <div class="emergency-glow"></div>
+    <div class="particles"></div>
+
     <div class="emergency-header text-center">
         <div class="container">
-            <h1 class="display-3 fw-bold mb-3"><i class="bi bi-exclamation-triangle-fill"></i> EMERGENCY NOW</h1>
-            <p class="lead mb-0">Help is on the way. Please provide details below.</p>
+            <h1 class="display-4 mb-3"><i class="bi bi-activity text-danger me-2"></i> EMERGENCY NOW</h1>
+            <p class="hope-message mb-0">You are not alone. Our elite response team is standing by to help you immediately.</p>
         </div>
     </div>
 
-    <div class="container py-5">
+    <div class="container pb-5">
         <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card border-0 shadow-lg rounded-5 p-4">
+            <div class="col-md-7">
+                <div class="glass-card p-4 p-md-5 mt-4">
                     <form action="/api/emergency/report" method="POST">
                         <div class="mb-5 text-center">
-                            <label class="form-label fw-bold h5 mb-3">Select Severity</label>
-                            <div class="d-flex justify-content-center gap-3">
-                                <div class="severity-option">
+                            <label class="form-label fw-bold mb-4 text-uppercase">1. Assess Severity</label>
+                            <div class="d-flex justify-content-center gap-3 flex-wrap">
+                                <label class="severity-option">
                                     <input type="radio" name="severity" value="medium" id="sev_medium" class="d-none" required checked>
-                                    <div onclick="selectSeverity('medium', this)" class="severity-btn bg-warning p-3 rounded-4 text-white text-center d-block">
-                                        <i class="bi bi-heart-pulse h1"></i>
-                                        <div class="fw-bold mt-2 text-uppercase">Medium</div>
+                                    <div class="severity-btn p-3 text-center">
+                                        <i class="bi bi-heart-pulse"></i>
+                                        <div class="fw-bold text-uppercase">Medium</div>
                                     </div>
-                                </div>
-                                <div class="severity-option">
+                                </label>
+                                <label class="severity-option">
                                     <input type="radio" name="severity" value="high" id="sev_high" class="d-none">
-                                    <div onclick="selectSeverity('high', this)" class="severity-btn bg-orange p-3 rounded-4 text-white text-center d-block" style="background: #fd7e14;">
-                                        <i class="bi bi-activity h1"></i>
-                                        <div class="fw-bold mt-2 text-uppercase">High</div>
+                                    <div class="severity-btn p-3 text-center">
+                                        <i class="bi bi-activity"></i>
+                                        <div class="fw-bold text-uppercase">High</div>
                                     </div>
-                                </div>
-                                <div class="severity-option">
+                                </label>
+                                <label class="severity-option">
                                     <input type="radio" name="severity" value="critical" id="sev_critical" class="d-none">
-                                    <div onclick="selectSeverity('critical', this)" class="severity-btn bg-danger p-3 rounded-4 text-white text-center d-block">
-                                        <i class="bi bi-shield-fill-exclamation h1"></i>
-                                        <div class="fw-bold mt-2 text-uppercase">Critical</div>
+                                    <div class="severity-btn p-3 text-center">
+                                        <i class="bi bi-shield-fill-exclamation"></i>
+                                        <div class="fw-bold text-uppercase">Critical</div>
                                     </div>
-                                </div>
+                                </label>
                             </div>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-danger">Nature of Emergency</label>
-                            <select name="emergency_type" class="form-select rounded-pill px-4 py-3 border-light bg-light fw-bold" required>
+                            <label class="form-label fw-bold text-uppercase">2. Nature of Emergency</label>
+                            <select name="emergency_type" class="form-select px-4 py-3 fw-bold" required>
                                 <option value="">-- Choose Situation --</option>
                                 <optgroup label="Ambulance Dispatch Required">
                                     <option value="car_and_motor_accident">Car and Motor Accident</option>
@@ -83,26 +223,29 @@ session_start();
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold">Primary Symptoms / Details</label>
-                            <textarea name="symptoms" class="form-control rounded-4 p-4 border-light bg-light" rows="3" placeholder="Briefly describe what is happening..." required></textarea>
+                            <label class="form-label fw-bold text-uppercase">3. Primary Symptoms / Details</label>
+                            <textarea name="symptoms" class="form-control p-4" rows="3" placeholder="Briefly describe what is happening... Stay calm, type clearly." required></textarea>
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold">GhanaPostGPS Address</label>
-                            <input type="text" name="ghana_post_gps" class="form-control rounded-pill px-4 py-3 border-light bg-light" required placeholder="AK-485-9323" value="<?php echo $_SESSION['user']['user_metadata']['ghana_post_gps'] ?? ''; ?>">
-                            <small class="text-muted mt-2 d-block">This is mandatory for rapid response accuracy in Ghana.</small>
+                            <label class="form-label fw-bold text-uppercase">4. GhanaPostGPS Address</label>
+                            <div class="position-relative">
+                                <i class="bi bi-geo-alt-fill position-absolute top-50 start-0 translate-middle-y ms-3 text-danger"></i>
+                                <input type="text" name="ghana_post_gps" class="form-control px-4 py-3 ps-5 fw-bold" required placeholder="AK-485-9323" value="<?php echo $_SESSION['user']['user_metadata']['ghana_post_gps'] ?? ''; ?>">
+                            </div>
+                            <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Mandatory for pinpoint rapid response accuracy.</small>
                         </div>
 
-                        <div class="d-grid mt-5">
-                            <button type="submit" id="submitBtn" class="btn btn-danger btn-lg py-3 fw-bold rounded-pill shadow-lg text-uppercase">
-                                <span class="normal-text">Request Immediate Dispatch &rarr;</span>
-                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> Dispatching...</span>
+                        <div class="d-grid mt-5 pt-3 border-top border-secondary border-opacity-25">
+                            <button type="submit" id="submitBtn" class="btn btn-danger-glow btn-lg py-3 fw-bold rounded-pill text-uppercase text-white">
+                                <span class="normal-text"><i class="bi bi-lightning-charge-fill me-2"></i> Request Immediate Dispatch</span>
+                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> Transmitting to Elite Team...</span>
                             </button>
                         </div>
                     </form>
                 </div>
-                <div class="text-center mt-4">
-                    <a href="/dashboard" class="text-muted text-decoration-none small">&larr; Back to Dashboard</a>
+                <div class="text-center mt-5 position-relative z-index-10">
+                    <a href="/dashboard" class="text-secondary text-decoration-none hover-white transition-all"><i class="bi bi-arrow-left me-1"></i> Back to Safety</a>
                 </div>
             </div>
         </div>
@@ -111,13 +254,6 @@ session_start();
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function selectSeverity(val, el) {
-            const radio = document.getElementById('sev_' + val);
-            if (radio) radio.checked = true;
-            document.querySelectorAll('.severity-btn').forEach(btn => btn.classList.remove('active', 'border-white', 'shadow-lg'));
-            el.classList.add('active', 'border-white', 'shadow-lg');
-        }
-
         document.querySelector('form').onsubmit = async function(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
@@ -135,21 +271,26 @@ session_start();
                 
                 if (data.success) {
                     Swal.fire({
-                        title: 'Emergency Dispatched!',
-                        text: 'Specialized help is on the way to your location.',
+                        title: 'Response Team Triggered!',
+                        html: '<p class="lead">Please remain calm.</p><p>Specialized help has been dispatched to your exact location and our experts are monitoring the situation.</p>',
                         icon: 'success',
-                        confirmButtonColor: '#dc3545',
-                        confirmButtonText: 'Go to Dashboard',
+                        background: '#1E293B',
+                        color: '#fff',
+                        iconColor: '#10B981',
+                        confirmButtonColor: '#2563EB',
+                        confirmButtonText: 'Return to Dashboard',
                         allowOutsideClick: false
                     }).then(() => {
                         window.location.href = '/dashboard';
                     });
                 } else {
                     Swal.fire({
-                        title: 'Dispatch Failed',
-                        text: data.error || 'There was an issue dispatching the emergency. Please try again.',
+                        title: 'Dispatch Issue',
+                        text: data.error || 'There was an issue transmitting the emergency pulse. Please try again immediately.',
                         icon: 'error',
-                        confirmButtonColor: '#dc3545'
+                        background: '#1E293B',
+                        color: '#fff',
+                        confirmButtonColor: '#EF4444'
                     });
                     btn.disabled = false;
                     btn.querySelector('.normal-text').classList.remove('d-none');
@@ -157,25 +298,18 @@ session_start();
                 }
             } catch (err) {
                 Swal.fire({
-                    title: 'Connection Error',
-                    text: 'Please check your internet connection and try again.',
+                    title: 'Connection Dropped',
+                    text: 'We could not reach the server. Please check your signal and hit dispatch again.',
                     icon: 'warning',
-                    confirmButtonColor: '#dc3545'
+                    background: '#1E293B',
+                    color: '#fff',
+                    confirmButtonColor: '#EF4444'
                 });
                 btn.disabled = false;
                 btn.querySelector('.normal-text').classList.remove('d-none');
                 btn.querySelector('.loading-text').classList.add('d-none');
             }
         };
-
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const checked = document.querySelector('input[name="severity"]:checked');
-            if (checked) {
-                const btn = checked.nextElementSibling;
-                if (btn) btn.classList.add('active');
-            }
-        });
     </script>
     <script src="/assets/js/auto_dismiss.js"></script>
 </body>

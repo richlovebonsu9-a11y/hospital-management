@@ -248,6 +248,77 @@ body {
     background: rgba(15, 23, 42, 0.4); backdrop-filter: blur(2px); z-index: 999;
 }
 
+/* ============================================================== 
+ * MASTERCLASS AESTHETIC UPGRADES FOR ALL DASHBOARDS
+ * ============================================================== */
+
+/* Stat Cards (Summary Hubs) */
+.stat-card {
+    background: linear-gradient(135deg, var(--bg-white) 0%, var(--bg-light) 100%);
+    border: 1px solid rgba(255,255,255,0.8);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+.stat-card::before {
+    content: ''; position: absolute; top: 0; right: 0; width: 100px; height: 100px;
+    background: radial-gradient(circle, var(--theme-blue-soft) 0%, transparent 70%);
+    border-radius: 50%; opacity: 0.5; z-index: -1;
+    transform: translate(30%, -30%);
+}
+.stat-card:hover { border-color: var(--theme-blue-soft); }
+
+/* Unified Table Enhancements */
+.table { border-collapse: separate; border-spacing: 0; }
+.table thead th {
+    border-top: none; border-bottom: none;
+    background: #F1F5F9; color: #475569;
+    font-size: 0.7rem; font-weight: 700;
+}
+.table thead th:first-child { border-top-left-radius: 1rem; border-bottom-left-radius: 1rem; }
+.table thead th:last-child { border-top-right-radius: 1rem; border-bottom-right-radius: 1rem; }
+
+.table tbody tr {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.01);
+    border-radius: 1rem;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.table tbody td {
+    border-bottom: 1px solid #F1F5F9; border-top: none;
+    padding: 1.25rem 1rem;
+    color: #334155; font-weight: 500;
+    font-size: 0.9rem;
+}
+.table tbody tr:hover { transform: translateY(-3px) scale(1.01); box-shadow: 0 10px 20px rgba(0,0,0,0.04); background: #fff !important; z-index: 10; position: relative; }
+.table tbody tr:hover td { border-color: transparent; }
+.table-responsive { overflow: visible; padding: 0.5rem; }
+
+/* Dashboard Headers */
+.dashboard-header {
+    background: linear-gradient(135deg, var(--theme-blue) 0%, #172554 100%);
+    color: white; padding: 2.5rem; border-radius: 1.5rem; margin-bottom: 2rem;
+    box-shadow: 0 15px 35px rgba(37, 99, 235, 0.2);
+    position: relative; overflow: hidden;
+}
+.dashboard-header::after {
+    content: ''; position: absolute; top: -50%; right: -10%; width: 50%; height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+    transform: rotate(30deg);
+}
+
+/* Modal Enhancements */
+.modal-content {
+    border: none; border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+}
+.modal-header { border-bottom: 1px solid rgba(0,0,0,0.05); }
+.modal-footer { border-top: 1px solid rgba(0,0,0,0.05); }
+
+/* Badges */
+.badge { padding: 0.5em 0.8em; letter-spacing: 0.5px; font-weight: 600; border-radius: 2rem; }
+
 .main-content {
     margin-left: 280px; padding: 40px; 
     background-color: var(--bg-light); min-height: 100vh; 
