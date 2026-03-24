@@ -22,7 +22,7 @@ if (!$staffId || empty($emergencyId)) {
 }
 
 // 1. Fetch Emergency details
-$eRes = $sb->request('GET', '/rest/v1/emergencies?id=eq.' . $emergencyId . '&select=*,reporter:profiles(*)');
+$eRes = $sb->request('GET', '/rest/v1/emergencies?id=eq.' . $emergencyId . '&select=*', null, true);
 $emergency = ($eRes['status'] === 200 && !empty($eRes['data'])) ? $eRes['data'][0] : null;
 
 if (!$emergency) {

@@ -262,6 +262,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 </div>
             <?php endif; ?>
 
+            <?php if (!in_array($role, ['ambulance', 'dispatch_rider'])): ?>
             <div class="card p-0 border-0 shadow-sm overflow-hidden mb-5">
                 <div class="bg-white p-4 border-bottom d-flex justify-content-between align-items-center">
                     <h5 class="fw-bold mb-0">Assigned Task Queue</h5>
@@ -330,6 +331,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     </table>
                 </div>
             </div>
+            <?php endif; ?>
         </div>
 
         <div id="section-role" class="dashboard-section d-none">
