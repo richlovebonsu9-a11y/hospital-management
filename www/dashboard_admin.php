@@ -1259,10 +1259,15 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     <option value="Maternity">Maternity</option>
                                     <option value="Orthopedics">Orthopedics</option>
                                     <option value="Surgery">Surgery</option>
+                                    <option value="Neurology">Neurology</option>
+                                    <option value="Dental">Dental</option>
                                 </select>
                             </div>
                         </div>
-                        <button type="submit" class="btn btn-primary w-100 rounded-pill mt-3">Save Changes</button>
+                        <div class="d-flex justify-content-between mt-4">
+                            <button type="button" class="btn btn-outline-danger rounded-pill px-4" onclick="deleteStaff()"><i class="bi bi-trash3"></i> Delete</button>
+                            <button type="submit" class="btn btn-primary rounded-pill px-5">Save Changes</button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -1910,6 +1915,33 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             }
         }
 
+        function deleteStaff() {
+            const id = document.getElementById('edit_user_id').value;
+            const name = document.getElementById('edit_name').value;
+            Swal.fire({
+                title: 'Delete Staff Account?',
+                text: `Are you sure you want to completely remove ${name}'s account? This action cannot be undone.`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Delete Account'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/api/admin/staff_delete';
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'user_id';
+                    input.value = id;
+                    form.appendChild(input);
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            });
+        }
+
         function openLinkModal(patientId, patientName) {
             document.getElementById('link_patient_id').value = patientId;
             document.getElementById('link_patient_name').value = patientName;
@@ -2084,16 +2116,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             else location.reload();
         }
 
-        function editStaff(encodedStaff) {
-            try {
-                const staff = JSON.parse(atob(encodedStaff));
-                // Add your staff edit modal logic here if needed, 
-                // for now we'll just show a placeholder alert to verify it works
-                Swal.fire({ title: 'Edit Staff', text: 'Editing functionality for ' + staff.name + ' will be expanded in the next update.', icon: 'info' });
-            } catch (e) {
-                console.error('Error parsing staff data:', e);
-            }
-        }
 
         function respondToEmergency(id) {
             // Simulate clicking the sidebar link for emergencies
@@ -2498,5 +2520,23 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         </div>
     </div>
     <script src="/assets/js/auto_dismiss.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const params = new URLSearchParams(window.location.search);
+            if (params.has('staff_edited')) {
+                Swal.fire({ title: 'Success', text: 'Staff profile updated successfully.', icon: 'success', confirmButtonColor: '#1a73e8' });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (params.has('staff_deleted')) {
+                Swal.fire({ title: 'Deleted', text: 'Staff account has been permanently removed.', icon: 'success', confirmButtonColor: '#1a73e8' });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (params.has('success')) {
+                Swal.fire({ title: 'Success', text: params.get('success'), icon: 'success', confirmButtonColor: '#1a73e8' });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } else if (params.has('error')) {
+                Swal.fire({ title: 'Error', text: params.get('error'), icon: 'error', confirmButtonColor: '#1a73e8' });
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        });
+    </script>
 </body>
 </html>
