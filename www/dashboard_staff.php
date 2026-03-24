@@ -8,8 +8,8 @@ if (!isset($_SESSION['user'])) { header('Location: /login'); exit; }
 
 $sb = new Supabase();
 $userId = $_SESSION['user']['id'] ?? $_SESSION['user_id'];
-// Get role from user metadata
-$role = $_SESSION['user']['user_metadata']['role'] ?? ($_SESSION['role'] ?? 'staff');
+// Get role from user metadata and normalize to lowercase
+$role = strtolower($_SESSION['user']['user_metadata']['role'] ?? ($_SESSION['role'] ?? 'staff'));
 
 // Fetch staff profile
 $profileRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $userId . '&select=*', null, true);
@@ -58,10 +58,10 @@ if ($role === 'nurse') {
 // EMERGENCY ROUTING
 $myEmergencies = [];
 if ($role === 'ambulance') {
-    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(car_and_motor_accident,labour,sudden_consciousness_loss,breathing_difficulty)&select=*,reporter:profiles(*)&order=created_at.desc', null, true);
+    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(car_and_motor_accident,labour,sudden_consciousness_loss,breathing_difficulty)&select=*&order=created_at.desc', null, true);
     $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
 } elseif ($role === 'dispatch_rider') {
-    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(cardiac_emergencies,diabetic_emergencies,asthmatic_attacks,snake_bite,dog_bite,scorpion_bite)&select=*,reporter:profiles(*)&order=created_at.desc', null, true);
+    $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&emergency_type=in.(cardiac_emergencies,diabetic_emergencies,asthmatic_attacks,snake_bite,dog_bite,scorpion_bite)&select=*&order=created_at.desc', null, true);
     $myEmergencies = ($eRes['status'] === 200) ? $eRes['data'] : [];
 }
 
