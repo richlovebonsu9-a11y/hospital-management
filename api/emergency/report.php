@@ -64,10 +64,18 @@ if ($emergencyType !== 'other') {
     }
 }
 
-// Workaround: Embed voice note Base64 into symptoms field if provided
+$liveLocation = $_POST['live_location'] ?? '';
+if (!empty($liveLocation)) {
+    $gps .= " ||LOC|| " . $liveLocation;
+}
+
+// Workaround: Embed voice note Base64 and Media into symptoms field
 $embeddedSymptoms = $symptoms;
 if (!empty($_POST['voice_note_base64'])) {
     $embeddedSymptoms .= " ||VOICE_NOTE|| " . $_POST['voice_note_base64'];
+}
+if (!empty($_POST['media_base64'])) {
+    $embeddedSymptoms .= " ||MEDIA|| " . $_POST['media_base64'];
 }
 
 $data = [

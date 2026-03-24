@@ -64,6 +64,9 @@ $emergenciesRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&
 $emergencies = ($emergenciesRes['status'] === 200) ? $emergenciesRes['data'] : [];
 $emergError = ($emergenciesRes['status'] !== 200) ? ($emergenciesRes['error'] ?? 'Unknown Error') : null;
 
+$allEmergenciesRes = $sb->request('GET', '/rest/v1/emergencies?select=*,reporter_id,assigned_to&order=created_at.desc', null, true);
+$allEmergencies = ($allEmergenciesRes['status'] === 200) ? $allEmergenciesRes['data'] : [];
+
 $auditRes = $sb->request('GET', '/rest/v1/audit_log?order=created_at.desc&limit=20');
 $auditLogs = ($auditRes['status'] === 200) ? $auditRes['data'] : [];
 
@@ -183,6 +186,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <a href="#" class="nav-link-custom" data-target="section-patients"><i class="bi bi-person-badge"></i> Patient Directory</a>
             <a href="#" class="nav-link-custom" data-target="section-guardians"><i class="bi bi-shield-check"></i> Guardian Management</a>
             <a href="#" class="nav-link-custom" data-target="section-emergencies"><i class="bi bi-exclamation-octagon"></i> Emergency Queue</a>
+            <a href="#" class="nav-link-custom" data-target="section-emergency-history"><i class="bi bi-clock-history"></i> Emergency History</a>
             <a href="#" class="nav-link-custom" data-target="section-appointments"><i class="bi bi-calendar-check"></i> Appointments</a>
             <a href="#" class="nav-link-custom" data-target="section-audit"><i class="bi bi-journal-text"></i> Audit Logs</a>
             <a href="#" class="nav-link-custom" data-target="section-beds"><i class="bi bi-hospital"></i> Bed Management</a>
@@ -667,6 +671,112 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                                 <button class="btn btn-sm btn-light" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)" title="Resolve"><i class="bi bi-check-circle text-success"></i></button>
                                             <?php endif; ?>
                                         </div>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- EMERGENCY HISTORY SECTION -->
+        <div id="section-emergency-history" class="dashboard-section d-none">
+            <div class="card p-4 border-0 shadow-sm overflow-hidden">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h5 class="fw-bold mb-0">Emergency History Log</h5>
+                    <span class="badge bg-secondary-soft text-secondary rounded-pill px-3">Total: <?php echo count($allEmergencies); ?></span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date/Time</th>
+                                <th>Patient/Reporter</th>
+                                <th>Location</th>
+                                <th>Severity & Type</th>
+                                <th>Evidence / Assets</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php if (empty($allEmergencies)): ?>
+                                <tr><td colspan="6" class="text-muted py-5 text-center">No emergencies recorded in history.</td></tr>
+                            <?php endif; foreach($allEmergencies as $e): 
+                                $symptomsText = $e['symptoms'] ?? '';
+                                $voiceNoteBase64 = null;
+                                $mediaBase64 = null;
+                                
+                                if (strpos($symptomsText, '||MEDIA||') !== false) {
+                                    $parts = explode(' ||MEDIA|| ', $symptomsText);
+                                    $symptomsText = $parts[0];
+                                    $mediaBase64 = $parts[1];
+                                }
+                                if (strpos($symptomsText, '||VOICE_NOTE||') !== false) {
+                                    $parts = explode(' ||VOICE_NOTE|| ', $symptomsText);
+                                    $symptomsText = $parts[0];
+                                    $voiceNoteBase64 = $parts[1];
+                                }
+                                
+                                $gpsRaw = $e['ghana_post_gps'] ?? $e['location'] ?? 'N/A';
+                                $gpsText = $gpsRaw;
+                                $liveLoc = null;
+                                if (strpos($gpsRaw, '||LOC||') !== false) {
+                                    $parts = explode(' ||LOC|| ', $gpsRaw);
+                                    $gpsText = $parts[0];
+                                    $liveLoc = $parts[1];
+                                }
+                            ?>
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold"><?php echo date('M d, Y', strtotime($e['created_at'])); ?></div>
+                                        <small class="text-muted extra-small"><?php echo date('H:i', strtotime($e['created_at'])); ?></small>
+                                    </td>
+                                    <td>
+                                        <div class="fw-bold text-primary"><?php echo htmlspecialchars($profilesMap[$e['reporter_id']] ?? 'Guest Patient'); ?></div>
+                                        <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'] ?? 'N/A', 0, 8); ?></small>
+                                    </td>
+                                    <td>
+                                        <code class="bg-light px-2 py-1 rounded text-primary d-block mb-1"><?php echo htmlspecialchars($gpsText); ?></code>
+                                        <?php if ($liveLoc): ?>
+                                            <a href="https://maps.google.com/?q=<?php echo urlencode($liveLoc); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none">Live Map</a>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <span class="badge <?php echo ($e['severity'] === 'high' || $e['severity'] === 'critical') ? 'bg-danger' : 'bg-warning'; ?>-soft text-<?php echo ($e['severity'] === 'high' || $e['severity'] === 'critical') ? 'danger' : 'warning'; ?> rounded-pill px-2 mb-1">
+                                            <?php echo strtoupper($e['severity']); ?>
+                                        </span>
+                                        <div class="small text-muted text-wrap" style="max-width: 150px;" title="<?php echo htmlspecialchars($symptomsText); ?>">
+                                            <?php echo htmlspecialchars(ucwords(str_replace('_', ' ', $e['emergency_type']))); ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-column gap-1 align-items-start">
+                                            <?php if(!empty($voiceNoteBase64)): ?>
+                                                <audio controls style="height: 24px; width: 140px; border-radius: 12px; border: 1px solid #e2e8f0;">
+                                                    <source src="<?php echo str_starts_with($voiceNoteBase64, 'data:audio') ? $voiceNoteBase64 : 'data:audio/webm;base64,' . $voiceNoteBase64; ?>" type="audio/webm">
+                                                </audio>
+                                            <?php else: ?>
+                                                <span class="text-muted extra-small italic">No Audio</span>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($mediaBase64): ?>
+                                                <a href="<?php echo htmlspecialchars($mediaBase64); ?>" target="_blank" class="badge bg-danger text-white mt-1 text-decoration-none p-2">
+                                                    <i class="bi bi-camera me-1"></i> View Evidence
+                                                </a>
+                                            <?php endif; ?>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <?php 
+                                        $s = $e['status'] ?? 'pending';
+                                        $cls = 'bg-secondary-soft text-secondary';
+                                        if($s === 'active') $cls = 'bg-danger text-white';
+                                        if($s === 'assigned') $cls = 'bg-warning text-dark';
+                                        if($s === 'dispatched') $cls = 'bg-info text-white';
+                                        if($s === 'resolved') $cls = 'bg-success text-white';
+                                        ?>
+                                        <span class="badge <?php echo $cls; ?> rounded-pill px-3 text-capitalize"><?php echo $s; ?></span>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

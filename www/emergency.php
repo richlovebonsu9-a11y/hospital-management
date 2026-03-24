@@ -250,7 +250,18 @@ session_start();
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-uppercase">5. GhanaPostGPS Address</label>
+                            <label class="form-label fw-bold text-uppercase">5. Photo / Video Evidence (Optional)</label>
+                            <div class="position-relative">
+                                <input type="file" id="mediaUploadInput" class="form-control px-4 py-3 text-secondary" accept="image/*,video/*" style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2);">
+                                <input type="hidden" name="media_base64" id="mediaBase64">
+                            </div>
+                            <small class="text-secondary mt-2 d-block"><i class="bi bi-camera me-1"></i> Capture the scene to help responders prepare.</small>
+                        </div>
+
+                        <input type="hidden" name="live_location" id="liveLocation">
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-uppercase">6. GhanaPostGPS Address</label>
                             <div class="position-relative">
                                 <i class="bi bi-geo-alt-fill position-absolute top-50 start-0 translate-middle-y ms-3 text-danger"></i>
                                 <input type="text" name="ghana_post_gps" class="form-control px-4 py-3 ps-5 fw-bold" required placeholder="AK-485-9323" value="<?php echo $_SESSION['user']['user_metadata']['ghana_post_gps'] ?? ''; ?>">
@@ -285,6 +296,32 @@ session_start();
         const audioPlayback = document.getElementById('audioPlayback');
         const voiceInput = document.getElementById('voiceNoteBase64');
         const recordingIndicator = document.getElementById('recordingIndicator');
+
+        // Location capturing
+        const locInput = document.getElementById('liveLocation');
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                pos => { locInput.value = pos.coords.latitude + ',' + pos.coords.longitude; },
+                err => { console.warn('Location access denied or unavailable', err); },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            );
+        }
+
+        // Photo/Video File Handling
+        const mediaInput = document.getElementById('mediaUploadInput');
+        const mediaBase64Input = document.getElementById('mediaBase64');
+        mediaInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) { mediaBase64Input.value = ''; return; }
+            if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                Swal.fire('File Too Large', 'Please keep photo/video under 5MB for rapid transmission.', 'warning');
+                mediaInput.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = () => { mediaBase64Input.value = reader.result; };
+        });
 
         recordBtn.onclick = async () => {
             if (mediaRecorder && mediaRecorder.state === "recording") {

@@ -274,10 +274,20 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                         <td>
                                             <span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span>
                                             <?php 
-                                                $symptomsRaw = $e['symptoms'] ?? '';
-                                                $symptomsParts = explode(' ||VOICE_NOTE|| ', $symptomsRaw);
-                                                $symptomsText = $symptomsParts[0];
-                                                $voiceNoteBase64 = $symptomsParts[1] ?? null;
+                                                $symptomsText = $e['symptoms'] ?? '';
+                                                $voiceNoteBase64 = null;
+                                                $mediaBase64 = null;
+                                                
+                                                if (strpos($symptomsText, '||MEDIA||') !== false) {
+                                                    $parts = explode(' ||MEDIA|| ', $symptomsText);
+                                                    $symptomsText = $parts[0];
+                                                    $mediaBase64 = $parts[1];
+                                                }
+                                                if (strpos($symptomsText, '||VOICE_NOTE||') !== false) {
+                                                    $parts = explode(' ||VOICE_NOTE|| ', $symptomsText);
+                                                    $symptomsText = $parts[0];
+                                                    $voiceNoteBase64 = $parts[1];
+                                                }
                                                 
                                                 if(!empty($voiceNoteBase64)): 
                                             ?>
@@ -289,10 +299,32 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                 </div>
                                             <?php endif; ?>
                                         </td>
-                                        <td><code class="text-primary bg-light px-2 py-1 rounded small"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code></td>
+                                        <td>
+                                            <?php
+                                                $gpsRaw = $e['ghana_post_gps'] ?? $e['location'] ?? 'N/A';
+                                                $gpsText = $gpsRaw;
+                                                $liveLoc = null;
+                                                if (strpos($gpsRaw, '||LOC||') !== false) {
+                                                    $parts = explode(' ||LOC|| ', $gpsRaw);
+                                                    $gpsText = $parts[0];
+                                                    $liveLoc = $parts[1];
+                                                }
+                                            ?>
+                                            <code class="text-primary bg-light px-2 py-1 rounded small d-block mb-1"><?php echo htmlspecialchars($gpsText); ?></code>
+                                            <?php if ($liveLoc): ?>
+                                                <a href="https://maps.google.com/?q=<?php echo urlencode($liveLoc); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
+                                                    <i class="bi bi-geo-fill me-1"></i> Live Map
+                                                </a>
+                                            <?php endif; ?>
+                                        </td>
                                         <td>
                                             <div class="small fw-semibold mb-1">Symptoms:</div>
-                                            <div class="small text-muted text-wrap" style="max-width: 200px;"><?php echo htmlspecialchars($symptomsText); ?></div>
+                                            <div class="small text-muted text-wrap mb-2" style="max-width: 200px;"><?php echo htmlspecialchars($symptomsText); ?></div>
+                                            <?php if ($mediaBase64): ?>
+                                                <a href="<?php echo htmlspecialchars($mediaBase64); ?>" target="_blank" class="badge bg-danger text-white text-decoration-none mt-1 p-2">
+                                                    <i class="bi bi-camera me-1"></i> View Evidence
+                                                </a>
+                                            <?php endif; ?>
                                             <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark' : 'info'; ?> rounded-pill px-3 mt-2">
                                                 <?php echo ucfirst($e['status']); ?>
                                             </span>
