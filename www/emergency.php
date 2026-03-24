@@ -12,6 +12,7 @@ session_start();
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         .emergency-header { background: #dc3545; color: white; padding: 40px 0; }
         .severity-btn { transition: all 0.2s; border: 4px solid transparent; cursor: pointer; min-width: 140px; }
@@ -133,16 +134,34 @@ session_start();
                 const data = await res.json();
                 
                 if (data.success) {
-                    alert('Emergency reported successfully! Help is on the way.');
-                    window.location.href = '/dashboard';
+                    Swal.fire({
+                        title: 'Emergency Dispatched!',
+                        text: 'Specialized help is on the way to your location.',
+                        icon: 'success',
+                        confirmButtonColor: '#dc3545',
+                        confirmButtonText: 'Go to Dashboard',
+                        allowOutsideClick: false
+                    }).then(() => {
+                        window.location.href = '/dashboard';
+                    });
                 } else {
-                    alert('Error: ' + (data.error || 'Failed to report emergency.'));
+                    Swal.fire({
+                        title: 'Dispatch Failed',
+                        text: data.error || 'There was an issue dispatching the emergency. Please try again.',
+                        icon: 'error',
+                        confirmButtonColor: '#dc3545'
+                    });
                     btn.disabled = false;
                     btn.querySelector('.normal-text').classList.remove('d-none');
                     btn.querySelector('.loading-text').classList.add('d-none');
                 }
             } catch (err) {
-                alert('Connection error. Please try again.');
+                Swal.fire({
+                    title: 'Connection Error',
+                    text: 'Please check your internet connection and try again.',
+                    icon: 'warning',
+                    confirmButtonColor: '#dc3545'
+                });
                 btn.disabled = false;
                 btn.querySelector('.normal-text').classList.remove('d-none');
                 btn.querySelector('.loading-text').classList.add('d-none');
