@@ -105,7 +105,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">Cardiology</span>
                         <h5 class="fw-bold mb-1">Dr. Robert Asante</h5>
                         <p class="text-muted small mb-3">Senior Cardiologist · 14 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Robert%20Asante&dept=Cardiology" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -116,18 +116,18 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">Pediatrics</span>
                         <h5 class="fw-bold mb-1">Dr. Sarah Mensah</h5>
                         <p class="text-muted small mb-3">Consultant Pediatrician · 10 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Sarah%20Mensah&dept=Pediatrics" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
                 <!-- Surgery -->
                 <div class="col-md-4 col-lg-3 specialist-item" data-dept="surgery">
                     <div class="specialist-card">
-                        <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&q=80" alt="Dr. Emily Owusu" class="specialist-img mb-3">
+                        <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=400&q=80" alt="Dr. Martin Owusu" class="specialist-img mb-3">
                         <span class="department-badge">Surgery</span>
-                        <h5 class="fw-bold mb-1">Dr. Emily Owusu</h5>
+                        <h5 class="fw-bold mb-1">Dr. Martin Owusu</h5>
                         <p class="text-muted small mb-3">General Surgeon · 12 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Martin%20Owusu&dept=Surgery" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -138,7 +138,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">General OPD</span>
                         <h5 class="fw-bold mb-1">Dr. Michael Anderson</h5>
                         <p class="text-muted small mb-3">Chief Medical Officer · 18 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Michael%20Anderson&dept=General%20OPD" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -149,7 +149,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">Maternity</span>
                         <h5 class="fw-bold mb-1">Dr. Abena Boateng</h5>
                         <p class="text-muted small mb-3">Obstetrician & Gynaecologist · 9 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Abena%20Boateng&dept=Maternity" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -160,7 +160,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">Neurology</span>
                         <h5 class="fw-bold mb-1">Dr. Kwame Ofori</h5>
                         <p class="text-muted small mb-3">Consultant Neurologist · 11 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Kwame%20Ofori&dept=Neurology" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -171,7 +171,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">Cardiology</span>
                         <h5 class="fw-bold mb-1">Dr. James Appiah</h5>
                         <p class="text-muted small mb-3">Interventional Cardiologist · 16 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20James%20Appiah&dept=Cardiology" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -182,7 +182,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                         <span class="department-badge">Pediatrics</span>
                         <h5 class="fw-bold mb-1">Dr. Grace Tetteh</h5>
                         <p class="text-muted small mb-3">Neonatologist · 8 yrs exp.</p>
-                        <a href="/signup" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
+                        <a href="/appointments_book.php?doctor=Dr.%20Grace%20Tetteh&dept=Pediatrics" class="btn btn-outline-primary btn-sm rounded-pill px-4">Book Appointment</a>
                     </div>
                 </div>
 
@@ -194,7 +194,7 @@ $role = $loggedIn ? ($SESSION['user']['user_metadata']['role'] ?? '') : '';
                     <h3 class="fw-bold mb-2">Ready to see a specialist?</h3>
                     <p class="text-muted mb-4">Create a free patient account and book your appointment today.</p>
                     <div class="d-flex gap-3 justify-content-center">
-                        <a href="/signup" class="btn btn-primary rounded-pill px-5 py-2 fw-bold">Book Now</a>
+                        <a href="/appointments_book.php" class="btn btn-primary rounded-pill px-5 py-2 fw-bold">Book Now</a>
                         <a href="/" class="btn btn-outline-secondary rounded-pill px-5 py-2">Back to Home</a>
                     </div>
                 </div>

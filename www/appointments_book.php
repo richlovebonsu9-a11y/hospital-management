@@ -7,6 +7,19 @@ if (!isset($_SESSION['user'])) {
 }
 
 $user = $_SESSION['user'];
+
+// Fetch available doctors
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+$sb = new Supabase();
+$doctorsRes = $sb->request('GET', '/rest/v1/profiles?role=eq.doctor&select=id,name,department', null, true);
+$doctors = [];
+if ($doctorsRes['status'] === 200 && is_array($doctorsRes['data'])) {
+    $doctors = $doctorsRes['data'];
+}
+
+$preSelectedDoctorName = $_GET['doctor'] ?? '';
+$preSelectedDept = $_GET['dept'] ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -34,21 +47,26 @@ $user = $_SESSION['user'];
                             <div class="row g-4 mb-4">
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Select Specialty</label>
-                                    <select name="specialty" class="form-select rounded-pill px-4 py-3 border-light bg-light" required>
-                                        <option value="general">General OPD</option>
-                                        <option value="pediatrics">Pediatrics</option>
-                                        <option value="cardiology">Cardiology</option>
-                                        <option value="maternity">Maternity</option>
-                                        <option value="dental">Dental</option>
+                                    <select name="department" class="form-select rounded-pill px-4 py-3 border-light bg-light" required id="deptSelect" onchange="filterDoctors()">
+                                        <option value="">Select Specialty First</option>
+                                        <option value="General OPD" <?php echo ($preSelectedDept === 'General OPD') ? 'selected' : ''; ?>>General OPD</option>
+                                        <option value="Pediatrics" <?php echo ($preSelectedDept === 'Pediatrics') ? 'selected' : ''; ?>>Pediatrics</option>
+                                        <option value="Cardiology" <?php echo ($preSelectedDept === 'Cardiology') ? 'selected' : ''; ?>>Cardiology</option>
+                                        <option value="Maternity" <?php echo ($preSelectedDept === 'Maternity') ? 'selected' : ''; ?>>Maternity</option>
+                                        <option value="Surgery" <?php echo ($preSelectedDept === 'Surgery') ? 'selected' : ''; ?>>Surgery</option>
+                                        <option value="Neurology" <?php echo ($preSelectedDept === 'Neurology') ? 'selected' : ''; ?>>Neurology</option>
+                                        <option value="Dental" <?php echo ($preSelectedDept === 'Dental') ? 'selected' : ''; ?>>Dental</option>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
                                     <label class="form-label fw-bold">Preferred Doctor (Optional)</label>
-                                    <select name="doctor_id" class="form-select rounded-pill px-4 py-3 border-light bg-light">
-                                        <option value="">Any Available Specialist</option>
-                                        <option value="dr-michael">Dr. Michael Anderson</option>
-                                        <option value="dr-sarah">Dr. Sarah Mensah</option>
-                                        <option value="dr-robert">Dr. Robert Asante</option>
+                                    <select name="doctor_id" id="doctorSelect" class="form-select rounded-pill px-4 py-3 border-light bg-light">
+                                        <option value="" data-dept="all">Any Available Specialist</option>
+                                        <?php foreach($doctors as $d): ?>
+                                            <option value="<?php echo $d['id']; ?>" data-dept="<?php echo htmlspecialchars($d['department']); ?>" <?php echo ($preSelectedDoctorName === $d['name']) ? 'selected' : ''; ?>>
+                                                <?php echo htmlspecialchars($d['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
                                     </select>
                                 </div>
                                 <div class="col-md-6">
@@ -79,5 +97,25 @@ $user = $_SESSION['user'];
         </div>
     </div>
     <script src="/assets/js/auto_dismiss.js"></script>
+    <script>
+        function filterDoctors() {
+            const dept = document.getElementById('deptSelect').value;
+            const docSelect = document.getElementById('doctorSelect');
+            let hasVisibleOptions = false;
+
+            Array.from(docSelect.options).forEach(opt => {
+                if(opt.value === '') return; // keep 'Any Available Specialist'
+                if(dept === '' || opt.getAttribute('data-dept') === dept) {
+                    opt.style.display = '';
+                    hasVisibleOptions = true;
+                } else {
+                    opt.style.display = 'none';
+                    if(opt.selected) docSelect.value = '';
+                }
+            });
+        }
+        // Run on load to set initial state
+        document.addEventListener('DOMContentLoaded', filterDoctors);
+    </script>
 </body>
 </html>

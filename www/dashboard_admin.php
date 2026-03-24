@@ -2477,6 +2477,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     <option value="General OPD">General OPD</option>
                                     <option value="Cardiology">Cardiology</option>
                                     <option value="Pediatrics">Pediatrics</option>
+                                    <option value="Surgery">Surgery</option>
+                                    <option value="Maternity">Maternity</option>
+                                    <option value="Neurology">Neurology</option>
+                                    <option value="Dental">Dental</option>
                                     <option value="Pharmacy">Pharmacy</option>
                                     <option value="Laboratory">Laboratory</option>
                                 </select>

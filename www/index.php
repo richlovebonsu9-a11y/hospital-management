@@ -107,7 +107,7 @@ $title = "Kobby Moore Hospital - " . ucfirst($page);
                     <div class="col-md-3">
                         <div class="specialist-card">
                             <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&q=80" alt="Specialist" class="specialist-img mb-4">
-                            <h5 class="fw-bold mb-1">Dr. Emily Owusu</h5>
+                            <h5 class="fw-bold mb-1">Dr. Martin Owusu</h5>
                             <p class="text-primary small fw-bold">Surgeon</p>
                         </div>
                     </div>
