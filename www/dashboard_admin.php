@@ -610,31 +610,75 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                         <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'] ?? 'N/A', 0, 8); ?></small>
                                     </td>
                                     <td>
-                                        <a href="https://www.google.com/maps/search/<?php echo urlencode($e['ghana_post_gps'] ?? $e['location'] ?? ''); ?>" target="_blank" class="text-decoration-none">
-                                            <code class="bg-light px-2 py-1 rounded text-primary"><?php echo htmlspecialchars($e['ghana_post_gps'] ?? $e['location'] ?? 'N/A'); ?></code>
-                                        </a>
+                                        <?php
+                                            $gpsRaw = $e['ghana_post_gps'] ?? $e['location'] ?? 'N/A';
+                                            $gpsText = $gpsRaw;
+                                            $liveLoc = null;
+                                            if (strpos($gpsRaw, '||LOC||') !== false) {
+                                                $parts = explode(' ||LOC|| ', $gpsRaw);
+                                                $gpsText = $parts[0];
+                                                $liveLoc = $parts[1];
+                                            }
+                                        ?>
+                                        <code class="text-primary bg-light px-2 py-1 rounded small d-block mb-1"><?php echo htmlspecialchars($gpsText); ?></code>
+                                        <?php if ($liveLoc): ?>
+                                            <a href="https://maps.google.com/?q=<?php echo urlencode($liveLoc); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
+                                                <i class="bi bi-geo-fill me-1"></i> Live Map
+                                            </a>
+                                        <?php else: ?>
+                                            <a href="https://maps.google.com/?q=<?php echo urlencode($gpsText); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
+                                                <i class="bi bi-geo-fill me-1"></i> Map
+                                            </a>
+                                        <?php endif; ?>
                                     </td>
                                     <td>
                                         <span class="badge <?php echo ($e['severity'] === 'high') ? 'bg-danger' : 'bg-warning'; ?>-soft text-<?php echo ($e['severity'] === 'high') ? 'danger' : 'warning'; ?> rounded-pill px-2 mb-1">
                                             <?php echo strtoupper($e['severity']); ?>
                                         </span>
+                                    <td>
                                         <?php 
-                                            $symptomsRaw = $e['symptoms'] ?? '';
-                                            $symptomsParts = explode(' ||VOICE_NOTE|| ', $symptomsRaw);
-                                            $symptomsText = $symptomsParts[0];
-                                            $voiceNoteBase64 = $symptomsParts[1] ?? null;
+                                            $symptomsText = $e['symptoms'] ?? '';
+                                            $voiceNoteBase64 = null;
+                                            $mediaBase64 = null;
+                                            
+                                            if (strpos($symptomsText, '||MEDIA||') !== false) {
+                                                $parts = explode(' ||MEDIA|| ', $symptomsText);
+                                                $symptomsText = $parts[0];
+                                                $mediaBase64 = $parts[1];
+                                            }
+                                            if (strpos($symptomsText, '||VOICE_NOTE||') !== false) {
+                                                $parts = explode(' ||VOICE_NOTE|| ', $symptomsText);
+                                                $symptomsText = $parts[0];
+                                                $voiceNoteBase64 = $parts[1];
+                                            }
                                         ?>
-                                        <div class="small text-truncate mb-2" style="max-width: 150px;" title="<?php echo htmlspecialchars($symptomsText); ?>">
-                                            <?php echo htmlspecialchars($symptomsText ?: 'No notes provided'); ?>
-                                        </div>
-                                        <?php if(!empty($voiceNoteBase64)): ?>
-                                            <div class="d-flex align-items-center gap-1">
-                                                <i class="bi bi-mic-fill text-danger extra-small"></i>
-                                                <audio controls style="height: 20px; width: 100px;">
-                                                    <source src="<?php echo $voiceNoteBase64; ?>" type="audio/webm">
-                                                </audio>
+                                        <div class="bg-white border text-dark rounded-4 p-3 shadow-sm mb-2" style="max-width: 250px;">
+                                            <div class="d-flex align-items-center mb-2">
+                                                <i class="bi bi-chat-left-dots-fill text-danger me-2"></i>
+                                                <span class="fw-bold small">Emergency Details</span>
                                             </div>
-                                        <?php endif; ?>
+                                            <div class="small text-muted fst-italic mb-3" style="line-height: 1.4;">
+                                                "<?php echo htmlspecialchars($symptomsText); ?>"
+                                            </div>
+                                            <div class="d-flex flex-column gap-2 border-top pt-2">
+                                                <?php if(!empty($voiceNoteBase64)): ?>
+                                                    <div class="d-flex align-items-center gap-1">
+                                                        <i class="bi bi-mic-fill text-danger extra-small"></i>
+                                                        <audio controls style="height: 20px; width: 100px;">
+                                                            <source src="<?php echo str_starts_with($voiceNoteBase64, 'data:audio') ? $voiceNoteBase64 : 'data:audio/webm;base64,' . $voiceNoteBase64; ?>" type="audio/webm">
+                                                        </audio>
+                                                    </div>
+                                                <?php endif; ?>
+                                                <?php if ($mediaBase64): ?>
+                                                    <div>
+                                                        <button class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm border-0 fw-bold" onclick="showEvidence(this)" style="font-size: 0.75rem;">
+                                                            <i class="bi bi-camera me-1"></i> View Evidence
+                                                        </button>
+                                                        <textarea class="d-none evidence-data"><?php echo htmlspecialchars($mediaBase64); ?></textarea>
+                                                    </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                     </td>
                                     <td>
                                         <?php if(!empty($e['assigned_to'])): ?>
@@ -656,12 +700,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                     </td>
                                     <td>
                                         <?php 
-                                            $symptomsRaw = $e['symptoms'] ?? '';
-                                            $symptomsParts = explode(' ||VOICE_NOTE|| ', $symptomsRaw);
-                                            $symptomsText = $symptomsParts[0];
-                                            $voiceNoteBase64 = $symptomsParts[1] ?? null;
-                                            
-                                            // Lean JS info
+                                            // The text is already stripped of media and voice notes from the block above
+                                            // JS info needs just the text
                                             $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type'], 'symptoms' => $symptomsText];
                                         ?>
                                         <div class="btn-group shadow-sm rounded-pill overflow-hidden">
@@ -1563,6 +1603,26 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/assets/js/auto_dismiss.js"></script>
+    <script>
+        function showEvidence(btn) {
+            const base64 = btn.nextElementSibling.value;
+            const isVideo = base64.startsWith('data:video');
+            const htmlContent = isVideo 
+                ? `<video controls style="width: 100%; max-height: 70vh; border-radius: 8px;"><source src="${base64}"></video>`
+                : `<img src="${base64}" style="width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px;">`;
+
+            Swal.fire({
+                title: 'Emergency Evidence',
+                html: htmlContent,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: '#fff',
+                customClass: { popup: 'rounded-4' }
+            });
+        }
+    </script>
     <script>
         async function silentRefresh() {
             try {

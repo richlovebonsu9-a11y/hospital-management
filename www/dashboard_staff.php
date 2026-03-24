@@ -315,19 +315,36 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                 <a href="https://maps.google.com/?q=<?php echo urlencode($liveLoc); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
                                                     <i class="bi bi-geo-fill me-1"></i> Live Map
                                                 </a>
+                                            <?php else: ?>
+                                                <a href="https://maps.google.com/?q=<?php echo urlencode($gpsText); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
+                                                    <i class="bi bi-geo-fill me-1"></i> Map
+                                                </a>
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <div class="small fw-semibold mb-1">Symptoms:</div>
-                                            <div class="small text-muted text-wrap mb-2" style="max-width: 200px;"><?php echo htmlspecialchars($symptomsText); ?></div>
-                                            <?php if ($mediaBase64): ?>
-                                                <a href="<?php echo htmlspecialchars($mediaBase64); ?>" target="_blank" class="badge bg-danger text-white text-decoration-none mt-1 p-2">
-                                                    <i class="bi bi-camera me-1"></i> View Evidence
-                                                </a>
-                                            <?php endif; ?>
-                                            <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark' : 'info'; ?> rounded-pill px-3 mt-2">
-                                                <?php echo ucfirst($e['status']); ?>
-                                            </span>
+                                            <div class="bg-white border text-dark rounded-4 p-3 shadow-sm" style="max-width: 250px;">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <i class="bi bi-chat-left-dots-fill text-danger me-2"></i>
+                                                    <span class="fw-bold small">Emergency Details</span>
+                                                </div>
+                                                <div class="small text-muted fst-italic mb-3" style="line-height: 1.4;">
+                                                    "<?php echo htmlspecialchars($symptomsText); ?>"
+                                                </div>
+                                                <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top">
+                                                    <?php if ($mediaBase64): ?>
+                                                        <button class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm border-0 fw-bold" onclick="showEvidence(this)" style="font-size: 0.75rem;">
+                                                            <i class="bi bi-camera me-1"></i> Evidence
+                                                        </button>
+                                                        <textarea class="d-none evidence-data"><?php echo htmlspecialchars($mediaBase64); ?></textarea>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-slash-circle me-1"></i>No Media</span>
+                                                    <?php endif; ?>
+                                                    
+                                                    <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark border-warning' : 'info border-info'; ?> border px-2 py-1">
+                                                        <?php echo ucfirst($e['status']); ?>
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </td>
                                         <td>
                                             <div class="d-flex gap-2">
@@ -765,11 +782,27 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                         <button type="button" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm" onclick="submitStockUpdate()">Update Inventory</button>
                     </form>
                 </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Bootstrap 5 JS Bundle -->
+    <script src="/assets/js/auto_dismiss.js"></script>
+    <script>
+        function showEvidence(btn) {
+            const base64 = btn.nextElementSibling.value;
+            const isVideo = base64.startsWith('data:video');
+            const htmlContent = isVideo
+                ? `<video controls style="width: 100%; max-height: 70vh; border-radius: 8px;"><source src="${base64}"></video>`
+                : `<img src="${base64}" style="width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px;">`;
+
+            Swal.fire({
+                title: 'Emergency Evidence',
+                html: htmlContent,
+                width: '600px',
+                showCloseButton: true,
+                showConfirmButton: false,
+                background: '#fff',
+                customClass: { popup: 'rounded-4' }
+            });
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
