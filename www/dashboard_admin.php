@@ -759,25 +759,71 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
             <div class="row g-4">
                 <div class="col-lg-8">
-                    <div class="card p-4 border-0 shadow-sm">
-                        <h5 class="fw-bold mb-4">Current Active Admissions</h5>
+                    <div class="card border-0 shadow-sm overflow-hidden rounded-4">
+                        <div class="d-flex justify-content-between align-items-center px-4 py-3 border-bottom bg-white">
+                            <div>
+                                <h5 class="fw-bold mb-0">Current Active Admissions</h5>
+                                <p class="text-muted extra-small mb-0 mt-1"><?php echo count($activeAdmissions); ?> patients currently admitted</p>
+                            </div>
+                            <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($activeAdmissions); ?> Active</span>
+                        </div>
                         <div class="table-responsive">
-                            <table class="table table-hover align-middle">
-                                <thead class="table-light">
-                                    <tr><th>Patient</th><th>Ward</th><th>Bed #</th><th>Admitted On</th><th>Actions</th></tr>
+                            <table class="table table-hover align-middle mb-0">
+                                <thead style="background: #f8fafc;">
+                                    <tr class="extra-small text-uppercase text-muted fw-bold" style="letter-spacing: 0.05em;">
+                                        <th class="ps-4 border-0 py-3">Patient</th>
+                                        <th class="border-0 py-3">Ward</th>
+                                        <th class="border-0 py-3">Bed #</th>
+                                        <th class="border-0 py-3">Admitted On</th>
+                                        <th class="border-0 py-3 text-end pe-4">Actions</th>
+                                    </tr>
                                 </thead>
                                 <tbody>
                                     <?php if (empty($activeAdmissions)): ?>
-                                        <tr><td colspan="5" class="text-center py-4 text-muted">No active admissions currently.</td></tr>
-                                    <?php endif; foreach($activeAdmissions as $adm): ?>
                                         <tr>
-                                            <td class="fw-bold"><?php echo htmlspecialchars($adm['patient']['name'] ?? 'P-' . substr($adm['patient_id'], 0, 8)); ?></td>
-                                            <td><span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo htmlspecialchars($adm['ward']['ward_name'] ?? 'Unknown'); ?></span></td>
-                                            <td class="fw-bold"><?php echo htmlspecialchars($adm['bed_number'] ?: 'N/A'); ?></td>
-                                            <td class="small"><?php echo date('M d, H:i', strtotime($adm['admission_date'])); ?></td>
+                                            <td colspan="5" class="text-center py-5 text-muted">
+                                                <i class="bi bi-hospital display-5 d-block mb-3 opacity-25"></i>
+                                                No active admissions currently.
+                                            </td>
+                                        </tr>
+                                    <?php endif; foreach($activeAdmissions as $adm): 
+                                        $pname = $adm['patient']['name'] ?? 'P-' . substr($adm['patient_id'], 0, 8);
+                                        $initial = strtoupper(substr($pname, 0, 1));
+                                        $wardName = $adm['ward']['ward_name'] ?? 'Unknown';
+                                        $wardColors = ['ICU' => ['bg-danger', 'bg-danger-soft text-danger'], 'Maternity' => ['bg-info', 'bg-info-soft text-info'], 'General Ward' => ['bg-primary', 'bg-primary-soft text-primary'], 'Pediatric Ward' => ['bg-success', 'bg-success-soft text-success']];
+                                        [$dotColor, $badgeClass] = $wardColors[$wardName] ?? ['bg-secondary', 'bg-light text-dark border'];
+                                    ?>
+                                        <tr>
+                                            <td class="ps-4 py-3">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="rounded-circle <?php echo $dotColor; ?> text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                                        <?php echo $initial; ?>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-bold"><?php echo htmlspecialchars($pname); ?></div>
+                                                        <small class="text-muted extra-small">ID: <?php echo substr($adm['patient_id'], 0, 8); ?>...</small>
+                                                    </div>
+                                                </div>
+                                            </td>
                                             <td>
-                                                <button class="btn btn-sm btn-outline-primary rounded-pill px-3 me-2" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'>Edit</button>
-                                                <button class="btn btn-sm btn-outline-danger rounded-pill px-3" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')">Discharge</button>
+                                                <span class="badge <?php echo $badgeClass; ?> rounded-pill px-3 py-2"><?php echo htmlspecialchars($wardName); ?></span>
+                                            </td>
+                                            <td><span class="fw-bold text-dark"><?php echo htmlspecialchars($adm['bed_number'] ?: '—'); ?></span></td>
+                                            <td>
+                                                <div class="small text-dark"><?php echo date('M d', strtotime($adm['admission_date'])); ?></div>
+                                                <small class="text-muted extra-small"><?php echo date('H:i', strtotime($adm['admission_date'])); ?> GMT</small>
+                                            </td>
+                                            <td class="text-end pe-4">
+                                                <div class="d-flex gap-2 justify-content-end">
+                                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" 
+                                                            onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'>
+                                                        <i class="bi bi-pencil me-1"></i> Edit
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold" 
+                                                            onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')">
+                                                        <i class="bi bi-box-arrow-right me-1"></i> Discharge
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endforeach; ?>

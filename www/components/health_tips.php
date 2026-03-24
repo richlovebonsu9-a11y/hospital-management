@@ -14,61 +14,70 @@ $healthTips = [
 ];
 ?>
 
-<!-- Dynamic Premium Health Tips Carousel -->
-<div class="d-flex justify-content-end mb-4">
-    <div class="card border-0 rounded-4 overflow-hidden text-white" style="max-width: 360px; width: 100%; background: linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%); box-shadow: 0 12px 24px rgba(142, 45, 226, 0.25) !important;">
-        
-        <!-- Decorative subtle pattern overlay -->
-        <div class="position-absolute w-100 h-100 opacity-25" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px; pointer-events: none;"></div>
+<!-- Dynamic Premium Health Tips Banner - Full Width -->
+<div class="mb-5">
+    <div class="rounded-4 overflow-hidden text-white position-relative" style="background: linear-gradient(135deg, #4A00E0 0%, #8E2DE2 100%); box-shadow: 0 12px 32px rgba(74, 0, 224, 0.22);">
+        <!-- Dot pattern overlay -->
+        <div class="position-absolute top-0 start-0 w-100 h-100" style="background-image: radial-gradient(rgba(255,255,255,0.12) 1px, transparent 1px); background-size: 22px 22px; pointer-events: none;"></div>
+        <!-- Large decorative circle -->
+        <div class="position-absolute" style="width: 220px; height: 220px; border-radius: 50%; background: rgba(255,255,255,0.05); right: -40px; top: -60px;"></div>
+        <div class="position-absolute" style="width: 140px; height: 140px; border-radius: 50%; background: rgba(255,255,255,0.07); right: 100px; bottom: -50px;"></div>
 
-        <div class="card-header bg-transparent border-0 pt-3 pb-0 d-flex align-items-center position-relative z-1">
-            <div class="bg-white bg-opacity-25 rounded-circle d-flex align-items-center justify-content-center me-2 shadow-sm" style="width: 28px; height: 28px; backdrop-filter: blur(4px);">
-                <i class="bi bi-stars text-warning" style="font-size: 1rem;"></i>
+        <div class="d-flex align-items-center p-4 position-relative" style="z-index: 1;">
+            <!-- Left: Label + Icon -->
+            <div class="me-4 d-none d-md-flex flex-column align-items-center justify-content-center flex-shrink-0" style="min-width: 80px;">
+                <div class="bg-white bg-opacity-20 rounded-4 d-flex align-items-center justify-content-center mb-2 shadow" style="width: 54px; height: 54px; backdrop-filter: blur(6px);">
+                    <i class="bi bi-stars fs-3 text-warning"></i>
+                </div>
+                <span class="text-white fw-bold text-uppercase" style="font-size: 0.6rem; letter-spacing: 1.5px; opacity: 0.85;">Wellness</span>
             </div>
-            <h6 class="fw-bold mb-0 text-white text-uppercase" style="letter-spacing: 1px; font-size: 0.75rem;">Daily Wellness Tip</h6>
-        </div>
-        
-        <div class="card-body p-3 pt-2 position-relative z-1">
-            <div id="healthTipsCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="6000">
-                <div class="carousel-inner py-1">
-                    <?php foreach ($healthTips as $index => $item): ?>
-                        <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
-                            <div class="d-flex align-items-start gap-3 px-2">
-                                <div class="bg-white rounded-4 shadow-sm d-flex align-items-center justify-content-center flex-shrink-0" style="width: 50px; height: 50px;">
-                                    <i class="bi <?php echo $item['icon']; ?> fs-3" style="background: -webkit-linear-gradient(135deg, #4A00E0, #8E2DE2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold text-white mb-1" style="font-size: 1rem;"><?php echo htmlspecialchars($item['title']); ?></h6>
-                                    <p class="mb-0 text-white" style="font-size: 0.9rem; line-height: 1.5; font-weight: 500; opacity: 0.95;"><?php echo htmlspecialchars($item['tip']); ?></p>
+
+            <!-- Divider -->
+            <div class="vr bg-white opacity-25 me-4 d-none d-md-block" style="height: 60px;"></div>
+
+            <!-- Carousel -->
+            <div class="flex-grow-1 me-3">
+                <p class="text-white fw-bold text-uppercase mb-1" style="font-size: 0.7rem; letter-spacing: 1.5px; opacity: 0.7;">Daily Health Tip</p>
+                <div id="healthTipsCarousel" class="carousel slide carousel-fade" data-bs-ride="carousel" data-bs-interval="6000">
+                    <div class="carousel-inner">
+                        <?php foreach ($healthTips as $index => $item): ?>
+                            <div class="carousel-item <?php echo $index === 0 ? 'active' : ''; ?>">
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="bg-white rounded-3 shadow-sm d-flex align-items-center justify-content-center flex-shrink-0 d-md-flex d-none" style="width: 44px; height: 44px;">
+                                        <i class="bi <?php echo $item['icon']; ?> fs-4" style="background: -webkit-linear-gradient(135deg, #4A00E0, #8E2DE2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="fw-bold text-white mb-1" style="font-size: 1.05rem;"><?php echo htmlspecialchars($item['title']); ?></h6>
+                                        <p class="mb-0 text-white" style="font-size: 0.88rem; line-height: 1.55; opacity: 0.92;"><?php echo htmlspecialchars($item['tip']); ?></p>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#healthTipsCarousel" data-bs-slide="prev" style="width: 5%; opacity: 0;"><span class="carousel-control-prev-icon" aria-hidden="true"></span></button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#healthTipsCarousel" data-bs-slide="next" style="width: 5%; opacity: 0;"><span class="carousel-control-next-icon" aria-hidden="true"></span></button>
                 </div>
-                
-                <!-- Invisible controls to maintain functionality if user swipes, but out of the way -->
-                <button class="carousel-control-prev" type="button" data-bs-target="#healthTipsCarousel" data-bs-slide="prev" style="width: 5%; opacity: 0;">
-                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Previous</span>
-                </button>
-                <button class="carousel-control-next" type="button" data-bs-target="#healthTipsCarousel" data-bs-slide="next" style="width: 5%; opacity: 0;">
-                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
-                    <span class="visually-hidden">Next</span>
-                </button>
+            </div>
+
+            <!-- Right: Nav dots -->
+            <div class="d-none d-lg-flex flex-column gap-1 me-2">
+                <?php foreach ($healthTips as $index => $item): ?>
+                    <button type="button" data-bs-target="#healthTipsCarousel" data-bs-slide-to="<?php echo $index; ?>"
+                        style="width: 6px; height: 6px; border-radius: 50%; border: none; padding: 0; background: <?php echo $index === 0 ? 'white' : 'rgba(255,255,255,0.3)'; ?>;"></button>
+                <?php endforeach; ?>
             </div>
         </div>
-        
-        <!-- Subtle progress bar effect at the bottom -->
+
+        <!-- Progress bar -->
         <div class="position-absolute bottom-0 start-0 w-100" style="height: 3px; background: rgba(255,255,255,0.1);">
-            <div class="h-100 bg-warning" style="width: 100%; animation: slideProgress 6s linear infinite;"></div>
+            <div class="h-100 bg-warning" style="animation: slideProgress 6s linear infinite;"></div>
         </div>
-        
-        <style>
-            @keyframes slideProgress {
-                0% { width: 0%; opacity: 1; }
-                95% { width: 100%; opacity: 1; }
-                100% { width: 100%; opacity: 0; }
-            }
-        </style>
     </div>
 </div>
+<style>
+    @keyframes slideProgress {
+        0% { width: 0%; opacity: 1; }
+        95% { width: 100%; opacity: 1; }
+        100% { width: 100%; opacity: 0; }
+    }
+</style>
