@@ -321,7 +321,7 @@ $searchList = ($allPatientsRes && $allPatientsRes['status'] === 200) ? $allPatie
                                             <div class="row g-2">
                                                 <?php foreach($linkedPrescriptions as $pr): ?>
                                                     <div class="col-md-6 col-lg-4">
-                                                        <div class="border rounded-4 p-3 <?php echo ($pr['status'] === 'dispensed') ? 'border-success bg-success bg-opacity-10' : 'border-primary border-opacity-25 bg-primary border-opacity-10'; ?>">
+                                                        <div class="border rounded-4 p-3 <?php echo ($pr['status'] === 'dispensed') ? 'border-success bg-success-soft' : 'border-primary bg-primary-soft'; ?>">
                                                             <div class="fw-bold mb-1 <?php echo ($pr['status'] === 'dispensed') ? 'text-success' : 'text-primary'; ?>">
                                                                 <i class="bi bi-capsule me-1"></i> <?php echo htmlspecialchars($pr['medication_name']); ?>
                                                             </div>
