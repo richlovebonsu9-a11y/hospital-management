@@ -1227,6 +1227,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                 <option value="">-- Select Ward First --</option>
                             </select>
                         </div>
+                        <div class="mb-4">
+                            <label class="small text-muted mb-1">Anticipated Days</label>
+                            <input type="number" name="anticipated_days" id="assign_anticipated_days" class="form-control rounded-pill px-3" value="3" min="1" required>
+                        </div>
                         <button type="button" class="btn btn-primary w-100 rounded-pill mt-3" onclick="submitBedAssignment()">Finalize Admission</button>
                     </form>
                 </div>
@@ -1996,9 +2000,10 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const ptId = document.getElementById('assign_bed_patient_id').value;
             const wardId = document.getElementById('assign_bed_ward_select').value;
             const bedNum = document.getElementById('assign_bed_number_select').value;
+            const days = document.getElementById('assign_anticipated_days').value;
 
-            if (!wardId || !bedNum) {
-                Swal.fire({ title: 'Incomplete', text: 'Please select both a ward and a bed number.', icon: 'warning', confirmButtonColor: '#1a73e8' });
+            if (!wardId || !bedNum || !days) {
+                Swal.fire({ title: 'Incomplete', text: 'Please select ward, bed and days.', icon: 'warning', confirmButtonColor: '#1a73e8' });
                 return;
             }
 
@@ -2006,6 +2011,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             fd.append('patient_id', ptId);
             fd.append('ward_id', wardId);
             fd.append('bed_number', bedNum);
+            fd.append('anticipated_days', days);
             
             const res = await fetch('/api/admission/finalize_assignment', { method: 'POST', body: fd });
             const data = await res.json();
