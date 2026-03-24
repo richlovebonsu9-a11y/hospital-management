@@ -280,7 +280,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                 <div class="mt-2 d-flex align-items-center gap-1">
                                                     <i class="bi bi-mic-fill text-danger extra-small"></i>
                                                     <audio controls style="height: 24px; width: 130px; border-radius: 12px; border: 1px solid #fee2e2;">
-                                                        <source src="<?php echo $voiceNoteBase64; ?>" type="audio/webm">
+                                                        <source src="<?php echo str_starts_with($voiceNoteBase64, 'data:audio') ? $voiceNoteBase64 : 'data:audio/webm;base64,' . $voiceNoteBase64; ?>" type="audio/webm">
                                                     </audio>
                                                 </div>
                                             <?php endif; ?>
@@ -298,17 +298,6 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                 <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): 
                                                     $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type']];
                                                 ?>
-                                                    <button class="btn btn-primary-soft btn-sm rounded-pill px-3 fw-bold" 
-                                                    onclick='const cleanData = <?php 
-                                                        $stripped = $e;
-                                                        if (isset($stripped["symptoms"]) && strpos($stripped["symptoms"], "||VOICE_NOTE||") !== false) {
-                                                            $parts = explode("||VOICE_NOTE||", $stripped["symptoms"]);
-                                                            $stripped["symptoms"] = trim($parts[0]) . " (Voice Note Available)";
-                                                        }
-                                                        echo json_encode($stripped); 
-                                                    ?>; editEmergency(cleanData)'>
-                                                <i class="bi bi-pencil-square me-1"></i> Edit
-                                            </button>
                                                     <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
                                                         <i class="bi bi-truck me-1"></i> Dispatch
                                                     </button>
