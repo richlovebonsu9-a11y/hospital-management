@@ -30,227 +30,213 @@ if ($role === 'guardian' && $userId) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
-            --bg-midnight: #020617;
-            --bg-deep: #0F172A;
-            --glow-cyan: #22D3EE;
-            --glow-cyan-alt: #0891B2;
-            --accent-violet: #8B5CF6;
-            --slate-300: #CBD5E1;
-            --slate-400: #94A3B8;
-            --glass-dark: rgba(15, 23, 42, 0.85);
-            --border-glow: rgba(34, 211, 238, 0.2);
+            --rescue-orange: #F97316;
+            --rescue-orange-dark: #C2410C;
+            --rescue-orange-light: #FFF7ED;
+            --slate-950: #020617;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --warm-bg: #FAF9F6;
+            --industrial-glass: rgba(255, 255, 255, 0.98);
         }
         body {
-            background: radial-gradient(circle at 50% 50%, #172554 0%, #020617 100%);
+            background-color: var(--warm-bg);
+            background-image: 
+                linear-gradient(rgba(249, 115, 22, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(249, 115, 22, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
             background-attachment: fixed;
             min-height: 100vh;
-            color: var(--slate-300);
+            color: var(--slate-800);
             font-family: 'Montserrat', sans-serif;
             overflow-x: hidden;
         }
 
-        /* Celestial Particles */
-        .stars {
+        /* Industrial Geometric Accents */
+        .corner-accent {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(249, 115, 22, 0.05) 0%, transparent 70%);
             z-index: 0;
-            background-image: 
-                radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
-                radial-gradient(1.5px 1.5px at 100px 150px, #fff, rgba(0,0,0,0)),
-                radial-gradient(1px 1px at 200px 250px, rgba(255,255,255,0.5), rgba(0,0,0,0));
-            background-size: 300px 300px;
-            opacity: 0.15;
             pointer-events: none;
         }
-
-        .nebula {
-            position: absolute;
-            width: 80vw;
-            height: 80vw;
-            background: radial-gradient(circle, rgba(139, 92, 246, 0.05) 0%, transparent 70%);
-            top: -20%;
-            left: -10%;
-            z-index: 0;
-            filter: blur(50px);
-            animation: drift 30s infinite alternate ease-in-out;
-            pointer-events: none;
-        }
-
-        @keyframes drift {
-            from { transform: translate(0, 0) scale(1); }
-            to { transform: translate(50px, 30px) scale(1.2); }
-        }
+        .accent-tl { top: -100px; left: -100px; }
+        .accent-br { bottom: -100px; right: -100px; }
 
         .emergency-header {
             position: relative;
             z-index: 10;
-            padding: 100px 0 50px;
+            padding: 90px 0 40px;
         }
         
         .emergency-header h1 {
-            font-weight: 800;
-            letter-spacing: 2px;
-            color: #fff;
+            font-weight: 900;
+            letter-spacing: -2px;
+            color: var(--slate-950);
             text-transform: uppercase;
-            text-shadow: 0 0 20px rgba(34, 211, 238, 0.4);
+        }
+        .emergency-header .rescue-line {
+            width: 80px;
+            height: 6px;
+            background: var(--rescue-orange);
+            margin: 15px auto;
+            border-radius: 3px;
         }
 
         .hope-message {
-            font-size: 1.1rem;
-            color: var(--slate-400);
-            font-weight: 400;
-            max-width: 650px;
+            font-size: 1.15rem;
+            color: var(--slate-600);
+            font-weight: 600;
+            max-width: 600px;
             margin: 0 auto;
-            letter-spacing: 0.5px;
-            line-height: 1.8;
+            line-height: 1.6;
+            letter-spacing: -0.2px;
         }
 
         .glass-card {
-            background: var(--glass-dark);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--border-glow);
+            background: var(--industrial-glass);
+            border: 2px solid #fff;
             border-radius: 2rem;
-            box-shadow: 0 0 60px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(34, 211, 238, 0.05);
+            box-shadow: 0 30px 60px -12px rgba(15, 23, 42, 0.12), 0 18px 36px -18px rgba(15, 23, 42, 0.15);
             position: relative;
             z-index: 10;
         }
 
         .form-label {
-            color: #fff;
-            font-weight: 700;
+            color: var(--slate-950);
+            font-weight: 800;
             font-size: 0.75rem;
-            letter-spacing: 2px;
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            opacity: 0.9;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
         }
-        .form-label i { color: var(--glow-cyan); margin-right: 10px; }
 
         .form-select, .form-control {
-            background: rgba(15, 23, 42, 0.6) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            color: #fff !important;
-            border-radius: 1rem;
-            padding: 1.25rem 1.75rem !important;
-            transition: all 0.4s;
-            font-size: 0.9rem;
+            background: #F8FAFC !important;
+            border: 1px solid #E2E8F0 !important;
+            color: var(--slate-950) !important;
+            border-radius: 0.75rem;
+            padding: 1.25rem 1.5rem !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            font-size: 0.95rem;
+            font-weight: 500;
         }
 
         .form-select:focus, .form-control:focus {
-            border-color: var(--glow-cyan) !important;
-            box-shadow: 0 0 20px rgba(34, 211, 238, 0.2) !important;
-            background: rgba(15, 23, 42, 0.8) !important;
+            border-color: var(--rescue-orange) !important;
+            box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.15) !important;
+            background: #fff !important;
         }
 
-        /* Tactical Severity Buttons */
+        /* Active Severity Buttons */
         .severity-btn {
-            background: rgba(30, 41, 59, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1.5rem;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background: #fff;
+            border: 1px solid #E2E8F0;
+            border-radius: 1.25rem;
+            transition: all 0.3s;
             cursor: pointer;
             min-width: 140px;
-            padding: 2rem 1rem;
-            position: relative;
-            overflow: hidden;
+            padding: 1.75rem 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03);
         }
         
-        .severity-btn i { font-size: 2.2rem; margin-bottom: 1rem; display: block; color: rgba(255,255,255,0.2); transition: all 0.4s; }
-        .severity-btn .fw-bold { font-size: 0.7rem; letter-spacing: 2px; color: rgba(255,255,255,0.4); text-transform: uppercase; transition: all 0.4s; }
+        .severity-btn i { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: #CBD5E1; transition: 0.3s; }
+        .severity-btn .fw-bold { font-size: 0.75rem; letter-spacing: 1px; color: #94A3B8; text-transform: uppercase; transition: 0.3s; }
 
-        .severity-btn:hover { background: rgba(30, 41, 59, 0.8); transform: translateY(-3px); border-color: rgba(255,255,255,0.15); }
+        .severity-btn:hover { border-color: #CBD5E1; transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.05); }
 
         #sev_medium:checked + .severity-btn {
-            border-color: var(--glow-cyan);
-            background: rgba(34, 211, 238, 0.05);
-            box-shadow: 0 0 25px rgba(34, 211, 238, 0.15);
+            border-color: #2563EB;
+            background: #EFF6FF;
+            border-width: 2px;
         }
-        #sev_medium:checked + .severity-btn i { color: var(--glow-cyan); text-shadow: 0 0 15px var(--glow-cyan); }
-        #sev_medium:checked + .severity-btn .fw-bold { color: var(--glow-cyan); }
+        #sev_medium:checked + .severity-btn i, #sev_medium:checked + .severity-btn .fw-bold { color: #2563EB; }
 
         #sev_high:checked + .severity-btn {
-            border-color: var(--accent-violet);
-            background: rgba(139, 92, 246, 0.05);
-            box-shadow: 0 0 25px rgba(139, 92, 246, 0.15);
+            border-color: var(--rescue-orange);
+            background: var(--rescue-orange-light);
+            border-width: 2px;
         }
-        #sev_high:checked + .severity-btn i { color: var(--accent-violet); text-shadow: 0 0 15px var(--accent-violet); }
-        #sev_high:checked + .severity-btn .fw-bold { color: var(--accent-violet); }
+        #sev_high:checked + .severity-btn i, #sev_high:checked + .severity-btn .fw-bold { color: var(--rescue-orange); }
 
         #sev_critical:checked + .severity-btn {
             border-color: #F43F5E;
-            background: rgba(244, 63, 94, 0.05);
-            box-shadow: 0 0 30px rgba(244, 63, 94, 0.2);
-            animation: pulse-danger 1.5s infinite;
+            background: #FFF1F2;
+            border-width: 2px;
+            animation: industrial-pulse 2s infinite;
         }
-        #sev_critical:checked + .severity-btn i { color: #F43F5E; text-shadow: 0 0 15px #F43F5E; }
-        #sev_critical:checked + .severity-btn .fw-bold { color: #F43F5E; }
+        #sev_critical:checked + .severity-btn i, #sev_critical:checked + .severity-btn .fw-bold { color: #F43F5E; }
 
-        @keyframes pulse-danger {
-            0% { box-shadow: 0 0 10px rgba(244, 63, 94, 0.2); }
-            50% { box-shadow: 0 0 30px rgba(244, 63, 94, 0.4); }
-            100% { box-shadow: 0 0 10px rgba(244, 63, 94, 0.2); }
+        @keyframes industrial-pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
         }
 
-        .btn-celestial {
-            background: linear-gradient(135deg, var(--glow-cyan) 0%, var(--glow-cyan-alt) 100%);
+        .btn-rescue {
+            background: var(--rescue-orange);
             border: none;
-            color: #020617;
-            box-shadow: 0 0 30px rgba(34, 211, 238, 0.3);
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            color: white;
+            box-shadow: 0 10px 25px rgba(249, 115, 22, 0.3);
+            transition: all 0.4s;
             text-transform: uppercase;
-            letter-spacing: 3px;
-            font-weight: 900;
+            letter-spacing: 2px;
+            font-weight: 800;
             padding: 1.5rem;
             border-radius: 1rem;
         }
-        .btn-celestial:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 50px rgba(34, 211, 238, 0.5);
-            color: #000;
+        .btn-rescue:hover {
+            background: var(--rescue-orange-dark);
+            transform: translateY(-4px);
+            box-shadow: 0 15px 35px rgba(249, 115, 22, 0.45);
+            color: white;
         }
 
-        .tactical-alert {
-            background: rgba(34, 211, 238, 0.03);
-            border: 1px dashed rgba(34, 211, 238, 0.3) !important;
-            border-radius: 1.5rem;
+        .mission-alert {
+            background: var(--slate-950);
+            color: #fff;
+            border-radius: 1.25rem;
+            border: none !important;
+            padding: 1.5rem;
         }
 
-        .info-card-tactical {
-            background: rgba(30, 41, 59, 0.4);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 1.5rem;
+        .info-card-industrial {
+            background: #F1F5F9;
+            border: 1px solid #E2E8F0;
+            border-radius: 1.25rem;
         }
 
-        .neon-text { text-shadow: 0 0 10px var(--glow-cyan); }
+        .orange-text { color: var(--rescue-orange); }
     </style>
 </head>
 <body>
-    <div class="stars"></div>
-    <div class="nebula"></div>
+    <div class="corner-accent accent-tl"></div>
+    <div class="corner-accent accent-br"></div>
 
     <div class="emergency-header text-center">
         <div class="container">
             <div class="animate-float">
-                <i class="bi bi-shield-fill-plus display-1 mb-3" style="color: var(--glow-cyan); filter: drop-shadow(0 0 15px var(--glow-cyan));"></i>
+                <i class="bi bi-broadcast display-1 mb-3" style="color: var(--rescue-orange);"></i>
             </div>
-            <h1>GUARDIAN RESPONSE ACTIVE</h1>
-            <p class="hope-message">Establishing a secure clinical connection. Our tactical medical team is monitoring this frequency and prepared for immediate deployment.</p>
+            <h1>RESCUE MISSION INITIALIZED</h1>
+            <div class="rescue-line"></div>
+            <p class="hope-message">Help is on the way. Our specialized rapid-response units are mobilizing to your precise coordinates for immediate clinical support.</p>
         </div>
     </div>
 
     <div class="container pb-5">
         <div class="row justify-content-center">
             <div class="col-md-7">
-                <div class="alert tactical-alert border-0 rounded-4 mb-4 shadow-sm p-4">
+                <div class="alert mission-alert border-0 shadow-lg p-4 mb-4">
                     <div class="d-flex align-items-center">
-                        <div class="p-3 rounded-circle me-3" style="background: rgba(34, 211, 238, 0.1); border: 1px solid var(--border-glow);">
-                            <i class="bi bi-broadcast-pin fs-3 neon-text" style="color: var(--glow-cyan);"></i>
+                        <div class="p-3 rounded-3 me-3" style="background: rgba(249, 115, 22, 0.15); border: 2px solid var(--rescue-orange);">
+                            <i class="bi bi-shield-fill-exclamation fs-3" style="color: var(--rescue-orange);"></i>
                         </div>
                         <div>
-                            <strong class="d-block mb-1 text-uppercase letter-spacing-2" style="color: var(--glow-cyan);">Mission Critical Access</strong>
-                            <p class="small mb-0 opacity-75">This encrypted channel is prioritizing life-saving interventions. Unauthorized use is monitored to ensure response readiness for genuine emergencies.</p>
+                            <strong class="d-block mb-1 text-uppercase letter-spacing-2">ACTIVE MONITORING SESSION</strong>
+                            <p class="small mb-0 opacity-80">This channel is being prioritized for life-saving dispatch. Please provide accurate details to ensure our team arrives with the correct medical assets.</p>
                         </div>
                     </div>
                 </div>
@@ -258,10 +244,10 @@ if ($role === 'guardian' && $userId) {
                 <div class="glass-card p-4 p-md-5 mt-4">
                     <form action="/api/emergency/report" method="POST">
                         <?php if ($role === 'guardian' && !empty($guardianLinks)): ?>
-                        <div class="mb-5 info-card-tactical p-4 shadow-sm">
-                            <label class="form-label mb-3"><i class="bi bi-person-bounding-box"></i> SUBJECT IDENTIFICATION</label>
+                        <div class="mb-5 info-card-industrial p-4 shadow-sm">
+                            <label class="form-label mb-3"><i class="bi bi-person-check-fill orange-text me-2"></i> TARGET PATIENT IDENTIFICATION</label>
                             <select name="patient_id" class="form-select border-0 shadow-sm" required>
-                                <option value="<?php echo $userId; ?>">System Holder (Primary)</option>
+                                <option value="<?php echo $userId; ?>">User (Primary Subject)</option>
                                 <?php foreach ($guardianLinks as $link): ?>
                                     <option value="<?php echo $link['patient_id']; ?>" 
                                             data-gps="<?php echo htmlspecialchars($link['patient']['user_metadata']['ghana_post_gps'] ?? ''); ?>">
@@ -269,7 +255,7 @@ if ($role === 'guardian' && $userId) {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <small class="text-info mt-3 d-block opacity-50"><i class="bi bi-database-fill-check me-1"></i> Linking to patient history for optimized clinical response.</small>
+                            <small class="text-secondary mt-3 d-block"><i class="bi bi-link-45deg me-1"></i> Data integration active: Fetching specialized clinical history.</small>
                         </div>
                         <?php endif; ?>
                         <div class="mb-5 text-center">
@@ -367,10 +353,10 @@ if ($role === 'guardian' && $userId) {
                             <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Mandatory for pinpoint rapid response accuracy.</small>
                         </div>
 
-                        <div class="d-grid mt-5 pt-4 border-top border-white border-opacity-10">
-                            <button type="submit" id="submitBtn" class="btn btn-celestial btn-lg">
-                                <span class="normal-text"><i class="bi bi-lightning-charge-fill me-2"></i> INITIATE RESCUE PULSE</span>
-                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> ENCRYPTING SIGNAL...</span>
+                        <div class="d-grid mt-5 pt-4 border-top border-light">
+                            <button type="submit" id="submitBtn" class="btn btn-rescue btn-lg">
+                                <span class="normal-text"><i class="bi bi-send-fill me-2"></i> TRANSMIT COORDS & DISPATCH</span>
+                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> MOBILIZING UNIT...</span>
                             </button>
                         </div>
                     </form>

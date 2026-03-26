@@ -93,76 +93,64 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --bg-midnight: #020617;
-            --bg-deep: #0F172A;
-            --glow-cyan: #22D3EE;
-            --glow-cyan-alt: #0891B2;
-            --accent-violet: #8B5CF6;
-            --slate-300: #CBD5E1;
-            --slate-400: #94A3B8;
-            --glass-dark: rgba(15, 23, 42, 0.85);
-            --border-glow: rgba(34, 211, 238, 0.2);
+            --rescue-orange: #F97316;
+            --rescue-orange-dark: #C2410C;
+            --rescue-orange-light: #FFF7ED;
+            --slate-950: #020617;
+            --slate-800: #1E293B;
+            --slate-600: #475569;
+            --warm-bg: #FAF9F6;
+            --industrial-glass: rgba(255, 255, 255, 0.98);
         }
         body {
-            background: radial-gradient(circle at 50% 50%, #172554 0%, #020617 100%);
+            background-color: var(--warm-bg);
+            background-image: radial-gradient(var(--slate-800) 0.5px, transparent 0.5px);
+            background-size: 30px 30px;
             background-attachment: fixed;
-            color: var(--slate-300);
+            color: var(--slate-800);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
             overflow: hidden;
         }
 
-        /* Celestial Background */
-        .stars {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 0;
-            background-image: 
-                radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
-                radial-gradient(1.5px 1.5px at 100px 150px, #fff, rgba(0,0,0,0));
-            background-size: 250px 250px;
-            opacity: 0.1;
-            pointer-events: none;
-        }
-
         .status-badge {
-            background: rgba(34, 211, 238, 0.05);
-            color: var(--glow-cyan);
-            border: 1px solid var(--border-glow);
-            padding: 10px 20px;
-            border-radius: 100px;
-            font-weight: 700;
+            background: var(--slate-950);
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 4px;
+            font-weight: 900;
             font-size: 0.7rem;
             letter-spacing: 2px;
             text-transform: uppercase;
-            box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
             display: inline-flex;
             align-items: center;
         }
 
-        /* Tactical Radar Container */
+        /* Industrial Radar Container */
         .radar-container {
             width: 320px;
             height: 320px;
             margin: 20px auto;
             position: relative;
-            background: rgba(15, 23, 42, 0.6);
-            border-radius: 50%;
-            border: 1px solid var(--border-glow);
+            background: #fff;
+            border-radius: 1rem;
+            border: 4px solid var(--slate-950);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(34, 211, 238, 0.05);
+            box-shadow: 15px 15px 0px rgba(15, 23, 42, 0.05);
         }
-        /* Tactical Grid Overlay */
+        /* Tactical Search Grid */
         .radar-container::before {
             content: '';
             position: absolute;
             width: 100%; height: 100%;
             background-image: 
-                linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+                linear-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.05) 1px, transparent 1px);
             background-size: 20px 20px;
             z-index: 1;
         }
@@ -171,9 +159,9 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             position: absolute;
             width: 100%;
             height: 100%;
-            background: conic-gradient(from 0deg, transparent 0%, rgba(34, 211, 238, 0.2) 20%, transparent 40%);
+            background: conic-gradient(from 0deg, transparent 0%, rgba(249, 115, 22, 0.15) 20%, transparent 40%);
             border-radius: 50%;
-            animation: rotate 4s linear infinite;
+            animation: rotate 3s linear infinite;
             z-index: 2;
         }
         @keyframes rotate {
@@ -182,62 +170,60 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         }
 
         .patient-dot {
-            width: 14px;
-            height: 14px;
-            background: #F43F5E;
-            border: 2px solid #fff;
-            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            background: var(--slate-950);
+            border: 3px solid #fff;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px #F43F5E;
+            box-shadow: 0 0 0 5px rgba(15, 23, 42, 0.1);
             z-index: 10;
         }
         .responder-dot {
-            width: 18px;
-            height: 18px;
-            background: var(--glow-cyan);
-            border: 3px solid #fff;
+            width: 20px;
+            height: 20px;
+            background: var(--rescue-orange);
+            border: 4px solid #fff;
             border-radius: 50%;
             position: absolute;
             top: 30%;
             left: 70%;
-            box-shadow: 0 0 25px var(--glow-cyan);
-            animation: star-pulse 2s infinite ease-in-out;
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.4);
+            animation: beacon-pulse 1.5s infinite ease-in-out;
             transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 10;
+            z-index: 11;
         }
-        @keyframes star-pulse {
-            0% { transform: scale(1); filter: brightness(1); }
-            50% { transform: scale(1.4); filter: brightness(1.5); box-shadow: 0 0 40px var(--glow-cyan); }
-            100% { transform: scale(1); filter: brightness(1); }
+        @keyframes beacon-pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
+            70% { transform: scale(1.4); box-shadow: 0 0 0 20px rgba(249, 115, 22, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
         }
 
         .guide-card {
-            background: var(--glass-dark);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glow);
-            border-radius: 2rem;
-            box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
+            background: #fff;
+            border-radius: 1.5rem;
+            border: 2px solid var(--slate-950);
+            box-shadow: 10px 10px 0px rgba(15, 23, 42, 0.05);
         }
 
-        /* Signal Chain Status Timeline */
+        /* Mission Milestone Timeline */
         .status-timeline {
             display: flex;
             justify-content: space-between;
             position: relative;
-            margin-bottom: 50px;
+            margin-bottom: 40px;
         }
         .status-timeline::after {
             content: '';
             position: absolute;
-            top: 22px;
+            top: 25px;
             left: 0;
             width: 100%;
-            height: 1px;
-            background: rgba(255, 255, 255, 0.1);
+            height: 2px;
+            background: var(--slate-800);
+            opacity: 0.1;
             z-index: 1;
         }
         .status-step {
@@ -247,86 +233,83 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             width: 33%;
         }
         .step-icon {
-            width: 44px;
-            height: 44px;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 50%;
-            margin: 0 auto 10px;
+            width: 50px;
+            height: 50px;
+            background: #fff;
+            border: 2px solid var(--slate-800);
+            border-radius: 8px;
+            margin: 0 auto 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.1rem;
+            font-size: 1.25rem;
             transition: 0.4s;
-            color: rgba(255, 255, 255, 0.2);
+            color: var(--slate-800);
         }
         .status-active .step-icon {
-            background: var(--glow-cyan);
-            border-color: var(--glow-cyan);
-            color: var(--bg-midnight);
-            box-shadow: 0 0 20px var(--glow-cyan);
+            background: var(--rescue-orange);
+            border-color: var(--rescue-orange);
+            color: #fff;
+            box-shadow: 0 10px 20px rgba(249, 115, 22, 0.3);
+            transform: translateY(-5px);
         }
         .status-complete .step-icon {
-            background: var(--bg-deep);
-            border-color: var(--glow-cyan);
-            color: var(--glow-cyan);
-            box-shadow: inset 0 0 10px var(--glow-cyan);
+            background: var(--slate-950);
+            border-color: var(--slate-950);
+            color: #fff;
         }
         .step-label {
-            font-size: 0.65rem;
-            font-weight: 700;
-            letter-spacing: 2px;
-            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            color: var(--slate-600);
             text-transform: uppercase;
         }
-        .status-active .step-label { color: var(--glow-cyan); text-shadow: 0 0 10px rgba(34, 211, 238, 0.3); }
+        .status-active .step-label { color: var(--rescue-orange-dark); }
 
-        .pulse-text { animation: neon-blink 2s infinite; color: var(--glow-cyan); text-shadow: 0 0 10px var(--glow-cyan); }
-        @keyframes neon-blink { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
+        .pulse-text { animation: alert-flash 1s infinite alternate; color: var(--rescue-orange); font-weight: 900; }
+        @keyframes alert-flash { from { opacity: 0.5; } to { opacity: 1; } }
 
         .btn-exit {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--slate-950);
+            border: none;
             color: #fff;
-            border-radius: 100px;
-            padding: 10px 25px;
-            font-weight: 700;
+            border-radius: 4px;
+            padding: 10px 24px;
+            font-weight: 800;
             font-size: 0.75rem;
-            letter-spacing: 1px;
-            transition: all 0.3s;
+            letter-spacing: 1.5px;
+            transition: 0.3s;
         }
         .btn-exit:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--glow-cyan);
-            color: var(--glow-cyan);
-            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
+            background: var(--rescue-orange);
+            color: white;
+            box-shadow: 0 5px 15px rgba(249, 115, 22, 0.2);
         }
     </style>
     </style>
 </head>
 <body>
-    <div class="stars"></div>
-
     <div class="container py-4 position-relative" style="z-index:10;">
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-5">
-            <h4 class="fw-bold mb-0 text-white"><i class="bi bi-broadcast neon-text me-2"></i>TACTICAL MEDICAL PULSE</h4>
-            <a href="/dashboard" class="btn btn-exit">DISCONNECT</a>
+            <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-broadcast pulse-text me-2"></i>RESCUE MISSION CONTROL</h4>
+            <a href="/dashboard" class="btn btn-exit">EXIT MISSION</a>
         </div>
 
-        <!-- Signal Chain Timeline -->
+        <!-- Mission Milestones -->
         <div class="status-timeline">
             <div class="status-step <?php echo ($status === 'pending') ? 'status-active' : 'status-complete'; ?>">
-                <div class="step-icon"><i class="bi bi-reception-4"></i></div>
+                <div class="step-icon"><i class="bi bi-cpu"></i></div>
                 <div class="step-label">Signal Locked</div>
             </div>
             <div class="status-step <?php echo ($status === 'dispatched') ? 'status-active' : (($status === 'resolved') ? 'status-complete' : ''); ?>">
-                <div class="step-icon"><i class="bi bi-radar"></i></div>
-                <div class="step-label">Intercept Active</div>
+                <div class="step-icon"><i class="bi bi-truck-flatbed"></i></div>
+                <div class="step-label">Unit Deployed</div>
             </div>
             <div class="status-step <?php echo ($status === 'resolved') ? 'status-active' : ''; ?>">
-                <div class="step-icon"><i class="bi bi-shield-fill-check"></i></div>
-                <div class="step-label">Secure State</div>
+                <div class="step-icon"><i class="bi bi-check-lg"></i></div>
+                <div class="step-label">Mission Clear</div>
             </div>
         </div>
 
@@ -351,8 +334,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
 
                     <?php if($responder): ?>
                         <div class="mt-2" id="responderInfo">
-                            <h5 class="fw-bold mb-1 text-white"><?php echo htmlspecialchars($responder['name']); ?></h5>
-                            <p class="text-info extra-small mb-0" id="etaSubtext"><i class="bi bi-activity me-1"></i>RESCUE UNIT IN BOUND. PREPARE FOR ARRIVAL.</p>
+                            <h5 class="fw-bold mb-1 text-dark"><?php echo htmlspecialchars($responder['name']); ?></h5>
+                            <p class="text-secondary extra-small mb-0" id="etaSubtext"><i class="bi bi-person-check me-1"></i>RESCUE SPECIALIST ON INTERCEPT COURSE.</p>
                             <div class="mt-3 fs-3 fw-bold tracking-tight" id="etaDisplay">
                                 <?php if($status === 'resolved'): ?>
                                     <span class="text-success"><i class="bi bi-check-all me-2"></i>Mission Complete</span>
@@ -376,10 +359,10 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             <div class="col-lg-6">
                 <div class="guide-card p-4 h-100">
                     <h5 class="fw-bold mb-4 d-flex align-items-center">
-                        <span class="p-2 bg-info bg-opacity-10 rounded-3 me-3" style="border: 1px solid var(--border-glow);"><i class="bi bi-cpu-fill" style="color: var(--glow-cyan);"></i></span>
+                        <span class="p-2 bg-warning bg-opacity-25 rounded-3 me-3" style="border: 2px solid var(--rescue-orange);"><i class="bi bi-book-half" style="color: var(--rescue-orange-dark);"></i></span>
                         <div class="flex-grow-1">
-                            <div class="extra-small text-info text-uppercase letter-spacing-2 mb-1" style="font-size: 0.65rem;">System Protocol: First-Aid</div>
-                            <div class="text-white"><?php echo $guide['title']; ?></div>
+                            <div class="extra-small text-secondary text-uppercase letter-spacing-2 mb-1" style="font-size: 0.65rem;">Field Manual: Protocol</div>
+                            <div class="text-dark"><?php echo $guide['title']; ?></div>
                         </div>
                     </h5>
                     
@@ -405,7 +388,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         </div>
 
         <div class="text-center mt-5">
-            <p class="text-white-50 extra-small">SIGNAL ID: <span class="neon-text fw-bold"><?php echo $emergencyId; ?></span> • GGHMS TACTICAL EMERGENCY PULSE • ENCRYPTION ACTIVE</p>
+            <p class="text-secondary extra-small fw-bold">MISSION ID: <span class="orange-text"><?php echo $emergencyId; ?></span> • GGHMS SEARCH & RESCUE COMMAND • OPERATIONAL STATE</p>
         </div>
     </div>
 
