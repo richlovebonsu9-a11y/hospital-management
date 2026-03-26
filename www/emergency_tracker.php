@@ -21,6 +21,7 @@ if (!$e) {
 $type = $e['emergency_type'];
 $status = $e['status'];
 $responder = $e['assigned_to_profile'] ?? null;
+$dispatchedAt = $e['dispatched_at'] ?? null;
 
 // First-Aid Logic
 $firstAidGuides = [
@@ -273,10 +274,16 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     </div>
 
                     <?php if($responder): ?>
-                        <div class="mt-2">
+                        <div class="mt-2" id="responderInfo">
                             <h5 class="fw-bold mb-1 text-primary"><?php echo htmlspecialchars($responder['name']); ?></h5>
-                            <p class="text-white-50 small mb-0"><i class="bi bi-person-badge-fill me-1"></i>Assigned Specialist is moving to you.</p>
-                            <div class="mt-3 fs-3 fw-bold tracking-tight" id="etaDisplay">ETA: 7 mins</div>
+                            <p class="text-white-50 small mb-0" id="etaSubtext"><i class="bi bi-person-badge-fill me-1"></i>Assigned Specialist is moving to you.</p>
+                            <div class="mt-3 fs-3 fw-bold tracking-tight" id="etaDisplay">
+                                <?php if($status === 'resolved'): ?>
+                                    <span class="text-success"><i class="bi bi-check-all me-2"></i>Mission Complete</span>
+                                <?php else: ?>
+                                    ETA: -- mins
+                                <?php endif; ?>
+                            </div>
                         </div>
                     <?php else: ?>
                         <div class="mt-2">
@@ -324,12 +331,50 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
     </div>
 
     <script>
-        // Simulate movement and ETA
+        // Dynamic ETA and Status Logic
         const responderDot = document.getElementById('responderDot');
         const etaDisplay = document.getElementById('etaDisplay');
-        let eta = 7;
+        const etaSubtext = document.getElementById('etaSubtext');
+        const currentStatus = '<?php echo $status; ?>';
+        const dispatchedAt = '<?php echo $dispatchedAt; ?>';
+        
+        const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
 
-        if (responderDot) {
+        function updateETA() {
+            if (currentStatus === 'resolved') {
+                etaDisplay.innerHTML = '<span class="text-success"><i class="bi bi-cloud-check-fill me-2"></i>Response Finalized</span>';
+                etaSubtext.innerHTML = `<div class="mt-2 p-3 rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 text-success small fw-medium" style="line-height:1.6;">${MEDICAL_COMPLETION_MSG}</div>`;
+                if(responderDot) {
+                    responderDot.style.top = '50%';
+                    responderDot.style.left = '50%';
+                }
+                return;
+            }
+
+            if (currentStatus === 'dispatched' && dispatchedAt) {
+                const dispatchTime = new Date(dispatchedAt).getTime();
+                const now = new Date().getTime();
+                const diffMs = now - dispatchTime;
+                const diffMins = Math.floor(diffMs / 60000);
+                
+                // Assume a 10-minute response window for the countdown
+                const initialETA = 10;
+                let remaining = initialETA - diffMins;
+                
+                if (remaining <= 0) {
+                    etaDisplay.innerText = "Arriving at Site";
+                    etaDisplay.classList.add('text-primary');
+                } else {
+                    etaDisplay.innerText = "ETA: " + remaining + " mins";
+                }
+            } else if (currentStatus === 'dispatched') {
+                etaDisplay.innerText = "ETA: Calculating...";
+            }
+        }
+
+        updateETA();
+
+        if (responderDot && currentStatus !== 'resolved') {
             const moveInterval = setInterval(() => {
                 const top = parseInt(responderDot.style.top || '30');
                 const left = parseInt(responderDot.style.left || '70');
@@ -339,30 +384,38 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
 
                 if (top >= 50 && left <= 50) {
                     clearInterval(moveInterval);
-                    etaDisplay.innerText = "Arriving at Site";
-                    etaDisplay.classList.add('text-primary');
+                    if (currentStatus !== 'resolved') {
+                        etaDisplay.innerText = "Arriving at Site";
+                        etaDisplay.classList.add('text-primary');
+                    }
                 }
-            }, 15000); // Move slowly
+            }, 10000); 
 
-            setInterval(() => {
-                if (eta > 1) {
-                    eta--;
-                    etaDisplay.innerText = "ETA: " + eta + " mins";
-                }
-            }, 60000); // Decrease ETA every minute
+            // Update countdown every 30 seconds
+            setInterval(updateETA, 30000);
         }
 
-        // Auto-refresh state every 30 seconds
+        // Auto-refresh state every 20 seconds
         setInterval(() => {
             fetch(window.location.href)
                 .then(res => res.text())
                 .then(html => {
                     const doc = new DOMParser().parseFromString(html, 'text/html');
+                    const newStatus = doc.querySelector('script').textContent.match(/currentStatus = '(.*?)'/)[1];
+                    
+                    if (newStatus !== currentStatus) {
+                        location.reload(); // Hard reload on status change to reset JS state
+                        return;
+                    }
+
                     const newTimeline = doc.querySelector('.status-timeline');
-                    const newBadge = doc.querySelector('.status-badge');
                     if(newTimeline) document.querySelector('.status-timeline').innerHTML = newTimeline.innerHTML;
+                    
+                    // Also update guide if needed (though usually static)
+                    const newGuide = doc.querySelector('.col-lg-6:last-child .guide-card');
+                    if(newGuide) document.querySelector('.col-lg-6:last-child').innerHTML = newGuide.parentElement.innerHTML;
                 });
-        }, 30000);
+        }, 20000);
     </script>
 </body>
 </html>

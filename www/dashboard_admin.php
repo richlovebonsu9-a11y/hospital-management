@@ -704,11 +704,17 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                             // JS info needs just the text
                                             $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type'], 'symptoms' => $symptomsText];
                                         ?>
-                                        <div class="btn-group shadow-sm rounded-pill overflow-hidden">
-                                            <button class="btn btn-sm btn-light border-end" onclick='openAssignEmergencyModal(<?php echo json_encode($jsInfo); ?>)' title="Assign Staff"><i class="bi bi-person-plus text-primary"></i></button>
-                                            <button class="btn btn-sm btn-light border-end" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)' title="Dispatch Help"><i class="bi bi-truck text-danger"></i></button>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-bold" onclick='openAssignEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
+                                                <i class="bi bi-person-plus me-1"></i> Assign
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-bold" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
+                                                <i class="bi bi-truck me-1"></i> Dispatch
+                                            </button>
                                             <?php if($e['status'] !== 'resolved'): ?>
-                                                <button class="btn btn-sm btn-light" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)" title="Resolve"><i class="bi bi-check-circle text-success"></i></button>
+                                                <button class="btn btn-sm btn-outline-success rounded-pill px-3 fw-bold" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)">
+                                                    <i class="bi bi-check-circle me-1"></i> Resolve
+                                                </button>
                                             <?php endif; ?>
                                         </div>
                                     </td>
