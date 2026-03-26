@@ -93,21 +93,22 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --primary: #10B981;
-            --secondary: #1E293B;
-            --accent: #2563EB;
-            --danger: #EF4444;
+            --primary: #0D9488;
+            --secondary: #F8FAFC;
+            --accent: #3B82F6;
+            --danger: #F43F5E;
+            --hope-teal-light: #F0FDFA;
         }
         body {
-            background-color: #0F172A;
-            color: #F8FAFC;
+            background: linear-gradient(135deg, #F0FDFA 0%, #E2E8F0 100%);
+            color: #334155;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
         }
         .status-badge {
-            background: rgba(16, 185, 129, 0.1);
+            background: rgba(13, 148, 136, 0.1);
             color: var(--primary);
-            border: 1px solid rgba(16, 185, 129, 0.2);
+            border: 1px solid rgba(13, 148, 136, 0.2);
             padding: 8px 16px;
             border-radius: 100px;
             font-weight: 600;
@@ -119,19 +120,20 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             height: 280px;
             margin: 40px auto;
             position: relative;
-            background: radial-gradient(circle, rgba(16, 185, 129, 0.05) 0%, rgba(15, 23, 42, 1) 70%);
+            background: radial-gradient(circle, rgba(13, 148, 136, 0.05) 0%, rgba(255, 255, 255, 0.5) 70%);
             border-radius: 50%;
-            border: 2px solid rgba(16, 185, 129, 0.1);
+            border: 2px solid rgba(13, 148, 136, 0.1);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
+            box-shadow: inset 0 0 40px rgba(13, 148, 136, 0.05);
         }
         .radar-sweep {
             position: absolute;
             width: 100%;
             height: 100%;
-            background: conic-gradient(from 0deg, transparent 0%, rgba(16, 185, 129, 0.2) 20%, transparent 40%);
+            background: conic-gradient(from 0deg, transparent 0%, rgba(13, 148, 136, 0.1) 20%, transparent 40%);
             border-radius: 50%;
             animation: rotate 4s linear infinite;
         }
@@ -142,13 +144,13 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         .patient-dot {
             width: 12px;
             height: 12px;
-            background: var(--danger);
+            background: #F43F5E;
             border-radius: 50%;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px var(--danger);
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4);
             z-index: 10;
         }
         .responder-dot {
@@ -170,10 +172,11 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             100% { transform: scale(1); opacity: 1; }
         }
         .guide-card {
-            background: rgba(30, 41, 59, 0.7);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2.5rem;
+            box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05);
         }
         .status-timeline {
             display: flex;
@@ -200,8 +203,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         .step-icon {
             width: 32px;
             height: 32px;
-            background: #1E293B;
-            border: 2px solid rgba(255, 255, 255, 0.1);
+            background: #fff;
+            border: 2px solid #E2E8F0;
             border-radius: 50%;
             margin: 0 auto 8px;
             display: flex;
@@ -209,6 +212,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             justify-content: center;
             font-size: 14px;
             transition: 0.3s;
+            color: #94A3B8;
         }
         .status-active .step-icon {
             background: var(--primary);
@@ -234,8 +238,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
     <div class="container py-4">
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h4 class="fw-bold mb-0"><i class="bi bi-shield-plus text-primary me-2"></i>Live Rescue Pulse</h4>
-            <a href="/dashboard" class="btn btn-sm btn-outline-light rounded-pill px-3 border-0" style="background: rgba(255,255,255,0.05);">Exit Tracker</a>
+            <h4 class="fw-bold mb-0 text-teal" style="color:var(--hope-teal);"><i class="bi bi-shield-check me-2"></i>Live Rescue Support</h4>
+            <a href="/dashboard" class="btn btn-sm btn-outline-secondary rounded-pill px-3 border-0 bg-white shadow-sm">Exit Tracker</a>
         </div>
 
         <!-- Status Timeline -->
@@ -250,7 +254,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             </div>
             <div class="status-step <?php echo ($status === 'resolved') ? 'status-active' : ''; ?>">
                 <div class="step-icon"><i class="bi bi-check-circle"></i></div>
-                <div class="extra-small fw-bold <?php echo ($status === 'resolved') ? 'text-primary' : 'text-white-50'; ?>">COMPLETED</div>
+                <div class="extra-small fw-bold <?php echo ($status === 'resolved') ? 'text-primary' : 'text-muted'; ?>">COMPLETED</div>
             </div>
         </div>
 
@@ -269,14 +273,14 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                             <div class="responder-dot" id="responderDot"></div>
                         <?php endif; ?>
                         <!-- Concentric circles -->
-                        <div style="position: absolute; width: 66%; height: 66%; border: 1px solid rgba(16, 185, 129, 0.05); border-radius: 50%;"></div>
-                        <div style="position: absolute; width: 33%; height: 33%; border: 1px solid rgba(16, 185, 129, 0.05); border-radius: 50%;"></div>
+                        <div style="position: absolute; width: 66%; height: 66%; border: 1px solid rgba(13, 148, 136, 0.1); border-radius: 50%;"></div>
+                        <div style="position: absolute; width: 33%; height: 33%; border: 1px solid rgba(13, 148, 136, 0.1); border-radius: 50%;"></div>
                     </div>
 
                     <?php if($responder): ?>
                         <div class="mt-2" id="responderInfo">
-                            <h5 class="fw-bold mb-1 text-primary"><?php echo htmlspecialchars($responder['name']); ?></h5>
-                            <p class="text-white-50 small mb-0" id="etaSubtext"><i class="bi bi-person-badge-fill me-1"></i>Assigned Specialist is moving to you.</p>
+                            <h5 class="fw-bold mb-1 text-teal" style="color:var(--hope-teal);"><?php echo htmlspecialchars($responder['name']); ?></h5>
+                            <p class="text-muted small mb-0" id="etaSubtext"><i class="bi bi-person-badge-fill me-1"></i>Our specialist is on the way to help you.</p>
                             <div class="mt-3 fs-3 fw-bold tracking-tight" id="etaDisplay">
                                 <?php if($status === 'resolved'): ?>
                                     <span class="text-success"><i class="bi bi-check-all me-2"></i>Mission Complete</span>
@@ -300,7 +304,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             <div class="col-lg-6">
                 <div class="guide-card p-4 h-100">
                     <h5 class="fw-bold mb-4 d-flex align-items-center">
-                        <span class="p-2 bg-danger rounded-3 me-3"><i class="bi bi-heart-pulse-fill text-white"></i></span>
+                        <span class="p-2 bg-success rounded-3 me-3" style="background:rgba(13, 148, 136, 0.1) !important;"><i class="bi bi-heart-pulse-fill text-teal" style="color:var(--hope-teal);"></i></span>
                         Immediate First-Aid: <?php echo $guide['title']; ?>
                     </h5>
                     

@@ -788,7 +788,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form id="inventoryForm" action="/api/admin/manage_inventory.php" method="POST">
+                    <form id="inventoryForm" action="/api/admin/manage_inventory" method="POST">
                         <input type="hidden" name="action" id="inv_action" value="add">
                         <input type="hidden" name="id" id="inv_drug_id">
                         <div class="mb-3">
@@ -1004,7 +1004,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 const fd = new FormData();
                 fd.append('action', 'delete');
                 fd.append('id', id);
-                const resp = await fetch('/api/admin/manage_inventory.php', { method: 'POST', body: fd });
+                const resp = await fetch('/api/admin/manage_inventory', { method: 'POST', body: fd });
                 if (resp.ok) {
                     Swal.fire('Deleted!', 'Drug removed.', 'success').then(() => location.reload());
                 } else {
@@ -1206,6 +1206,31 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             } catch (e) { Swal.fire('Error', 'Connection failed.', 'error'); }
             finally { btn.disabled = false; }
         }
+
+        document.getElementById('inventoryForm').onsubmit = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('invSubmitBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing...';
+            
+            try {
+                const fd = new FormData(this);
+                const res = await fetch(this.action, { method: 'POST', body: fd });
+                const data = await res.json();
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('inventoryModal'))?.hide();
+                    Swal.fire('Success!', 'Inventory updated successfully.', 'success').then(() => location.reload());
+                } else {
+                    Swal.fire('Error', data.error || 'Failed to update inventory.', 'error');
+                }
+            } catch (e) {
+                Swal.fire('Error', 'Connection failed.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = originalText;
+            }
+        };
     </script>
 </body>
 </html>

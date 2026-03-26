@@ -938,7 +938,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                         <th class="border-0 py-3 text-center">Bed Info</th>
                                         <th class="border-0 py-3">Stay Duration</th>
                                         <th class="border-0 py-3">Timeline</th>
-                                        <th class="border-0 py-3 text-end pe-4">Management</th>
+                                        <th class="border-0 py-3 text-end pe-4">Management Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -990,14 +990,16 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                                                 <small class="text-muted extra-small"><?php echo date('H:i', strtotime($adm['admission_date'])); ?> GMT</small>
                                             </td>
                                             <td class="text-end pe-4">
-                                                <div class="dropdown">
-                                                    <button class="btn btn-light btn-sm rounded-circle p-2" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
-                                                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-4 p-2">
-                                                        <li><button class="dropdown-item rounded-3 py-2 small fw-bold text-primary" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'><i class="bi bi-pencil-square me-2"></i>Edit Admission</button></li>
-                                                        <li><button class="dropdown-item rounded-3 py-2 small fw-bold text-success" onclick='openExtendModal(<?php echo json_encode($adm); ?>)'><i class="bi bi-plus-circle-dotted me-2"></i>Extend Stay</button></li>
-                                                        <li><hr class="dropdown-divider opacity-50"></li>
-                                                        <li><button class="dropdown-item rounded-3 py-2 small fw-bold text-danger" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')"><i class="bi bi-box-arrow-right me-2"></i>Discharge Patient</button></li>
-                                                    </ul>
+                                                <div class="d-flex justify-content-end gap-2">
+                                                    <button class="btn btn-primary-soft btn-sm rounded-pill px-3 fw-bold" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)' title="Edit">
+                                                        <i class="bi bi-pencil-square me-1"></i> Edit
+                                                    </button>
+                                                    <button class="btn btn-success-soft btn-sm rounded-pill px-3 fw-bold" onclick='openExtendModal(<?php echo json_encode($adm); ?>)' title="Extend">
+                                                        <i class="bi bi-plus-circle-dotted me-1"></i> Extend
+                                                    </button>
+                                                    <button class="btn btn-danger-soft btn-sm rounded-pill px-3 fw-bold" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')" title="Discharge">
+                                                        <i class="bi bi-box-arrow-right me-1"></i> Discharge
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1152,10 +1154,22 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             <div class="card p-4 border-0 shadow-sm mb-4">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h5 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow me-2 text-primary"></i>Hospital Performance Reports</h5>
-                    <div class="d-flex gap-2">
-                        <input type="date" id="report_start_date" class="form-control form-control-sm rounded-pill px-3" value="<?php echo date('Y-m-01'); ?>">
-                        <input type="date" id="report_end_date" class="form-control form-control-sm rounded-pill px-3" value="<?php echo date('Y-m-d'); ?>">
-                        <button class="btn btn-primary btn-sm rounded-pill px-3" onclick="refreshReports()">Generate</button>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <select id="report_drug_id" class="form-select form-select-sm rounded-pill px-3" style="width: 150px;">
+                            <option value="">All Drugs</option>
+                            <?php foreach($availableDrugs as $d): ?>
+                                <option value="<?php echo $d['id']; ?>"><?php echo htmlspecialchars($d['drug_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <select id="report_ward_id" class="form-select form-select-sm rounded-pill px-3" style="width: 150px;">
+                            <option value="">All Wards</option>
+                            <?php foreach($wards as $w): ?>
+                                <option value="<?php echo $w['id']; ?>"><?php echo htmlspecialchars($w['ward_name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <input type="date" id="report_start_date" class="form-control form-control-sm rounded-pill px-3" value="<?php echo date('Y-m-01'); ?>" style="width: 130px;">
+                        <input type="date" id="report_end_date" class="form-control form-control-sm rounded-pill px-3" value="<?php echo date('Y-m-d'); ?>" style="width: 130px;">
+                        <button class="btn btn-primary btn-sm rounded-pill px-4 fw-bold" onclick="refreshReports()">Generate</button>
                     </div>
                 </div>
 
@@ -1219,8 +1233,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                     <!-- Financial Summary Tab -->
                     <div class="tab-pane fade" id="tab-financial-report">
                         <div class="p-4 rounded-4 mb-4 text-center text-white" style="background: linear-gradient(135deg, #1a237e 0%, #1565c0 100%);">
-                            <p class="text-white-50 small mb-1 text-uppercase fw-bold" style="letter-spacing:1px;">Total Estimated Revenue for Period</p>
-                            <h1 class="fw-bold mb-0" id="report_total_rev" style="font-size: 2.5rem;">&#8373; 0.00</h1>
+                            <p class="text-white-50 small mb-1 text-uppercase fw-bold" style="letter-spacing:1px;">Total Estimated Revenue (Expected)</p>
+                            <h1 class="fw-bold mb-2" id="report_estimated_total" style="font-size: 2.5rem;">&#8373; 0.00</h1>
+                            <div class="d-inline-block bg-white bg-opacity-10 rounded-pill px-4 py-2">
+                                <span class="extra-small text-white-50 me-2">COLLECTED (PAID):</span>
+                                <span class="fw-bold fs-5" id="report_collected_total">&#8373; 0.00</span>
+                            </div>
                         </div>
                         <div class="row g-4">
                             <div class="col-md-6">
@@ -1693,22 +1711,27 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
     <script>
         // Reports Logic
         async function refreshReports() {
-            const start = document.getElementById('report_start_date').value;
-            const end = document.getElementById('report_end_date').value;
+            const drug = document.getElementById('report_drug_id').value;
+            const ward = document.getElementById('report_ward_id').value;
             
-            // Fetch Inventory Reports
-            fetchReports('inventory', start, end);
-            // Fetch Ward Reports
-            fetchReports('ward', start, end);
+            // Fetch Reports
+            fetchReports('inventory', start, end, drug, ward);
+            fetchReports('ward', start, end, drug, ward);
+            fetchReports('financial', start, end, drug, ward);
         }
 
-        async function fetchReports(type, start, end) {
+        async function fetchReports(type, start, end, drug = '', ward = '') {
             try {
-                const res = await fetch(`/api/admin/get_reports?type=${type}&start_date=${start}&end_date=${end}`);
+                let url = `/api/admin/get_reports?type=${type}&start_date=${start}&end_date=${end}`;
+                if (drug) url += `&drug_id=${drug}`;
+                if (ward) url += `&ward_id=${ward}`;
+                
+                const res = await fetch(url);
                 const data = await res.json();
                 if (data.success) {
                     if (type === 'inventory') renderInventoryReports(data.report);
-                    else renderWardReports(data.report);
+                    else if (type === 'ward') renderWardReports(data.report);
+                    else if (type === 'financial') renderFinancialSummary(data.report);
                 }
             } catch (e) { console.error("Report Error:", e); }
         }
@@ -1743,7 +1766,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
             // Per Doctor — styled ranked list
             const pd = document.getElementById('report_per_doctor');
-            const pdEntries = Object.entries(r.per_doctor || {});
+            const pdEntries = Object.entries(r.prescriptions_per_doctor || {});
             if (pdEntries.length > 0) {
                 const maxCount = pdEntries[0][1] || 1;
                 let html = '<div class="d-flex flex-column gap-2">';
@@ -1805,7 +1828,11 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             }
             revTable.innerHTML = revHtml || '<tr><td colspan="2" class="text-center text-muted">No revenue data.</td></tr>';
             document.getElementById('report_ward_total').innerText = '₵ ' + totalWard.toLocaleString(undefined, {minimumFractionDigits:2});
-            updateTotalRevenue();
+        }
+
+        function renderFinancialSummary(r) {
+            document.getElementById('report_estimated_total').innerText = '₵ ' + (r.total_estimated_revenue || 0).toLocaleString(undefined, {minimumFractionDigits:2});
+            document.getElementById('report_collected_total').innerText = '₵ ' + (r.total_collected_revenue || 0).toLocaleString(undefined, {minimumFractionDigits:2});
         }
 
         function updateTotalRevenue() {

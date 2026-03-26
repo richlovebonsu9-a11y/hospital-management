@@ -79,9 +79,10 @@ $itemsToDeduct = $config['items'];
 
 // 2. Update Emergency Status
 $updateRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, [
-    'status'       => 'dispatched',
-    'assigned_to'  => $staffId,
-    'response_fee' => $responseFee
+    'status'        => 'dispatched',
+    'assigned_to'   => $staffId,
+    'response_fee'  => $responseFee,
+    'dispatched_at' => date('c') // Use ISO 8601 for Supabase
 ], true);
 
 if ($updateRes['status'] < 200 || $updateRes['status'] >= 300) {

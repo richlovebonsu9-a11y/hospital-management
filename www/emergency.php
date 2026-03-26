@@ -29,148 +29,164 @@ if ($role === 'guardian' && $userId) {
     <link rel="stylesheet" href="/assets/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
+        :root {
+            --hope-teal: #0D9488;
+            --hope-teal-light: #F0FDFA;
+            --hope-blue: #3B82F6;
+            --warm-white: #F8FAFC;
+        }
         body {
-            background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+            background: linear-gradient(135deg, #F0FDFA 0%, #E0F2F1 100%);
             min-height: 100vh;
-            color: white;
+            color: #334155;
             font-family: 'Montserrat', sans-serif;
             overflow-x: hidden;
         }
 
-        /* Pulsing Glow Background */
+        /* Pulsing Glow Background - Softer Teal */
         .emergency-glow {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 60vw; height: 60vw;
-            background: radial-gradient(circle, rgba(239, 68, 68, 0.15) 0%, rgba(239, 68, 68, 0) 70%);
+            background: radial-gradient(circle, rgba(13, 148, 136, 0.1) 0%, rgba(13, 148, 136, 0) 70%);
             border-radius: 50%;
             z-index: 0;
-            animation: pulse-glow 4s infinite alternate ease-in-out;
+            animation: pulse-glow 6s infinite alternate ease-in-out;
             pointer-events: none;
         }
 
         @keyframes pulse-glow {
-            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
-            100% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
+            100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.6; }
         }
 
         .emergency-header {
             position: relative;
             z-index: 10;
-            padding: 60px 0 20px;
+            padding: 80px 0 30px;
         }
         
         .emergency-header h1 {
             font-weight: 800;
-            letter-spacing: 2px;
-            text-shadow: 0 4px 15px rgba(239,68,68,0.4);
-            color: #fff;
+            letter-spacing: 1px;
+            color: var(--hope-teal);
+            text-shadow: 0 2px 10px rgba(13, 148, 136, 0.1);
         }
 
         .hope-message {
             font-size: 1.25rem;
-            color: #94A3B8;
-            font-weight: 400;
+            color: #64748B;
+            font-weight: 500;
+            max-width: 600px;
+            margin: 0 auto;
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 2rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 2.5rem;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
             position: relative;
             z-index: 10;
-            color: #fff;
         }
 
         .form-label {
-            color: #E2E8F0;
+            color: #475569;
+            font-weight: 600;
+            font-size: 0.85rem;
             letter-spacing: 0.5px;
-            font-size: 0.95rem;
         }
 
         .form-select, .form-control {
-            background: rgba(255, 255, 255, 0.05) !important;
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            color: #fff !important;
-            border-radius: 1rem;
+            background: #fff !important;
+            border: 1px solid #E2E8F0 !important;
+            color: #1E293B !important;
+            border-radius: 1.25rem;
+            padding: 1rem 1.25rem !important;
             transition: all 0.3s;
         }
 
         .form-select:focus, .form-control:focus {
-            background: rgba(255, 255, 255, 0.1) !important;
-            border-color: #EF4444 !important;
-            box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2) !important;
-        }
-
-        option, optgroup {
-            background: #1E293B;
-            color: #fff;
+            border-color: var(--hope-teal) !important;
+            box-shadow: 0 0 0 5px rgba(13, 148, 136, 0.1) !important;
         }
 
         /* Severity Buttons Redesign */
         .severity-btn {
-            background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 1.5rem;
+            background: #fff;
+            border: 2px solid #F1F5F9;
+            border-radius: 1.75rem;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
-            min-width: 130px;
-            backdrop-filter: blur(10px);
+            min-width: 140px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
         }
         
-        .severity-btn i { font-size: 2rem; margin-bottom: 0.5rem; display: block; opacity: 0.7; transition: all 0.3s; }
-        .severity-btn .fw-bold { font-size: 0.9rem; letter-spacing: 1px; color: #94A3B8; transition: all 0.3s; }
+        .severity-btn i { font-size: 2.2rem; margin-bottom: 0.75rem; display: block; color: #CBD5E1; transition: all 0.3s; }
+        .severity-btn .fw-bold { font-size: 0.85rem; letter-spacing: 1px; color: #94A3B8; transition: all 0.3s; }
 
-        .severity-btn:hover { transform: translateY(-3px); background: rgba(255, 255, 255, 0.1); }
+        .severity-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
 
-        /* Medium Active */
         #sev_medium:checked + .severity-btn {
-            background: rgba(245, 158, 11, 0.2);
             border-color: #F59E0B;
-            box-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+            background: #FFFBEB;
         }
-        #sev_medium:checked + .severity-btn i, #sev_medium:checked + .severity-btn .fw-bold { color: #FCD34D; opacity: 1; }
+        #sev_medium:checked + .severity-btn i, #sev_medium:checked + .severity-btn .fw-bold { color: #D97706; }
 
-        /* High Active */
         #sev_high:checked + .severity-btn {
-            background: rgba(249, 115, 22, 0.2);
             border-color: #F97316;
-            box-shadow: 0 0 20px rgba(249, 115, 22, 0.3);
+            background: #FFF7ED;
         }
-        #sev_high:checked + .severity-btn i, #sev_high:checked + .severity-btn .fw-bold { color: #FDBA74; opacity: 1; }
+        #sev_high:checked + .severity-btn i, #sev_high:checked + .severity-btn .fw-bold { color: #EA580C; }
 
-        /* Critical Active */
         #sev_critical:checked + .severity-btn {
-            background: rgba(239, 68, 68, 0.2);
             border-color: #EF4444;
-            box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
-            animation: pulse-border 1.5s infinite alternate;
+            background: #FEF2F2;
+            animation: pulse-border-teal 1.5s infinite alternate;
         }
-        #sev_critical:checked + .severity-btn i, #sev_critical:checked + .severity-btn .fw-bold { color: #FCA5A5; opacity: 1; }
+        #sev_critical:checked + .severity-btn i, #sev_critical:checked + .severity-btn .fw-bold { color: #DC2626; }
 
-        @keyframes pulse-border {
-            0% { box-shadow: 0 0 10px rgba(239, 68, 68, 0.3); }
-            100% { box-shadow: 0 0 25px rgba(239, 68, 68, 0.6); }
+        @keyframes pulse-border-teal {
+            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
+            100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
         }
 
-        .btn-danger-glow {
-            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        .btn-hope {
+            background: linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
             border: none;
-            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+            color: white;
+            box-shadow: 0 8px 20px rgba(13, 148, 136, 0.3);
             transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 700;
         }
-        .btn-danger-glow:hover {
+        .btn-hope:hover {
             transform: translateY(-2px);
-            box-shadow: 0 15px 35px rgba(239, 68, 68, 0.6);
-            background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+            box-shadow: 0 12px 25px rgba(13, 148, 136, 0.5);
+            background: linear-gradient(135deg, #0F766E 0%, #115E59 100%);
+            color: white;
         }
 
-        /* Particles Layer */
-        .particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 50px 50px; opacity: 0.15; }
+        .policy-alert {
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.1) !important;
+            color: #B91C1C;
+        }
+
+        .other-info-card {
+            background: var(--hope-teal-light);
+            border: 1px solid rgba(13, 148, 136, 0.1);
+        }
+
+        .animate-pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+
+        /* Particles Layer - Softer */
+        .particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background-image: radial-gradient(#0D9488 0.5px, transparent 0.5px); background-size: 60px 60px; opacity: 0.05; }
     </style>
 </head>
 <body>
@@ -179,20 +195,20 @@ if ($role === 'guardian' && $userId) {
 
     <div class="emergency-header text-center">
         <div class="container">
-            <h1 class="display-4 mb-3"><i class="bi bi-activity text-danger me-2"></i> EMERGENCY NOW</h1>
-            <p class="hope-message mb-0">You are not alone. Our elite response team is standing by to help you immediately.</p>
+            <h1 class="display-4 mb-3"><i class="bi bi-shield-check text-success me-2"></i> HELP IS ONE CLICK AWAY</h1>
+            <p class="hope-message mb-0">You are not alone. Our dedicated medical teams are ready to provide immediate support and care.</p>
         </div>
     </div>
 
     <div class="container pb-5">
         <div class="row justify-content-center">
             <div class="col-md-7">
-                <div class="alert border-0 rounded-4 bg-danger text-white mb-4 shadow-sm animate-pulse">
+                <div class="alert policy-alert border-0 rounded-4 mb-4 shadow-sm">
                     <div class="d-flex align-items-center">
-                        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+                        <i class="bi bi-info-circle-fill fs-3 me-3"></i>
                         <div>
-                            <strong class="d-block mb-1">⚠ WARNING: STRICT USAGE POLICY</strong>
-                            <p class="small mb-0 opacity-90">Only use this for genuine medical emergencies. False reports delay life-saving care for others. Misuse will result in immediate account suspension and potential legal action.</p>
+                            <strong class="d-block mb-1">STRICT USAGE POLICY</strong>
+                            <p class="small mb-0">Please use this specialized service for medical emergencies only. Staying focused on genuine cases allows us to save more lives together.</p>
                         </div>
                     </div>
                 </div>
@@ -200,9 +216,9 @@ if ($role === 'guardian' && $userId) {
                 <div class="glass-card p-4 p-md-5 mt-4">
                     <form action="/api/emergency/report" method="POST">
                         <?php if ($role === 'guardian' && !empty($guardianLinks)): ?>
-                        <div class="mb-5 bg-white bg-opacity-10 p-4 rounded-4 border border-info border-opacity-25">
-                            <label class="form-label fw-bold mb-3 text-uppercase text-info"><i class="bi bi-person-check-fill me-2"></i> Who is this emergency for?</label>
-                            <select name="patient_id" class="form-select px-4 py-3 fw-bold border-info border-opacity-50" required>
+                        <div class="mb-5 other-info-card p-4 rounded-4 shadow-sm">
+                            <label class="form-label fw-bold mb-3 text-uppercase text-teal" style="color:var(--hope-teal);"><i class="bi bi-person-heart me-2"></i> Who requires medical support?</label>
+                            <select name="patient_id" class="form-select border-0 shadow-sm" required>
                                 <option value="<?php echo $userId; ?>">Myself (Guardian)</option>
                                 <?php foreach ($guardianLinks as $link): ?>
                                     <option value="<?php echo $link['patient_id']; ?>" 
@@ -211,7 +227,7 @@ if ($role === 'guardian' && $userId) {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <small class="text-info mt-2 d-block opacity-75"><i class="bi bi-info-circle me-1"></i> Selecting a dependant will alert our team to their specific medical profile.</small>
+                            <small class="text-muted mt-2 d-block opacity-75"><i class="bi bi-shield-fill-check me-1"></i> Selecting a dependent helps us prepare their clinical history in advance.</small>
                         </div>
                         <?php endif; ?>
                         <div class="mb-5 text-center">
@@ -309,10 +325,10 @@ if ($role === 'guardian' && $userId) {
                             <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Mandatory for pinpoint rapid response accuracy.</small>
                         </div>
 
-                        <div class="d-grid mt-5 pt-3 border-top border-secondary border-opacity-25">
-                            <button type="submit" id="submitBtn" class="btn btn-danger-glow btn-lg py-3 fw-bold rounded-pill text-uppercase text-white">
-                                <span class="normal-text"><i class="bi bi-lightning-charge-fill me-2"></i> Request Immediate Dispatch</span>
-                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> Transmitting to Elite Team...</span>
+                        <div class="d-grid mt-5 pt-3 border-top border-light">
+                            <button type="submit" id="submitBtn" class="btn btn-hope btn-lg py-3 rounded-pill">
+                                <span class="normal-text"><i class="bi bi-heart-pulse-fill me-2"></i> Request Medical Assistance</span>
+                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> Connecting with Response Team...</span>
                             </button>
                         </div>
                     </form>
