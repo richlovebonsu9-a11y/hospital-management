@@ -1,3 +1,4 @@
+<?php
 session_start();
 require_once __DIR__ . '/../src/lib/Supabase.php';
 use App\Lib\Supabase;
