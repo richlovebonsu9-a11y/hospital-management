@@ -30,185 +30,214 @@ if ($role === 'guardian' && $userId) {
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         :root {
-            --hope-teal: #0D9488;
-            --hope-teal-light: #F0FDFA;
-            --hope-blue: #3B82F6;
-            --warm-white: #F8FAFC;
+            --vital-green: #059669;
+            --vital-green-dark: #065F46;
+            --vital-green-light: #ECFDF5;
+            --sky-blue: #0284C7;
+            --sky-blue-light: #F0F9FF;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --glass-bg: rgba(255, 255, 255, 0.85);
         }
         body {
-            background: linear-gradient(135deg, #F0FDFA 0%, #E0F2F1 100%);
+            background: linear-gradient(135deg, #F0F9FF 0%, #E0F2F1 50%, #ECFDF5 100%);
+            background-attachment: fixed;
             min-height: 100vh;
-            color: #334155;
+            color: var(--slate-700);
             font-family: 'Montserrat', sans-serif;
             overflow-x: hidden;
         }
 
-        /* Pulsing Glow Background - Softer Teal */
-        .emergency-glow {
+        /* Breathing Background Blobs */
+        .blob {
             position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 60vw; height: 60vw;
-            background: radial-gradient(circle, rgba(13, 148, 136, 0.1) 0%, rgba(13, 148, 136, 0) 70%);
-            border-radius: 50%;
+            filter: blur(80px);
             z-index: 0;
-            animation: pulse-glow 6s infinite alternate ease-in-out;
+            opacity: 0.4;
+            border-radius: 50%;
+            animation: move 20s infinite alternate ease-in-out;
             pointer-events: none;
         }
+        .blob-1 { width: 500px; height: 500px; background: #BAE6FD; top: -100px; left: -100px; }
+        .blob-2 { width: 600px; height: 600px; background: #A7F3D0; bottom: -200px; right: -100px; animation-delay: -5s; }
 
-        @keyframes pulse-glow {
-            0% { transform: translate(-50%, -50%) scale(1); opacity: 0.3; }
-            100% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.6; }
+        @keyframes move {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(100px, 50px) scale(1.1); }
         }
 
         .emergency-header {
             position: relative;
             z-index: 10;
-            padding: 80px 0 30px;
+            padding: 90px 0 40px;
         }
         
         .emergency-header h1 {
             font-weight: 800;
-            letter-spacing: 1px;
-            color: var(--hope-teal);
-            text-shadow: 0 2px 10px rgba(13, 148, 136, 0.1);
+            letter-spacing: -1px;
+            color: var(--vital-green-dark);
+            text-shadow: 0 4px 12px rgba(5, 150, 105, 0.1);
         }
 
         .hope-message {
-            font-size: 1.25rem;
-            color: #64748B;
+            font-size: 1.2rem;
+            color: var(--slate-600);
             font-weight: 500;
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
+            line-height: 1.6;
         }
 
         .glass-card {
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(15px);
-            -webkit-backdrop-filter: blur(15px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            border-radius: 2.5rem;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 3rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
             position: relative;
             z-index: 10;
+            transition: transform 0.3s ease;
         }
 
         .form-label {
-            color: #475569;
-            font-weight: 600;
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
+            color: var(--slate-700);
+            font-weight: 700;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            margin-bottom: 0.75rem;
         }
 
         .form-select, .form-control {
             background: #fff !important;
             border: 1px solid #E2E8F0 !important;
             color: #1E293B !important;
-            border-radius: 1.25rem;
-            padding: 1rem 1.25rem !important;
+            border-radius: 1.5rem;
+            padding: 1.1rem 1.5rem !important;
             transition: all 0.3s;
+            font-size: 0.95rem;
         }
 
         .form-select:focus, .form-control:focus {
-            border-color: var(--hope-teal) !important;
-            box-shadow: 0 0 0 5px rgba(13, 148, 136, 0.1) !important;
+            border-color: var(--sky-blue) !important;
+            box-shadow: 0 0 0 5px rgba(2, 132, 199, 0.1) !important;
         }
 
-        /* Severity Buttons Redesign */
+        /* Severity Buttons Redesign - Vital Serenity Style */
         .severity-btn {
             background: #fff;
             border: 2px solid #F1F5F9;
-            border-radius: 1.75rem;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: 2rem;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             cursor: pointer;
-            min-width: 140px;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            min-width: 150px;
+            padding: 1.5rem 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
         }
         
-        .severity-btn i { font-size: 2.2rem; margin-bottom: 0.75rem; display: block; color: #CBD5E1; transition: all 0.3s; }
-        .severity-btn .fw-bold { font-size: 0.85rem; letter-spacing: 1px; color: #94A3B8; transition: all 0.3s; }
+        .severity-btn i { font-size: 2.5rem; margin-bottom: 0.75rem; display: block; color: #CBD5E1; transition: all 0.4s; }
+        .severity-btn .fw-bold { font-size: 0.8rem; letter-spacing: 1.5px; color: #94A3B8; transition: all 0.4s; }
 
-        .severity-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
+        .severity-btn:hover { transform: translateY(-5px); box-shadow: 0 15px 30px -5px rgba(0,0,0,0.1); border-color: #E2E8F0; }
 
         #sev_medium:checked + .severity-btn {
-            border-color: #F59E0B;
-            background: #FFFBEB;
+            border-color: #0284C7;
+            background: #F0F9FF;
         }
-        #sev_medium:checked + .severity-btn i, #sev_medium:checked + .severity-btn .fw-bold { color: #D97706; }
+        #sev_medium:checked + .severity-btn i, #sev_medium:checked + .severity-btn .fw-bold { color: #0284C7; }
 
         #sev_high:checked + .severity-btn {
-            border-color: #F97316;
-            background: #FFF7ED;
+            border-color: #059669;
+            background: #ECFDF5;
         }
-        #sev_high:checked + .severity-btn i, #sev_high:checked + .severity-btn .fw-bold { color: #EA580C; }
+        #sev_high:checked + .severity-btn i, #sev_high:checked + .severity-btn .fw-bold { color: #059669; }
 
         #sev_critical:checked + .severity-btn {
-            border-color: #EF4444;
-            background: #FEF2F2;
-            animation: pulse-border-teal 1.5s infinite alternate;
+            border-color: #D97706;
+            background: #FFFBEB;
+            animation: pulse-amber 2s infinite;
         }
-        #sev_critical:checked + .severity-btn i, #sev_critical:checked + .severity-btn .fw-bold { color: #DC2626; }
+        #sev_critical:checked + .severity-btn i, #sev_critical:checked + .severity-btn .fw-bold { color: #D97706; }
 
-        @keyframes pulse-border-teal {
-            0% { box-shadow: 0 0 5px rgba(239, 68, 68, 0.2); }
-            100% { box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); }
+        @keyframes pulse-amber {
+            0% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(217, 119, 6, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
         }
 
-        .btn-hope {
-            background: linear-gradient(135deg, #0D9488 0%, #0F766E 100%);
+        .btn-vital {
+            background: linear-gradient(135deg, #059669 0%, #0284C7 100%);
             border: none;
             color: white;
-            box-shadow: 0 8px 20px rgba(13, 148, 136, 0.3);
-            transition: all 0.3s;
+            box-shadow: 0 12px 24px rgba(5, 150, 105, 0.25);
+            transition: all 0.4s ease;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 700;
+            letter-spacing: 2px;
+            font-weight: 800;
+            padding: 1.25rem;
+            position: relative;
+            overflow: hidden;
         }
-        .btn-hope:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(13, 148, 136, 0.5);
-            background: linear-gradient(135deg, #0F766E 0%, #115E59 100%);
+        .btn-vital::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -100%;
+            width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        .btn-vital:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 20px 35px rgba(5, 150, 105, 0.4);
             color: white;
         }
+        .btn-vital:hover::after { left: 100%; }
 
         .policy-alert {
-            background: rgba(239, 68, 68, 0.05);
-            border: 1px solid rgba(239, 68, 68, 0.1) !important;
-            color: #B91C1C;
+            background: #fff;
+            border: 1px solid #F1F5F9 !important;
+            border-left: 5px solid #0284C7 !important;
+            box-shadow: 0 10px 20px -5px rgba(0,0,0,0.03);
         }
 
-        .other-info-card {
-            background: var(--hope-teal-light);
-            border: 1px solid rgba(13, 148, 136, 0.1);
+        .info-card-subtle {
+            background: #F8FAFC;
+            border: 1px solid #E2E8F0;
+            border-radius: 1.5rem;
         }
 
-        .animate-pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.85; } 100% { opacity: 1; } }
+        .animate-float { animation: float 6s infinite ease-in-out; }
+        @keyframes float { 0% { transform: translateY(0px); } 50% { transform: translateY(-10px); } 100% { transform: translateY(0px); } }
 
-        /* Particles Layer - Softer */
-        .particles { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background-image: radial-gradient(#0D9488 0.5px, transparent 0.5px); background-size: 60px 60px; opacity: 0.05; }
+        .particles-subtle { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; background-image: radial-gradient(#059669 0.5px, transparent 0.5px); background-size: 80px 80px; opacity: 0.03; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div class="emergency-glow"></div>
-    <div class="particles"></div>
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="particles-subtle"></div>
 
     <div class="emergency-header text-center">
         <div class="container">
-            <h1 class="display-4 mb-3"><i class="bi bi-shield-check text-success me-2"></i> HELP IS ONE CLICK AWAY</h1>
-            <p class="hope-message mb-0">You are not alone. Our dedicated medical teams are ready to provide immediate support and care.</p>
+            <div class="animate-float">
+                <i class="bi bi-heart-pulse-fill display-1 text-success mb-3" style="color: var(--vital-green) !important;"></i>
+            </div>
+            <h1 class="display-4 mb-3">YOU ARE IN SAFE HANDS</h1>
+            <p class="hope-message">Our dedicated emergency team is standing by to provide you with the professional care and support you need right now.</p>
         </div>
     </div>
 
     <div class="container pb-5">
         <div class="row justify-content-center">
             <div class="col-md-7">
-                <div class="alert policy-alert border-0 rounded-4 mb-4 shadow-sm">
+                <div class="alert policy-alert border-0 rounded-4 mb-4 shadow-sm p-4">
                     <div class="d-flex align-items-center">
-                        <i class="bi bi-info-circle-fill fs-3 me-3"></i>
+                        <div class="bg-primary-soft p-3 rounded-circle me-3" style="background: rgba(2, 132, 199, 0.1);">
+                            <i class="bi bi-shield-lock-fill fs-3" style="color: var(--sky-blue);"></i>
+                        </div>
                         <div>
-                            <strong class="d-block mb-1">STRICT USAGE POLICY</strong>
-                            <p class="small mb-0">Please use this specialized service for medical emergencies only. Staying focused on genuine cases allows us to save more lives together.</p>
+                            <strong class="d-block mb-1 text-uppercase letter-spacing-1" style="color: var(--sky-blue);">Medical Response Protocol</strong>
+                            <p class="small mb-0 text-muted">This specialized channel is reserved for urgent medical needs. Directing our resources to genuine emergencies helps us protect every life.</p>
                         </div>
                     </div>
                 </div>
@@ -216,10 +245,10 @@ if ($role === 'guardian' && $userId) {
                 <div class="glass-card p-4 p-md-5 mt-4">
                     <form action="/api/emergency/report" method="POST">
                         <?php if ($role === 'guardian' && !empty($guardianLinks)): ?>
-                        <div class="mb-5 other-info-card p-4 rounded-4 shadow-sm">
-                            <label class="form-label fw-bold mb-3 text-uppercase text-teal" style="color:var(--hope-teal);"><i class="bi bi-person-heart me-2"></i> Who requires medical support?</label>
+                        <div class="mb-5 info-card-subtle p-4 shadow-sm">
+                            <label class="form-label mb-3 text-uppercase"><i class="bi bi-people-fill me-2" style="color: var(--sky-blue);"></i> WHO REQUIRES ASSISTANCE?</label>
                             <select name="patient_id" class="form-select border-0 shadow-sm" required>
-                                <option value="<?php echo $userId; ?>">Myself (Guardian)</option>
+                                <option value="<?php echo $userId; ?>">Myself (Primary Account)</option>
                                 <?php foreach ($guardianLinks as $link): ?>
                                     <option value="<?php echo $link['patient_id']; ?>" 
                                             data-gps="<?php echo htmlspecialchars($link['patient']['user_metadata']['ghana_post_gps'] ?? ''); ?>">
@@ -227,7 +256,7 @@ if ($role === 'guardian' && $userId) {
                                     </option>
                                 <?php endforeach; ?>
                             </select>
-                            <small class="text-muted mt-2 d-block opacity-75"><i class="bi bi-shield-fill-check me-1"></i> Selecting a dependent helps us prepare their clinical history in advance.</small>
+                            <small class="text-muted mt-3 d-block opacity-75"><i class="bi bi-info-circle me-1"></i> We will retrieve their medical records to prepare the response team.</small>
                         </div>
                         <?php endif; ?>
                         <div class="mb-5 text-center">
@@ -325,10 +354,10 @@ if ($role === 'guardian' && $userId) {
                             <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Mandatory for pinpoint rapid response accuracy.</small>
                         </div>
 
-                        <div class="d-grid mt-5 pt-3 border-top border-light">
-                            <button type="submit" id="submitBtn" class="btn btn-hope btn-lg py-3 rounded-pill">
-                                <span class="normal-text"><i class="bi bi-heart-pulse-fill me-2"></i> Request Medical Assistance</span>
-                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> Connecting with Response Team...</span>
+                        <div class="d-grid mt-5 pt-4 border-top border-light">
+                            <button type="submit" id="submitBtn" class="btn btn-vital btn-lg rounded-pill">
+                                <span class="normal-text"><i class="bi bi-heart-pulse-fill me-2"></i> ACTIVATE RAPID RESPONSE</span>
+                                <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> SECURING CONNECTION...</span>
                             </button>
                         </div>
                     </form>
