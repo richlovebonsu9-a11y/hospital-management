@@ -8,7 +8,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit; }
 if (!isset($_COOKIE['sb_user'])) { http_response_code(401); exit; }
 
 $u = json_decode($_COOKIE['sb_user'], true);
-$id = $_GET['id'] ?? '';
+$id = $_GET['id'] ?? ($_POST['id'] ?? '');
 
 if ($id) {
     $sb = new Supabase();

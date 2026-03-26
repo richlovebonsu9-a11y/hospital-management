@@ -21,44 +21,33 @@ $reportData = [];
 
 if ($type === 'inventory') {
     // 1. Most Prescribed Drugs
-    // Link prescriptions -> drug_inventory
-    $resMost = $sb->request('GET', '/rest/v1/prescriptions?select=drug_id,medication_name&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
+    $resMost = $sb->request('GET', '/rest/v1/prescriptions?select=medication_name&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
     if ($resMost['status'] === 200) {
         $counts = [];
         foreach ($resMost['data'] as $p) {
-            $name = $p['medication_name'];
+            $name = $p['medication_name'] ?: 'Unknown';
             $counts[$name] = ($counts[$name] ?? 0) + 1;
         }
         arsort($counts);
         $reportData['most_prescribed'] = array_slice($counts, 0, 10, true);
     }
 
-    // 2. Prescriptions per Patient/Doctor
-    $resStats = $sb->request('GET', '/rest/v1/prescriptions?select=patient_id,doctor_id&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
-    if ($resStats['status'] === 200) {
-        $perPatient = [];
-        $perDoctor = [];
-        foreach ($resStats['data'] as $p) {
-            $perPatient[$p['patient_id']] = ($perPatient[$p['patient_id']] ?? 0) + 1;
-            $perDoctor[$p['doctor_id']] = ($perDoctor[$p['doctor_id']] ?? 0) + 1;
-        }
-        $reportData['per_patient'] = $perPatient;
-        $reportData['per_doctor'] = $perDoctor;
-    }
-
-    // 3. Revenue per Drug (Estimated)
-    // We join prescriptions with drug_inventory to get unit_price
-    $resRev = $sb->request('GET', '/rest/v1/prescriptions?select=medication_name,quantity_requested,drug_id,drug_inventory(unit_price)&status=eq.dispensed&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
+    // 2. Revenue per Drug (Actual sales from prescriptions)
+    $resRev = $sb->request('GET', '/rest/v1/prescriptions?select=medication_name,quantity_requested,drug_inventory(unit_price)&status=eq.dispensed&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
     if ($resRev['status'] === 200) {
         $revPerDrug = [];
+        $totalMedRev = 0;
         foreach ($resRev['data'] as $p) {
             $name = $p['medication_name'];
-            $qty = $p['quantity_requested'] ?: 1;
-            $price = $p['drug_inventory']['unit_price'] ?? 0;
-            $revPerDrug[$name] = ($revPerDrug[$name] ?? 0) + ($qty * $price);
+            $qty = (int)($p['quantity_requested'] ?: 1);
+            $price = (float)($p['drug_inventory']['unit_price'] ?? 0);
+            $amount = $qty * $price;
+            $revPerDrug[$name] = ($revPerDrug[$name] ?? 0) + $amount;
+            $totalMedRev += $amount;
         }
         arsort($revPerDrug);
         $reportData['revenue_per_drug'] = $revPerDrug;
+        $reportData['total_med_revenue'] = $totalMedRev;
     }
 } elseif ($type === 'ward') {
     // 1. Occupancy Rates
@@ -67,21 +56,27 @@ if ($type === 'inventory') {
         $reportData['occupancy'] = $resWards['data'];
     }
 
-    // 2. Financial Summary (Admission Fees)
-    // Search invoice_items for "Admission Fee"
-    $resFees = $sb->request('GET', '/rest/v1/invoice_items?select=description,amount&description=ilike.*Admission%20Fee*&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
+    // 2. Ward Revenue (From Admission Fees in invoice_items)
+    $resFees = $sb->request('GET', '/rest/v1/invoice_items?select=description,amount&description=ilike.*Admission*&created_at=gte.' . $startDate . '&created_at=lte.' . $endDate . 'T23:59:59', null, true);
     if ($resFees['status'] === 200) {
         $wardRevenue = [];
+        $totalWardRev = 0;
         foreach ($resFees['data'] as $item) {
-            // Description format: "Admission Fee: [Ward Name]"
-            $parts = explode(':', $item['description']);
-            $wardName = trim($parts[1] ?? 'General');
-            $wardName = explode('(', $wardName)[0]; // Remove (NHIS...) if any
-            $wardName = trim($wardName);
-            $wardRevenue[$wardName] = ($wardRevenue[$wardName] ?? 0) + (float)$item['amount'];
+            // Description example: "Admission Fee: General Ward" or "Admission Extension (2 days): ICU"
+            $desc = $item['description'];
+            $wardName = 'General';
+            if (strpos($desc, ':') !== false) {
+                $parts = explode(':', $desc);
+                $wardName = trim(explode('(', $parts[1])[0]);
+            }
+            $amt = (float)$item['amount'];
+            $wardRevenue[$wardName] = ($wardRevenue[$wardName] ?? 0) + $amt;
+            $totalWardRev += $amt;
         }
         $reportData['ward_revenue'] = $wardRevenue;
+        $reportData['total_ward_revenue'] = $totalWardRev;
     }
 }
 
 echo json_encode(['success' => true, 'report' => $reportData]);
+exit;

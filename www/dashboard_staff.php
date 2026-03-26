@@ -503,9 +503,14 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                         <div class="card p-4 border-0 shadow-sm rounded-4 mb-4">
                             <div class="d-flex justify-content-between align-items-center mb-4">
                                 <h5 class="fw-bold mb-0"><i class="bi bi-box-seam me-2 text-primary"></i>Pharmacy Drug Inventory</h5>
-                                <button class="btn btn-primary rounded-pill px-4" onclick="location.reload()">
-                                    <i class="bi bi-arrow-clockwise me-2"></i> Refresh Stock
-                                </button>
+                                <div class="d-flex gap-2">
+                                    <button class="btn btn-outline-primary rounded-pill px-4" onclick="location.reload()">
+                                        <i class="bi bi-arrow-clockwise me-2"></i> Refresh
+                                    </button>
+                                    <button class="btn btn-primary rounded-pill px-4" onclick="openInventoryModal('add')">
+                                        <i class="bi bi-plus-lg me-2"></i> Add New Drug
+                                    </button>
+                                </div>
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle">
@@ -544,10 +549,16 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
-                                                            onclick="openUpdateStockModal('<?php echo $drug['id']; ?>', '<?php echo addslashes($drug['drug_name']); ?>', '<?php echo $drug['stock_count']; ?>')">
-                                                        Update Stock
-                                                    </button>
+                                                    <div class="d-flex gap-2">
+                                                        <button class="btn btn-sm btn-outline-primary rounded-pill px-3" 
+                                                                onclick='openInventoryModal("edit", <?php echo json_encode($drug); ?>)'>
+                                                            <i class="bi bi-pencil me-1"></i> Edit
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger rounded-pill px-3" 
+                                                                onclick='deleteDrug("<?php echo $drug['id']; ?>", "<?php echo addslashes($drug['drug_name']); ?>")'>
+                                                            <i class="bi bi-trash me-1"></i>
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -768,27 +779,48 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         </div>
     </div>
 
-    <!-- UPDATE STOCK MODAL (PHARMACIST) -->
-    <div class="modal fade" id="updateStockModal" tabindex="-1" aria-hidden="true">
+    <!-- FULL INVENTORY MODAL (PHARMACIST/ADMIN) -->
+    <div class="modal fade" id="inventoryModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-header bg-primary text-white border-0 py-3">
-                    <h5 class="modal-title fw-bold mb-0">Update Stock Level</h5>
+                    <h5 class="modal-title fw-bold mb-0" id="invModalTitle">Add New Drug</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form id="updateStockForm">
-                        <input type="hidden" id="stock_drug_id">
-                        <div class="mb-4">
-                            <label class="small fw-bold text-muted mb-2 d-block">Drug: <span id="stock_drug_name" class="text-dark"></span></label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-light border-0 rounded-start-4 ps-3"><i class="bi bi-box"></i></span>
-                                <input type="number" id="stock_new_count" class="form-control rounded-end-4 p-3 bg-light border-0" placeholder="New stock count..." required>
+                    <form id="inventoryForm" action="/api/admin/manage_inventory.php" method="POST">
+                        <input type="hidden" name="action" id="inv_action" value="add">
+                        <input type="hidden" name="id" id="inv_drug_id">
+                        <div class="mb-3">
+                            <label class="small fw-bold text-muted mb-1">Drug Name</label>
+                            <input type="text" name="drug_name" id="inv_drug_name" class="form-control rounded-4 p-3 bg-light border-0" placeholder="Enter drug name..." required>
+                        </div>
+                        <div class="row g-3">
+                            <div class="col-6 mb-3">
+                                <label class="small fw-bold text-muted mb-1">Stock Count</label>
+                                <input type="number" name="stock_count" id="inv_stock" class="form-control rounded-4 p-3 bg-light border-0" placeholder="0" required>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <label class="small fw-bold text-muted mb-1">Unit Price (₵)</label>
+                                <input type="number" step="0.01" name="unit_price" id="inv_price" class="form-control rounded-4 p-3 bg-light border-0" placeholder="0.00" required>
                             </div>
                         </div>
-                        <button type="button" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm" onclick="submitStockUpdate()">Update Inventory</button>
+                        <div class="mb-4">
+                            <label class="small fw-bold text-muted mb-1">Category</label>
+                            <select name="category" id="inv_category" class="form-select rounded-4 p-3 bg-light border-0">
+                                <option value="General">General</option>
+                                <option value="Antibiotics">Antibiotics</option>
+                                <option value="Painkillers">Painkillers</option>
+                                <option value="First Aid">First Aid</option>
+                                <option value="Vitamins">Vitamins</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 rounded-pill py-3 fw-bold shadow-sm" id="invSubmitBtn">Add to Inventory</button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
     <!-- Bootstrap 5 JS Bundle -->
     <script src="/assets/js/auto_dismiss.js"></script>
     <script>
@@ -870,9 +902,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         // NOTIFICATIONS
         async function markNotificationRead(el, id) {
             try {
-                const fd = new FormData();
-                fd.append('id', id);
-                const res = await fetch('/api/notifications/mark_read.php', { method: 'POST', body: fd });
+                const res = await fetch('/api/notifications/read.php?id=' + id, { method: 'POST' });
                 if (res.ok) {
                     el.style.transition = 'all 0.3s ease';
                     el.style.opacity = '0';
@@ -942,41 +972,44 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             }
         });
 
-        // PHARMACIST JS
-        function openUpdateStockModal(id, name, current) {
-            document.getElementById('stock_drug_id').value = id;
-            document.getElementById('stock_drug_name').innerText = name;
-            document.getElementById('stock_new_count').value = current;
-            new bootstrap.Modal(document.getElementById('updateStockModal')).show();
+        // PHARMACIST INVENTORY JS
+        function openInventoryModal(action, drug = null) {
+            document.getElementById('inv_action').value = action;
+            document.getElementById('invModalTitle').innerText = action === 'add' ? 'Add New Drug' : 'Edit Drug Details';
+            document.getElementById('invSubmitBtn').innerText = action === 'add' ? 'Add to Inventory' : 'Update Drug';
+            
+            if (drug) {
+                document.getElementById('inv_drug_id').value = drug.id;
+                document.getElementById('inv_drug_name').value = drug.drug_name;
+                document.getElementById('inv_stock').value = drug.stock_count;
+                document.getElementById('inv_price').value = drug.unit_price;
+                document.getElementById('inv_category').value = drug.category || 'General';
+            } else {
+                document.getElementById('inventoryForm').reset();
+                document.getElementById('inv_drug_id').value = '';
+            }
+            new bootstrap.Modal(document.getElementById('inventoryModal')).show();
         }
 
-        async function submitStockUpdate() {
-            const id = document.getElementById('stock_drug_id').value;
-            const count = document.getElementById('stock_new_count').value;
-            
-            const btn = document.querySelector('#updateStockModal .btn-primary');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
-
-            const formData = new FormData();
-            formData.append('id', id);
-            formData.append('stock_count', count);
-
-            try {
-                const res = await fetch('/api/pharmacist/update_stock.php', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.success) {
-                    Swal.fire('Success', 'Inventory updated successfully!', 'success').then(() => {
-                        location.reload();
-                    });
+        async function deleteDrug(id, name) {
+            const res = await Swal.fire({
+                title: 'Delete Drug?',
+                text: `Are you sure you want to remove ${name} from inventory?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc3545',
+                confirmButtonText: 'Yes, Delete'
+            });
+            if (res.isConfirmed) {
+                const fd = new FormData();
+                fd.append('action', 'delete');
+                fd.append('id', id);
+                const resp = await fetch('/api/admin/manage_inventory.php', { method: 'POST', body: fd });
+                if (resp.ok) {
+                    Swal.fire('Deleted!', 'Drug removed.', 'success').then(() => location.reload());
                 } else {
-                    Swal.fire('Error', data.error || 'Failed to update inventory', 'error');
+                    Swal.fire('Error', 'Failed to delete drug.', 'error');
                 }
-            } catch (e) {
-                Swal.fire('Error', 'A connection error occurred.', 'error');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = 'Update Inventory';
             }
         }
 

@@ -912,71 +912,86 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             </div>
 
             <div class="row g-4">
-                <div class="col-lg-8">
+                <div class="col-12">
                     <div class="card border-0 shadow-sm overflow-hidden rounded-4">
-                        <div class="d-flex justify-content-between align-items-center px-4 py-3 border-bottom bg-white">
+                        <div class="d-flex justify-content-between align-items-center px-4 py-4 border-bottom bg-white">
                             <div>
-                                <h5 class="fw-bold mb-0">Current Active Admissions</h5>
-                                <p class="text-muted extra-small mb-0 mt-1"><?php echo count($activeAdmissions); ?> patients currently admitted</p>
+                                <h5 class="fw-bold mb-0">Active Admissions</h5>
+                                <p class="text-muted extra-small mb-0 mt-1">Currently managing <?php echo count($activeAdmissions); ?> hospitalized patients</p>
                             </div>
-                            <span class="badge bg-primary-soft text-primary rounded-pill px-3"><?php echo count($activeAdmissions); ?> Active</span>
+                            <div class="d-flex gap-2">
+                                <span class="badge bg-primary-soft text-primary rounded-pill px-3 py-2 d-flex align-items-center"><i class="bi bi-people-fill me-2"></i><?php echo count($activeAdmissions); ?> Admitted</span>
+                            </div>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
-                                <thead style="background: #f8fafc;">
-                                    <tr class="extra-small text-uppercase text-muted fw-bold" style="letter-spacing: 0.05em;">
-                                        <th class="ps-4 border-0 py-3">Patient</th>
-                                        <th class="border-0 py-3">Ward</th>
-                                        <th class="border-0 py-3">Bed #</th>
-                                        <th class="border-0 py-3">Admitted On</th>
-                                        <th class="border-0 py-3 text-end pe-4">Actions</th>
+                                <thead>
+                                    <tr class="extra-small text-uppercase text-muted fw-bold bg-light" style="letter-spacing: 0.05em;">
+                                        <th class="ps-4 border-0 py-3">Patient Identity</th>
+                                        <th class="border-0 py-3 text-center">Ward Location</th>
+                                        <th class="border-0 py-3 text-center">Bed Info</th>
+                                        <th class="border-0 py-3">Stay Duration</th>
+                                        <th class="border-0 py-3">Timeline</th>
+                                        <th class="border-0 py-3 text-end pe-4">Management</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if (empty($activeAdmissions)): ?>
                                         <tr>
-                                            <td colspan="5" class="text-center py-5 text-muted">
-                                                <i class="bi bi-hospital display-5 d-block mb-3 opacity-25"></i>
-                                                No active admissions currently.
+                                            <td colspan="6" class="text-center py-5">
+                                                <div class="py-4">
+                                                    <i class="bi bi-hospital display-4 text-muted opacity-25 d-block mb-3"></i>
+                                                    <p class="text-muted">No active patient admissions found.</p>
+                                                </div>
                                             </td>
                                         </tr>
                                     <?php endif; foreach($activeAdmissions as $adm): 
-                                        $pname = $adm['patient']['name'] ?? 'P-' . substr($adm['patient_id'], 0, 8);
+                                        $pname = $adm['patient']['name'] ?? 'Patient Name';
                                         $initial = strtoupper(substr($pname, 0, 1));
-                                        $wardName = $adm['ward']['ward_name'] ?? 'Unknown';
-                                        $wardColors = ['ICU' => ['bg-danger', 'bg-danger-soft text-danger'], 'Maternity' => ['bg-info', 'bg-info-soft text-info'], 'General Ward' => ['bg-primary', 'bg-primary-soft text-primary'], 'Pediatric Ward' => ['bg-success', 'bg-success-soft text-success']];
-                                        [$dotColor, $badgeClass] = $wardColors[$wardName] ?? ['bg-secondary', 'bg-light text-dark border'];
+                                        $wardName = $adm['ward']['ward_name'] ?? 'General';
+                                        $wardBadge = 'bg-primary-soft text-primary';
+                                        if(str_contains($wardName, 'ICU')) $wardBadge = 'bg-danger-soft text-danger';
+                                        if(str_contains($wardName, 'Maternity')) $wardBadge = 'bg-info-soft text-info';
+                                        
+                                        $days = (int)$adm['anticipated_days'];
                                     ?>
-                                        <tr>
+                                        <tr class="transition-all">
                                             <td class="ps-4 py-3">
                                                 <div class="d-flex align-items-center gap-3">
-                                                    <div class="rounded-circle <?php echo $dotColor; ?> text-white d-flex align-items-center justify-content-center fw-bold flex-shrink-0" style="width: 36px; height: 36px; font-size: 0.85rem;">
+                                                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold" style="width: 42px; height: 42px; font-size: 0.9rem;">
                                                         <?php echo $initial; ?>
                                                     </div>
                                                     <div>
-                                                        <div class="fw-bold"><?php echo htmlspecialchars($pname); ?></div>
-                                                        <small class="text-muted extra-small">ID: <?php echo substr($adm['patient_id'], 0, 8); ?>...</small>
+                                                        <div class="fw-bold text-dark"><?php echo htmlspecialchars($pname); ?></div>
+                                                        <small class="text-muted extra-small">ID: <?php echo substr($adm['patient_id'], 0, 13); ?>...</small>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td>
-                                                <span class="badge <?php echo $badgeClass; ?> rounded-pill px-3 py-2"><?php echo htmlspecialchars($wardName); ?></span>
+                                            <td class="text-center">
+                                                <span class="badge <?php echo $wardBadge; ?> rounded-pill px-3 py-2 fw-semibold"><?php echo htmlspecialchars($wardName); ?></span>
                                             </td>
-                                            <td><span class="fw-bold text-dark"><?php echo htmlspecialchars($adm['bed_number'] ?: '—'); ?></span></td>
+                                            <td class="text-center">
+                                                <div class="fw-bold text-dark mb-0">Bed <?php echo htmlspecialchars($adm['bed_number'] ?: '—'); ?></div>
+                                                <small class="text-muted extra-small">Reserved</small>
+                                            </td>
                                             <td>
-                                                <div class="small text-dark"><?php echo date('M d', strtotime($adm['admission_date'])); ?></div>
+                                                <div class="badge bg-light text-dark border rounded-pill px-3 py-2 fw-bold">
+                                                    <i class="bi bi-calendar-check text-primary me-1"></i> <?php echo $days; ?> Days
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="small fw-semibold text-dark"><?php echo date('M d', strtotime($adm['admission_date'])); ?></div>
                                                 <small class="text-muted extra-small"><?php echo date('H:i', strtotime($adm['admission_date'])); ?> GMT</small>
                                             </td>
                                             <td class="text-end pe-4">
-                                                <div class="d-flex gap-2 justify-content-end">
-                                                    <button class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" 
-                                                            onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'>
-                                                        <i class="bi bi-pencil me-1"></i> Edit
-                                                    </button>
-                                                    <button class="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold" 
-                                                            onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')">
-                                                        <i class="bi bi-box-arrow-right me-1"></i> Discharge
-                                                    </button>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-light btn-sm rounded-circle p-2" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                                                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow-lg rounded-4 p-2">
+                                                        <li><button class="dropdown-item rounded-3 py-2 small fw-bold text-primary" onclick='openEditAdmissionModal(<?php echo json_encode($adm); ?>)'><i class="bi bi-pencil-square me-2"></i>Edit Admission</button></li>
+                                                        <li><button class="dropdown-item rounded-3 py-2 small fw-bold text-success" onclick='openExtendModal(<?php echo json_encode($adm); ?>)'><i class="bi bi-plus-circle-dotted me-2"></i>Extend Stay</button></li>
+                                                        <li><hr class="dropdown-divider opacity-50"></li>
+                                                        <li><button class="dropdown-item rounded-3 py-2 small fw-bold text-danger" onclick="dischargePatient('<?php echo $adm['id']; ?>', '<?php echo $adm['ward_id']; ?>')"><i class="bi bi-box-arrow-right me-2"></i>Discharge Patient</button></li>
+                                                    </ul>
                                                 </div>
                                             </td>
                                         </tr>
@@ -1586,6 +1601,32 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         </div>
     </div>
 
+    <!-- EXTEND ADMISSION MODAL -->
+    <div class="modal fade" id="extendAdmissionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Extend Stay for <span id="extend_pt_name"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="extendAdmissionForm">
+                        <input type="hidden" name="admission_id" id="extend_adm_id">
+                        <div class="mb-4">
+                            <label class="small text-muted mb-1">Add Extra Days</label>
+                            <div class="input-group">
+                                <button type="button" class="btn btn-outline-secondary rounded-start-pill" onclick="adjustExtendDays(-1)"><i class="bi bi-dash"></i></button>
+                                <input type="number" name="extra_days" id="extend_extra_days" class="form-control text-center" value="1" min="1" required>
+                                <button type="button" class="btn btn-outline-secondary rounded-end-pill" onclick="adjustExtendDays(1)"><i class="bi bi-plus"></i></button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-success w-100 rounded-pill mt-3" onclick="submitStayExtension()">Confirm Extension</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- PATIENT SEARCH MODAL -->
     <div class="modal fade" id="searchModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
@@ -2139,7 +2180,7 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         async function markNotificationRead(el, id) {
             if (el.classList.contains('bg-light')) {
-                await fetch('/api/notifications/read?id=' + id, {method: 'POST'});
+                await fetch('/api/notifications/read.php?id=' + id, {method: 'POST'});
                 el.style.transition = 'all 0.3s ease';
                 el.style.opacity = '0';
                 el.style.transform = 'scale(0.95)';
@@ -2261,11 +2302,11 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true });
                 
                 // Dynamically remove the row and update counts
-                const openBtn = document.querySelector(`button[onclick*="openAssignBedModal('${ptId}'"]`);
-                if(openBtn) {
-                    const row = openBtn.closest('.bg-white') || openBtn.closest('tr'); // handles admin card layout
+                const openBtns = document.querySelectorAll(`button[onclick*="openAssignBedModal('${ptId}'"]`);
+                openBtns.forEach(openBtn => {
+                    const row = openBtn.closest('.bg-white') || openBtn.closest('tr') || openBtn.closest('.bg-light'); // handles admin card layout
                     if(row) row.remove();
-                }
+                });
                 
                 document.querySelectorAll('.pending-adm-count').forEach(b => {
                     let text = b.innerText;
@@ -2302,6 +2343,32 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 Swal.fire({ title: 'Updated!', text: 'Admission details updated successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
             } else {
                 Swal.fire({ title: 'Error', text: data.error || 'Update failed.', icon: 'error', confirmButtonColor: '#dc3545' });
+            }
+        }
+
+        // EXTEND ADMISSION LOGIC
+        function openExtendModal(adm) {
+            document.getElementById('extend_adm_id').value = adm.id;
+            document.getElementById('extend_pt_name').innerText = adm.patient ? adm.patient.name : 'the patient';
+            document.getElementById('extend_extra_days').value = 1;
+            new bootstrap.Modal(document.getElementById('extendAdmissionModal')).show();
+        }
+
+        function adjustExtendDays(val) {
+            const input = document.getElementById('extend_extra_days');
+            let current = parseInt(input.value) || 0;
+            input.value = Math.max(1, current + val);
+        }
+
+        async function submitStayExtension() {
+            const fd = new FormData(document.getElementById('extendAdmissionForm'));
+            const res = await fetch('/api/admission/extend.php', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('extendAdmissionModal'))?.hide();
+                Swal.fire({ title: 'Success!', text: 'Admission duration extended and invoice updated.', icon: 'success', confirmButtonColor: '#198754', timer: 2500, timerProgressBar: true }).then(() => silentRefresh());
+            } else {
+                Swal.fire({ title: 'Error', text: data.error || 'Extension failed.', icon: 'error', confirmButtonColor: '#dc3545' });
             }
         }
 
