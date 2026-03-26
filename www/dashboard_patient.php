@@ -240,6 +240,16 @@ foreach ($appointments as $a) {
             </div>
         <?php endif; ?>
 
+        <div class="alert border-0 rounded-4 bg-danger text-white mb-4 shadow-sm">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-octagon-fill fs-4 me-3"></i>
+                <div>
+                    <h6 class="fw-bold mb-1">Safety First!</h6>
+                    <p class="small mb-0 opacity-90">Only report genuine medical emergencies. Misuse of this feature may lead to account suspension to ensure our responders are always available for those in critical need.</p>
+                </div>
+            </div>
+        </div>
+
         <?php include 'components/health_tips.php'; ?>
 
         <!-- Guardian Link Requests -->

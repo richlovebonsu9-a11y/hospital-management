@@ -12,9 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 $sb = new Supabase();
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
-$patientId = $_SESSION['user']['id'] ?? null;
+$reporterId = $_SESSION['user']['id'] ?? null;
+$patientId = $_POST['patient_id'] ?? $reporterId; // Default to reporter if not specified
 
-if (!$patientId) {
+if (!$reporterId) {
     echo json_encode(['success' => false, 'error' => 'User not logged in']);
     exit;
 }
@@ -23,6 +24,15 @@ $emergencyType = $_POST['emergency_type'] ?? 'general';
 $gps = $_POST['ghana_post_gps'] ?? 'N/A';
 $symptoms = $_POST['symptoms'] ?? 'No symptoms reported';
 $severity = $_POST['severity'] ?? 'medium';
+
+// Fetch patient name if reporter is a guardian and reporting for someone else
+$patientName = null;
+if ($patientId !== $reporterId) {
+    $pRes = $sb->request('GET', '/rest/v1/profiles?id=eq.' . $patientId . '&select=name', null, true);
+    if ($pRes['status'] === 200 && !empty($pRes['data'])) {
+        $patientName = $pRes['data'][0]['name'];
+    }
+}
 
 // AI-Powered Triage: Detect "Red Flags" and auto-escalate
 $redFlags = ['unconscious', 'fainting', 'not breathing', 'chest pain', 'heart attack', 'severe bleeding', 'heavy bleeding', 'crushed', 'paralyzed', 'seizure', 'stroke'];
@@ -71,6 +81,9 @@ if (!empty($liveLocation)) {
 
 // Workaround: Embed voice note Base64 and Media into symptoms field
 $embeddedSymptoms = $symptoms;
+if ($patientName) {
+    $embeddedSymptoms = "[Patient: $patientName] " . $embeddedSymptoms;
+}
 if (!empty($_POST['voice_note_base64'])) {
     $embeddedSymptoms .= " ||VOICE_NOTE|| " . $_POST['voice_note_base64'];
 }
@@ -79,7 +92,7 @@ if (!empty($_POST['media_base64'])) {
 }
 
 $data = [
-    'reporter_id' => $patientId,
+    'reporter_id' => $reporterId,
     'emergency_type' => $emergencyType,
     'severity' => $severity,
     'ghana_post_gps' => $gps,

@@ -1,6 +1,20 @@
-<?php
-// Emergency Now Page - Kobby Moore Hospital
 session_start();
+require_once __DIR__ . '/../src/lib/Supabase.php';
+use App\Lib\Supabase;
+
+if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
+$user = $_SESSION['user'] ?? null;
+$role = $user['user_metadata']['role'] ?? 'patient';
+$userId = $user['id'] ?? null;
+
+$guardianLinks = [];
+if ($role === 'guardian' && $userId) {
+    $sb = new Supabase();
+    $linkedRes = $sb->request('GET', '/rest/v1/guardians?guardian_id=eq.' . $userId . '&status=eq.approved&select=*,patient:patient_id(*)', null, true);
+    if ($linkedRes['status'] === 200) {
+        $guardianLinks = $linkedRes['data'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -172,8 +186,33 @@ session_start();
     <div class="container pb-5">
         <div class="row justify-content-center">
             <div class="col-md-7">
+                <div class="alert border-0 rounded-4 bg-danger text-white mb-4 shadow-sm animate-pulse">
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-exclamation-triangle-fill fs-3 me-3"></i>
+                        <div>
+                            <strong class="d-block mb-1">⚠ WARNING: STRICT USAGE POLICY</strong>
+                            <p class="small mb-0 opacity-90">Only use this for genuine medical emergencies. False reports delay life-saving care for others. Misuse will result in immediate account suspension and potential legal action.</p>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="glass-card p-4 p-md-5 mt-4">
                     <form action="/api/emergency/report" method="POST">
+                        <?php if ($role === 'guardian' && !empty($guardianLinks)): ?>
+                        <div class="mb-5 bg-white bg-opacity-10 p-4 rounded-4 border border-info border-opacity-25">
+                            <label class="form-label fw-bold mb-3 text-uppercase text-info"><i class="bi bi-person-check-fill me-2"></i> Who is this emergency for?</label>
+                            <select name="patient_id" class="form-select px-4 py-3 fw-bold border-info border-opacity-50" required>
+                                <option value="<?php echo $userId; ?>">Myself (Guardian)</option>
+                                <?php foreach ($guardianLinks as $link): ?>
+                                    <option value="<?php echo $link['patient_id']; ?>" 
+                                            data-gps="<?php echo htmlspecialchars($link['patient']['user_metadata']['ghana_post_gps'] ?? ''); ?>">
+                                        <?php echo htmlspecialchars($link['patient']['name']); ?> (<?php echo htmlspecialchars($link['relationship']); ?>)
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <small class="text-info mt-2 d-block opacity-75"><i class="bi bi-info-circle me-1"></i> Selecting a dependant will alert our team to their specific medical profile.</small>
+                        </div>
+                        <?php endif; ?>
                         <div class="mb-5 text-center">
                             <label class="form-label fw-bold mb-4 text-uppercase">1. Assess Severity</label>
                             <div class="d-flex justify-content-center gap-3 flex-wrap">
@@ -372,8 +411,23 @@ session_start();
 
         // Other Type Handler
         const typeSelect = document.querySelector('select[name="emergency_type"]');
+        const patientSelect = document.querySelector('select[name="patient_id"]');
+        const gpsInput = document.querySelector('input[name="ghana_post_gps"]');
         const symptomsLabel = document.getElementById('symptomsLabel');
         const symptomsTextarea = document.getElementById('symptomsTextarea');
+
+        if (patientSelect) {
+            patientSelect.onchange = function() {
+                const selectedOption = this.options[this.selectedIndex];
+                const gps = selectedOption.getAttribute('data-gps');
+                if (gps) {
+                    gpsInput.value = gps;
+                    // Visual feedback
+                    gpsInput.classList.add('border-info');
+                    setTimeout(() => gpsInput.classList.remove('border-info'), 1000);
+                }
+            };
+        }
 
         typeSelect.onchange = function() {
             if (this.value === 'other') {

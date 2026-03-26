@@ -64,7 +64,7 @@ if ($pMapRes['status'] === 200) {
             <a href="#" class="nav-link-custom active" data-target="section-overview"><i class="bi bi-grid-fill"></i> Overview</a>
             <a href="#" class="nav-link-custom" data-target="section-linked"><i class="bi bi-people-fill"></i> Linked Patients</a>
             <a href="#" class="nav-link-custom" data-target="section-appointments"><i class="bi bi-calendar-check"></i> Appointments</a>
-            <a href="#" class="nav-link-custom" data-target="section-emergency"><i class="bi bi-exclamation-triangle-fill"></i> Emergency</a>
+            <a href="/emergency" class="nav-link-custom"><i class="bi bi-exclamation-triangle-fill"></i> Emergency</a>
             <hr class="my-4">
             <a href="/" class="nav-link-custom"><i class="bi bi-house"></i> Back to Home</a>
             <a href="/api/auth/logout" class="nav-link-custom text-danger"><i class="bi bi-box-arrow-right"></i> Logout</a>
@@ -155,6 +155,16 @@ if ($pMapRes['status'] === 200) {
             <?php endif; ?>
         </header>
 
+        <div class="alert border-0 rounded-4 bg-danger text-white mb-4 shadow-sm">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-exclamation-octagon-fill fs-4 me-3"></i>
+                <div>
+                    <h6 class="fw-bold mb-1">Emergency Usage Policy</h6>
+                    <p class="small mb-0 opacity-90">Only report genuine medical emergencies for yourself or your linked dependants. Misuse will result in account suspension.</p>
+                </div>
+            </div>
+        </div>
+
         <?php include 'components/health_tips.php'; ?>
 
         <!-- OVERVIEW SECTION -->
@@ -187,7 +197,7 @@ if ($pMapRes['status'] === 200) {
                         </div>
                         <h5 class="fw-bold">Emergency Actions</h5>
                         <p class="text-muted">Request emergency medical dispatch for a linked patient.</p>
-                        <button class="btn btn-danger w-100 mt-auto" onclick="navigateTo('section-emergency')">Emergency</button>
+                        <a href="/emergency" class="btn btn-danger w-100 mt-auto">Emergency</a>
                     </div>
                 </div>
             </div>
@@ -294,42 +304,6 @@ if ($pMapRes['status'] === 200) {
             </div>
         </div>
 
-        <!-- EMERGENCY SECTION -->
-        <div id="section-emergency" class="dashboard-section d-none">
-            <div class="card border-0 shadow-sm p-4">
-                <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Emergency Dispatch for Dependants</h5>
-                <div class="alert border-0 rounded-4 bg-danger text-white mb-4">
-                    <strong>⚠ Warning:</strong> Only use this for genuine medical emergencies. Misuse may result in account suspension.
-                </div>
-                <form action="/api/emergency/report" method="POST">
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Select Affected Dependant</label>
-                        <select name="patient_id" class="form-select rounded-pill px-3" required>
-                            <?php foreach ($guardianLinks as $link): if($link['status'] === 'approved'): ?>
-                                <option value="<?php echo $link['patient_id']; ?>"><?php echo htmlspecialchars($link['patient']['name']); ?></option>
-                            <?php endif; endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">GhanaPostGPS Location</label>
-                        <input type="text" name="location" class="form-control rounded-pill px-3" placeholder="e.g. AK-485-9323" value="<?php echo htmlspecialchars($metadata['ghana_post_gps'] ?? ''); ?>" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Brief Description of Emergency</label>
-                        <textarea name="description" class="form-control" rows="3" placeholder="e.g. Patient has collapsed..." required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label text-muted small">Severity</label>
-                        <select name="severity" class="form-select rounded-pill px-3">
-                            <option value="high">High - Immediate dispatch needed</option>
-                            <option value="medium">Medium - Urgent but stable</option>
-                            <option value="low">Low - Non-critical</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn btn-danger rounded-pill px-5 fw-bold w-100">🚨 Request Emergency Dispatch</button>
-                </form>
-            </div>
-        </div>
 
     </div>
 
