@@ -147,6 +147,10 @@ $notificationsRes = $sb->request('GET', '/rest/v1/notifications?user_id=eq.' . $
 $notifications = ($notificationsRes['status'] === 200) ? $notificationsRes['data'] : [];
 $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])));
 ?>
+<script>
+    // Export profilesMap for JS UI names
+    const profilesMap = <?php echo json_encode($profilesMap); ?>;
+</script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1713,7 +1717,14 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
         async function refreshReports() {
             const drug = document.getElementById('report_drug_id').value;
             const ward = document.getElementById('report_ward_id').value;
+            const start = document.getElementById('report_start_date').value;
+            const end = document.getElementById('report_end_date').value;
             
+            if (!start || !end) {
+                Swal.fire({ title: 'Date Required', text: 'Please select a start and end date for the report.', icon: 'warning', confirmButtonColor: '#1a73e8' });
+                return;
+            }
+
             // Fetch Reports
             fetchReports('inventory', start, end, drug, ward);
             fetchReports('ward', start, end, drug, ward);
@@ -1800,7 +1811,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             }
             revTable.innerHTML = revHtml || '<tr><td colspan="2" class="text-center text-muted py-3">No sales data.</td></tr>';
             document.getElementById('report_med_total').innerText = '₵ ' + totalMed.toLocaleString(undefined, {minimumFractionDigits:2});
-            updateTotalRevenue();
         }
 
         function renderWardReports(r) {
@@ -1835,11 +1845,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             document.getElementById('report_collected_total').innerText = '₵ ' + (r.total_collected_revenue || 0).toLocaleString(undefined, {minimumFractionDigits:2});
         }
 
-        function updateTotalRevenue() {
-            const med = parseFloat(document.getElementById('report_med_total').innerText.replace('₵ ', '').replace(/,/g, '')) || 0;
-            const ward = parseFloat(document.getElementById('report_ward_total').innerText.replace('₵ ', '').replace(/,/g, '')) || 0;
-            document.getElementById('report_total_rev').innerText = '₵ ' + (med + ward).toLocaleString(undefined, {minimumFractionDigits:2});
-        }
 
         // Bed Dropdown Logic
         async function updateBedDropdown(wardId, selectId, currentBed = '') {
