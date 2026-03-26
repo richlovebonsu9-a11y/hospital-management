@@ -93,88 +93,77 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --vital-green: #059669;
-            --vital-green-dark: #064E3B;
-            --vital-green-light: #ECFDF5;
-            --sky-blue: #0284C7;
-            --sky-blue-light: #F0F9FF;
-            --slate-800: #1E293B;
-            --slate-700: #334155;
-            --slate-500: #64748B;
-            --glass-white: rgba(255, 255, 255, 0.9);
+            --bg-midnight: #020617;
+            --bg-deep: #0F172A;
+            --glow-cyan: #22D3EE;
+            --glow-cyan-alt: #0891B2;
+            --accent-violet: #8B5CF6;
+            --slate-300: #CBD5E1;
+            --slate-400: #94A3B8;
+            --glass-dark: rgba(15, 23, 42, 0.85);
+            --border-glow: rgba(34, 211, 238, 0.2);
         }
         body {
-            background: linear-gradient(135deg, #F0F9FF 0%, #ECFDF5 100%);
+            background: radial-gradient(circle at 50% 50%, #172554 0%, #020617 100%);
             background-attachment: fixed;
-            color: var(--slate-700);
+            color: var(--slate-300);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
-            overflow-x: hidden;
+            overflow: hidden;
         }
 
-        /* Breathing Background Blobs */
-        .blob {
-            position: absolute;
-            filter: blur(80px);
+        /* Celestial Background */
+        .stars {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
             z-index: 0;
-            opacity: 0.3;
-            border-radius: 50%;
-            animation: move 20s infinite alternate ease-in-out;
+            background-image: 
+                radial-gradient(1px 1px at 20px 30px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1.5px 1.5px at 100px 150px, #fff, rgba(0,0,0,0));
+            background-size: 250px 250px;
+            opacity: 0.1;
             pointer-events: none;
-        }
-        .blob-1 { width: 400px; height: 400px; background: #BAE6FD; top: -100px; left: -100px; }
-        .blob-2 { width: 500px; height: 500px; background: #A7F3D0; bottom: -150px; right: -50px; animation-delay: -5s; }
-
-        @keyframes move {
-            0% { transform: translate(0, 0) scale(1); }
-            100% { transform: translate(80px, 40px) scale(1.1); }
         }
 
         .status-badge {
-            background: #fff;
-            color: var(--sky-blue);
-            border: 1px solid rgba(2, 132, 199, 0.1);
+            background: rgba(34, 211, 238, 0.05);
+            color: var(--glow-cyan);
+            border: 1px solid var(--border-glow);
             padding: 10px 20px;
             border-radius: 100px;
             font-weight: 700;
-            font-size: 0.75rem;
-            letter-spacing: 1px;
+            font-size: 0.7rem;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.1);
             display: inline-flex;
             align-items: center;
         }
 
-        /* Enhanced Radar Container */
+        /* Tactical Radar Container */
         .radar-container {
-            width: 300px;
-            height: 300px;
-            margin: 30px auto;
+            width: 320px;
+            height: 320px;
+            margin: 20px auto;
             position: relative;
-            background: #fff;
+            background: rgba(15, 23, 42, 0.6);
             border-radius: 50%;
-            border: 1px solid #E2E8F0;
+            border: 1px solid var(--border-glow);
             display: flex;
             align-items: center;
             justify-content: center;
             overflow: hidden;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.5), inset 0 0 30px rgba(34, 211, 238, 0.05);
         }
-        /* Hexagonal Grid Overlay */
+        /* Tactical Grid Overlay */
         .radar-container::before {
             content: '';
             position: absolute;
             width: 100%; height: 100%;
             background-image: 
-                linear-gradient(30deg, #F1F5F9 12%, transparent 12.5%, transparent 87%, #F1F5F9 87.5%, #F1F5F9),
-                linear-gradient(150deg, #F1F5F9 12%, transparent 12.5%, transparent 87%, #F1F5F9 87.5%, #F1F5F9),
-                linear-gradient(30deg, #F1F5F9 12%, transparent 12.5%, transparent 87%, #F1F5F9 87.5%, #F1F5F9),
-                linear-gradient(150deg, #F1F5F9 12%, transparent 12.5%, transparent 87%, #F1F5F9 87.5%, #F1F5F9),
-                linear-gradient(60deg, #F8FAFC 25%, transparent 25.5%, transparent 75%, #F8FAFC 75.5%, #F8FAFC),
-                linear-gradient(60deg, #F8FAFC 25%, transparent 25.5%, transparent 75%, #F8FAFC 75.5%, #F8FAFC);
-            background-size: 40px 70px;
-            background-position: 0 0, 0 0, 20px 35px, 20px 35px, 0 0, 20px 35px;
-            opacity: 0.4;
+                linear-gradient(rgba(34, 211, 238, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(34, 211, 238, 0.05) 1px, transparent 1px);
+            background-size: 20px 20px;
             z-index: 1;
         }
 
@@ -182,9 +171,9 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             position: absolute;
             width: 100%;
             height: 100%;
-            background: conic-gradient(from 0deg, transparent 0%, rgba(5, 150, 105, 0.1) 20%, transparent 40%);
+            background: conic-gradient(from 0deg, transparent 0%, rgba(34, 211, 238, 0.2) 20%, transparent 40%);
             border-radius: 50%;
-            animation: rotate 5s linear infinite;
+            animation: rotate 4s linear infinite;
             z-index: 2;
         }
         @keyframes rotate {
@@ -195,63 +184,60 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         .patient-dot {
             width: 14px;
             height: 14px;
-            background: #F97316; /* Amber instead of Red for warning but hopeful */
-            border: 3px solid #fff;
+            background: #F43F5E;
+            border: 2px solid #fff;
             border-radius: 50%;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            box-shadow: 0 0 15px rgba(249, 115, 22, 0.5);
+            box-shadow: 0 0 20px #F43F5E;
             z-index: 10;
         }
         .responder-dot {
-            width: 16px;
-            height: 16px;
-            background: var(--sky-blue);
+            width: 18px;
+            height: 18px;
+            background: var(--glow-cyan);
             border: 3px solid #fff;
             border-radius: 50%;
             position: absolute;
             top: 30%;
             left: 70%;
-            box-shadow: 0 0 20px rgba(2, 132, 199, 0.4);
-            animation: pulse-responder 3s infinite ease-in-out;
+            box-shadow: 0 0 25px var(--glow-cyan);
+            animation: star-pulse 2s infinite ease-in-out;
             transition: all 1.5s cubic-bezier(0.4, 0, 0.2, 1);
             z-index: 10;
         }
-        @keyframes pulse-responder {
-            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.4); }
-            70% { transform: scale(1.3); box-shadow: 0 0 0 15px rgba(2, 132, 199, 0); }
-            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(2, 132, 199, 0); }
+        @keyframes star-pulse {
+            0% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.4); filter: brightness(1.5); box-shadow: 0 0 40px var(--glow-cyan); }
+            100% { transform: scale(1); filter: brightness(1); }
         }
 
         .guide-card {
-            background: var(--glass-white);
+            background: var(--glass-dark);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.7);
-            border-radius: 2.5rem;
-            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.05);
-            padding: 2.5rem !important;
+            border: 1px solid var(--border-glow);
+            border-radius: 2rem;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.4);
         }
 
-        /* Vertical-Style Status Timeline */
+        /* Signal Chain Status Timeline */
         .status-timeline {
             display: flex;
             justify-content: space-between;
             position: relative;
             margin-bottom: 50px;
-            padding: 0 20px;
         }
         .status-timeline::after {
             content: '';
             position: absolute;
-            top: 20px;
-            left: 40px;
-            right: 40px;
-            height: 4px;
-            background: #E2E8F0;
-            border-radius: 2px;
+            top: 22px;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
             z-index: 1;
         }
         .status-step {
@@ -263,86 +249,84 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         .step-icon {
             width: 44px;
             height: 44px;
-            background: #fff;
-            border: 2px solid #E2E8F0;
-            border-radius: 12px;
-            margin: 0 auto 12px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            margin: 0 auto 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.25rem;
-            transition: all 0.5s;
-            color: #94A3B8;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+            font-size: 1.1rem;
+            transition: 0.4s;
+            color: rgba(255, 255, 255, 0.2);
         }
         .status-active .step-icon {
-            background: var(--vital-green);
-            border-color: var(--vital-green);
-            color: #fff;
-            transform: scale(1.1);
-            box-shadow: 0 8px 20px rgba(5, 150, 105, 0.3);
+            background: var(--glow-cyan);
+            border-color: var(--glow-cyan);
+            color: var(--bg-midnight);
+            box-shadow: 0 0 20px var(--glow-cyan);
         }
         .status-complete .step-icon {
-            background: var(--sky-blue);
-            border-color: var(--sky-blue);
-            color: #fff;
+            background: var(--bg-deep);
+            border-color: var(--glow-cyan);
+            color: var(--glow-cyan);
+            box-shadow: inset 0 0 10px var(--glow-cyan);
         }
         .step-label {
-            font-size: 0.7rem;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            color: #94A3B8;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: rgba(255, 255, 255, 0.3);
             text-transform: uppercase;
         }
-        .status-active .step-label { color: var(--vital-green-dark); }
+        .status-active .step-label { color: var(--glow-cyan); text-shadow: 0 0 10px rgba(34, 211, 238, 0.3); }
 
-        .pulse-text { animation: blink 2s infinite ease-in-out; color: var(--sky-blue); font-weight: 700; }
-        @keyframes blink { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+        .pulse-text { animation: neon-blink 2s infinite; color: var(--glow-cyan); text-shadow: 0 0 10px var(--glow-cyan); }
+        @keyframes neon-blink { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 
         .btn-exit {
-            background: #fff;
-            border: 1px solid #E2E8F0;
-            color: var(--slate-500);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
             border-radius: 100px;
-            padding: 8px 20px;
-            font-weight: 600;
-            font-size: 0.85rem;
+            padding: 10px 25px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
             transition: all 0.3s;
-            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
         }
         .btn-exit:hover {
-            color: var(--sky-blue);
-            border-color: var(--sky-blue);
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(2, 132, 199, 0.08);
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--glow-cyan);
+            color: var(--glow-cyan);
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.2);
         }
     </style>
     </style>
 </head>
 <body>
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
+    <div class="stars"></div>
 
     <div class="container py-4 position-relative" style="z-index:10;">
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-5">
-            <h4 class="fw-bold mb-0" style="color: var(--vital-green-dark);"><i class="bi bi-shield-fill-check me-2"></i>GGHMS Vitality Pulse</h4>
-            <a href="/dashboard" class="btn btn-exit">Safe Exit</a>
+            <h4 class="fw-bold mb-0 text-white"><i class="bi bi-broadcast neon-text me-2"></i>TACTICAL MEDICAL PULSE</h4>
+            <a href="/dashboard" class="btn btn-exit">DISCONNECT</a>
         </div>
 
-        <!-- Status Timeline -->
+        <!-- Signal Chain Timeline -->
         <div class="status-timeline">
             <div class="status-step <?php echo ($status === 'pending') ? 'status-active' : 'status-complete'; ?>">
-                <div class="step-icon"><i class="bi bi-send-check"></i></div>
-                <div class="step-label">Signal Received</div>
+                <div class="step-icon"><i class="bi bi-reception-4"></i></div>
+                <div class="step-label">Signal Locked</div>
             </div>
             <div class="status-step <?php echo ($status === 'dispatched') ? 'status-active' : (($status === 'resolved') ? 'status-complete' : ''); ?>">
-                <div class="step-icon"><i class="bi bi-geo-fill"></i></div>
-                <div class="step-label">Team En-Route</div>
+                <div class="step-icon"><i class="bi bi-radar"></i></div>
+                <div class="step-label">Intercept Active</div>
             </div>
             <div class="status-step <?php echo ($status === 'resolved') ? 'status-active' : ''; ?>">
-                <div class="step-icon"><i class="bi bi-heart-fill"></i></div>
-                <div class="step-label">Care Established</div>
+                <div class="step-icon"><i class="bi bi-shield-fill-check"></i></div>
+                <div class="step-label">Secure State</div>
             </div>
         </div>
 
@@ -367,8 +351,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
 
                     <?php if($responder): ?>
                         <div class="mt-2" id="responderInfo">
-                            <h5 class="fw-bold mb-1" style="color: var(--vital-green-dark);"><?php echo htmlspecialchars($responder['name']); ?></h5>
-                            <p class="text-muted small mb-0" id="etaSubtext"><i class="bi bi-shield-shaded me-1"></i>Our clinical specialist is navigating to your location.</p>
+                            <h5 class="fw-bold mb-1 text-white"><?php echo htmlspecialchars($responder['name']); ?></h5>
+                            <p class="text-info extra-small mb-0" id="etaSubtext"><i class="bi bi-activity me-1"></i>RESCUE UNIT IN BOUND. PREPARE FOR ARRIVAL.</p>
                             <div class="mt-3 fs-3 fw-bold tracking-tight" id="etaDisplay">
                                 <?php if($status === 'resolved'): ?>
                                     <span class="text-success"><i class="bi bi-check-all me-2"></i>Mission Complete</span>
@@ -392,10 +376,10 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             <div class="col-lg-6">
                 <div class="guide-card p-4 h-100">
                     <h5 class="fw-bold mb-4 d-flex align-items-center">
-                        <span class="p-2 bg-success bg-opacity-10 rounded-3 me-3"><i class="bi bi-shield-plus" style="color: var(--vital-green);"></i></span>
+                        <span class="p-2 bg-info bg-opacity-10 rounded-3 me-3" style="border: 1px solid var(--border-glow);"><i class="bi bi-cpu-fill" style="color: var(--glow-cyan);"></i></span>
                         <div class="flex-grow-1">
-                            <div class="extra-small text-muted text-uppercase letter-spacing-1 mb-1" style="font-size: 0.65rem;">Immediate First-Aid</div>
-                            <div style="color: var(--vital-green-dark);"><?php echo $guide['title']; ?></div>
+                            <div class="extra-small text-info text-uppercase letter-spacing-2 mb-1" style="font-size: 0.65rem;">System Protocol: First-Aid</div>
+                            <div class="text-white"><?php echo $guide['title']; ?></div>
                         </div>
                     </h5>
                     
@@ -421,7 +405,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         </div>
 
         <div class="text-center mt-5">
-            <p class="text-white-50 extra-small">Case ID: <code class="text-primary"><?php echo $emergencyId; ?></code> • GGHMS Ghana Universal Emergency Response Pulse</p>
+            <p class="text-white-50 extra-small">SIGNAL ID: <span class="neon-text fw-bold"><?php echo $emergencyId; ?></span> • GGHMS TACTICAL EMERGENCY PULSE • ENCRYPTION ACTIVE</p>
         </div>
     </div>
 
