@@ -233,23 +233,25 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         </header>
 
         <div id="section-queue" class="dashboard-section animate-fade-in">
-            <?php if (!empty($myEmergencies)): ?>
-                <div class="row g-4 mb-4">
-                    <div class="col-12">
-                        <div class="alert alert-danger border-0 shadow-lg rounded-5 p-4 d-flex align-items-center justify-content-between">
-                            <div class="d-flex align-items-center">
-                                <div class="bg-white text-danger rounded-circle p-3 d-flex align-items-center justify-content-center shadow-sm me-4" style="width: 60px; height: 60px;">
-                                    <i class="bi bi-lightning-charge-fill fs-2"></i>
+            <?php if (in_array($role, ['ambulance', 'dispatch_rider'])): ?>
+                <?php if (!empty($myEmergencies)): ?>
+                    <div class="row g-4 mb-4">
+                        <div class="col-12">
+                            <div class="alert alert-danger border-0 shadow-lg rounded-5 p-4 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center">
+                                    <div class="bg-white text-danger rounded-circle p-3 d-flex align-items-center justify-content-center shadow-sm me-4" style="width: 60px; height: 60px;">
+                                        <i class="bi bi-lightning-charge-fill fs-2"></i>
+                                    </div>
+                                    <div>
+                                        <h4 class="fw-bold mb-1">Emergency Requests Assigned!</h4>
+                                        <p class="mb-0 opacity-75">You have <?php echo count($myEmergencies); ?> urgent cases requiring immediate attention.</p>
+                                    </div>
                                 </div>
-                                <div>
-                                    <h4 class="fw-bold mb-1">Emergency Requests Assigned!</h4>
-                                    <p class="mb-0 opacity-75">You have <?php echo count($myEmergencies); ?> urgent cases requiring immediate attention.</p>
-                                </div>
+                                <button class="btn btn-light rounded-pill px-4 fw-bold shadow-sm" onclick="window.scrollTo({top: 500, behavior: 'smooth'})">Go to Emergency Desk</button>
                             </div>
-                            <button class="btn btn-light rounded-pill px-4 fw-bold shadow-sm" onclick="window.scrollTo({top: 500, behavior: 'smooth'})">Go to Emergency Desk</button>
                         </div>
                     </div>
-                </div>
+                <?php endif; ?>
 
                 <div class="card p-4 border-0 shadow-sm mb-5 border-start border-danger border-4">
                     <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-activity me-2"></i>Urgent Emergency Tasks</h5>
@@ -259,120 +261,124 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                 <tr><th>Time</th><th>Patient/Reporter</th><th>Type</th><th>Location</th><th>Status</th><th>Actions</th></tr>
                             </thead>
                             <tbody>
-                                <?php foreach($myEmergencies as $e): 
-                                    $readableType = str_replace(['_', 'bites', 'attacks', 'emergencies'], [' ', 'bite', 'attack', 'emergency'], $e['emergency_type'] ?? 'General');
-                                ?>
-                                    <tr class="table-danger-soft">
-                                        <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
-                                        <td>
-                                            <div class="fw-bold"><?php 
-                                                $reporterName = $e['reporter']['name'] ?? ($profilesMap[$e['reporter_id']] ?? 'Patient');
-                                                echo htmlspecialchars($reporterName); 
-                                            ?></div>
-                                            <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
-                                        </td>
-                                        <td>
-                                            <span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span>
-                                            <?php 
-                                                $symptomsText = $e['symptoms'] ?? '';
-                                                $voiceNoteBase64 = null;
-                                                $mediaBase64 = null;
-                                                
-                                                if (strpos($symptomsText, '||MEDIA||') !== false) {
-                                                    $parts = explode(' ||MEDIA|| ', $symptomsText);
-                                                    $symptomsText = $parts[0];
-                                                    $mediaBase64 = $parts[1];
-                                                }
-                                                if (strpos($symptomsText, '||VOICE_NOTE||') !== false) {
-                                                    $parts = explode(' ||VOICE_NOTE|| ', $symptomsText);
-                                                    $symptomsText = $parts[0];
-                                                    $voiceNoteBase64 = $parts[1];
-                                                }
-                                                
-                                                if(!empty($voiceNoteBase64)): 
-                                            ?>
-                                                <div class="mt-2 d-flex align-items-center gap-1">
-                                                    <i class="bi bi-mic-fill text-danger extra-small"></i>
-                                                    <audio controls style="height: 24px; width: 130px; border-radius: 12px; border: 1px solid #fee2e2;">
-                                                        <source src="<?php echo str_starts_with($voiceNoteBase64, 'data:audio') ? $voiceNoteBase64 : 'data:audio/webm;base64,' . $voiceNoteBase64; ?>" type="audio/webm">
-                                                    </audio>
-                                                </div>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <?php
-                                                $gpsRaw = $e['ghana_post_gps'] ?? $e['location'] ?? 'N/A';
-                                                $gpsText = $gpsRaw;
-                                                $liveLoc = null;
-                                                if (strpos($gpsRaw, '||LOC||') !== false) {
-                                                    $parts = explode(' ||LOC|| ', $gpsRaw);
-                                                    $gpsText = $parts[0];
-                                                    $liveLoc = $parts[1];
-                                                }
-                                            ?>
-                                            <code class="text-primary bg-light px-2 py-1 rounded small d-block mb-1"><?php echo htmlspecialchars($gpsText); ?></code>
-                                            <?php if ($liveLoc): ?>
-                                                <a href="https://maps.google.com/?q=<?php echo urlencode($liveLoc); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
-                                                    <i class="bi bi-geo-fill me-1"></i> Live Map
-                                                </a>
-                                            <?php else: ?>
-                                                <a href="https://maps.google.com/?q=<?php echo urlencode($gpsText); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
-                                                    <i class="bi bi-geo-fill me-1"></i> Map
-                                                </a>
-                                            <?php endif; ?>
-                                        </td>
-                                        <td>
-                                            <div class="bg-white border text-dark rounded-4 p-3 shadow-sm" style="max-width: 250px;">
-                                                <div class="d-flex align-items-center mb-2">
-                                                    <i class="bi bi-chat-left-dots-fill text-danger me-2"></i>
-                                                    <span class="fw-bold small">Emergency Details</span>
-                                                </div>
-                                                <div class="small text-muted fst-italic mb-3" style="line-height: 1.4;">
-                                                    "<?php echo htmlspecialchars($symptomsText); ?>"
-                                                </div>
-                                                <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top">
-                                                    <?php if ($mediaBase64): ?>
-                                                        <button class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm border-0 fw-bold" onclick="showEvidence(this)" style="font-size: 0.75rem;">
-                                                            <i class="bi bi-camera me-1"></i> Evidence
-                                                        </button>
-                                                        <textarea class="d-none evidence-data"><?php echo htmlspecialchars($mediaBase64); ?></textarea>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-slash-circle me-1"></i>No Media</span>
-                                                    <?php endif; ?>
+                                <?php if (empty($myEmergencies)): ?>
+                                    <tr><td colspan="6" class="text-center py-5 text-muted">No active emergency tasks assigned to your unit.</td></tr>
+                                <?php else: ?>
+                                    <?php foreach($myEmergencies as $e): 
+                                        $readableType = str_replace(['_', 'bites', 'attacks', 'emergencies'], [' ', 'bite', 'attack', 'emergency'], $e['emergency_type'] ?? 'General');
+                                    ?>
+                                        <tr class="table-danger-soft">
+                                            <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
+                                            <td>
+                                                <div class="fw-bold"><?php 
+                                                    $reporterName = $e['reporter']['name'] ?? ($profilesMap[$e['reporter_id']] ?? 'Patient');
+                                                    echo htmlspecialchars($reporterName); 
+                                                ?></div>
+                                                <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span>
+                                                <?php 
+                                                    $symptomsText = $e['symptoms'] ?? '';
+                                                    $voiceNoteBase64 = null;
+                                                    $mediaBase64 = null;
                                                     
-                                                    <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark border-warning' : 'info border-info'; ?> border px-2 py-1">
-                                                        <?php echo ucfirst($e['status']); ?>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div class="d-flex gap-2">
-                                                <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): 
-                                                    $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type']];
+                                                    if (strpos($symptomsText, '||MEDIA||') !== false) {
+                                                        $parts = explode(' ||MEDIA|| ', $symptomsText);
+                                                        $symptomsText = $parts[0];
+                                                        $mediaBase64 = $parts[1];
+                                                    }
+                                                    if (strpos($symptomsText, '||VOICE_NOTE||') !== false) {
+                                                        $parts = explode(' ||VOICE_NOTE|| ', $symptomsText);
+                                                        $symptomsText = $parts[0];
+                                                        $voiceNoteBase64 = $parts[1];
+                                                    }
+                                                    
+                                                    if(!empty($voiceNoteBase64)): 
                                                 ?>
-                                                    <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
-                                                        <i class="bi bi-truck me-1"></i> Dispatch
-                                                    </button>
-                                                <?php else: ?>
-                                                    <?php if($role === 'dispatch_rider'): ?>
-                                                        <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm text-dark" onclick="recommendAdmission('<?php echo $e['id']; ?>', false)">
-                                                            <i class="bi bi-hospital me-1"></i> Admit
-                                                        </button>
-                                                    <?php endif; ?>
-                                                    <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)">
-                                                        <i class="bi bi-check-lg me-1"></i> Resolve
-                                                    </button>
-                                                    <?php if($role === 'dispatch_rider' && empty($e['escalation_required'])): ?>
-                                                        <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="escalateToAmbulance('<?php echo $e['id']; ?>', this)">
-                                                            <i class="bi bi-megaphone me-1"></i> Escalate
-                                                        </button>
-                                                    <?php endif; ?>
+                                                    <div class="mt-2 d-flex align-items-center gap-1">
+                                                        <i class="bi bi-mic-fill text-danger extra-small"></i>
+                                                        <audio controls style="height: 24px; width: 130px; border-radius: 12px; border: 1px solid #fee2e2;">
+                                                            <source src="<?php echo str_starts_with($voiceNoteBase64, 'data:audio') ? $voiceNoteBase64 : 'data:audio/webm;base64,' . $voiceNoteBase64; ?>" type="audio/webm">
+                                                        </audio>
+                                                    </div>
                                                 <?php endif; ?>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
+                                            </td>
+                                            <td>
+                                                <?php
+                                                    $gpsRaw = $e['ghana_post_gps'] ?? $e['location'] ?? 'N/A';
+                                                    $gpsText = $gpsRaw;
+                                                    $liveLoc = null;
+                                                    if (strpos($gpsRaw, '||LOC||') !== false) {
+                                                        $parts = explode(' ||LOC|| ', $gpsRaw);
+                                                        $gpsText = $parts[0];
+                                                        $liveLoc = $parts[1];
+                                                    }
+                                                ?>
+                                                <code class="text-primary bg-light px-2 py-1 rounded small d-block mb-1"><?php echo htmlspecialchars($gpsText); ?></code>
+                                                <?php if ($liveLoc): ?>
+                                                    <a href="https://maps.google.com/?q=<?php echo urlencode($liveLoc); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
+                                                        <i class="bi bi-geo-fill me-1"></i> Live Map
+                                                    </a>
+                                                <?php else: ?>
+                                                    <a href="https://maps.google.com/?q=<?php echo urlencode($gpsText); ?>" target="_blank" class="badge bg-success-soft text-success text-decoration-none p-2 border border-success">
+                                                        <i class="bi bi-geo-fill me-1"></i> Map
+                                                    </a>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td>
+                                                <div class="bg-white border text-dark rounded-4 p-3 shadow-sm" style="max-width: 250px;">
+                                                    <div class="d-flex align-items-center mb-2">
+                                                        <i class="bi bi-chat-left-dots-fill text-danger me-2"></i>
+                                                        <span class="fw-bold small">Emergency Details</span>
+                                                    </div>
+                                                    <div class="small text-muted fst-italic mb-3" style="line-height: 1.4;">
+                                                        "<?php echo htmlspecialchars($symptomsText); ?>"
+                                                    </div>
+                                                    <div class="d-flex align-items-center justify-content-between mt-2 pt-2 border-top">
+                                                        <?php if ($mediaBase64): ?>
+                                                            <button class="btn btn-danger btn-sm rounded-pill px-3 shadow-sm border-0 fw-bold" onclick="showEvidence(this)" style="font-size: 0.75rem;">
+                                                                <i class="bi bi-camera me-1"></i> Evidence
+                                                            </button>
+                                                            <textarea class="d-none evidence-data"><?php echo htmlspecialchars($mediaBase64); ?></textarea>
+                                                        <?php else: ?>
+                                                            <span class="badge bg-light text-secondary border px-2 py-1"><i class="bi bi-slash-circle me-1"></i>No Media</span>
+                                                        <?php endif; ?>
+                                                        
+                                                        <span class="badge bg-<?php echo ($e['status'] === 'pending') ? 'warning text-dark border-warning' : 'info border-info'; ?> border px-2 py-1">
+                                                            <?php echo ucfirst($e['status']); ?>
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                <div class="d-flex gap-2">
+                                                    <?php if($e['status'] === 'pending' || $e['status'] === 'assigned'): 
+                                                        $jsInfo = ['id' => $e['id'], 'emergency_type' => $e['emergency_type']];
+                                                    ?>
+                                                        <button class="btn btn-danger btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick='openDispatchEmergencyModal(<?php echo json_encode($jsInfo); ?>)'>
+                                                            <i class="bi bi-truck me-1"></i> Dispatch
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <?php if($role === 'dispatch_rider'): ?>
+                                                            <button class="btn btn-warning btn-sm rounded-pill px-3 fw-bold shadow-sm text-dark" onclick="recommendAdmission('<?php echo $e['id']; ?>', false)">
+                                                                <i class="bi bi-hospital me-1"></i> Admit
+                                                            </button>
+                                                        <?php endif; ?>
+                                                        <button class="btn btn-success btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="resolveEmergency('<?php echo $e['id']; ?>', this)">
+                                                            <i class="bi bi-check-lg me-1"></i> Resolve
+                                                        </button>
+                                                        <?php if($role === 'dispatch_rider' && empty($e['escalation_required'])): ?>
+                                                            <button class="btn btn-dark btn-sm rounded-pill px-3 fw-bold shadow-sm" onclick="escalateToAmbulance('<?php echo $e['id']; ?>', this)">
+                                                                <i class="bi bi-megaphone me-1"></i> Escalate
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
