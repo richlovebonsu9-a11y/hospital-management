@@ -13,12 +13,12 @@
     --theme-dark: #0f172a;        /* Midnight Slate */
     --theme-muted: #94a3b8;       /* Slate 400 */
     
-    --sidebar-bg: linear-gradient(165deg, #09152e 0%, #152b59 100%);
-    --sidebar-hover: rgba(255, 255, 255, 0.08);
-    --sidebar-active: linear-gradient(90deg, rgba(37, 99, 235, 0.25) 0%, rgba(37, 99, 235, 0.05) 100%);
-    --sidebar-accent: #60a5fa;
-    --sidebar-text: #a1b6d6;
-    --sidebar-text-active: #ffffff;
+    --sidebar-bg: #ffffff;
+    --sidebar-hover: #f1f5f9;
+    --sidebar-active: #eff6ff;
+    --sidebar-accent: #2563eb;
+    --sidebar-text: #64748b;
+    --sidebar-text-active: #1e293b;
     
     --bg-light: #F8FAFC;          /* Gorgeous off-white background */
     --bg-white: #FFFFFF;
@@ -245,15 +245,20 @@ body {
     left: 0; 
     top: 0; 
     background: var(--sidebar-bg) !important; 
-    border-right: 1px solid rgba(255, 255, 255, 0.05); 
-    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.25);
+    border-right: 1px solid #e2e8f0; 
+    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.03);
     z-index: 1000; 
     font-family: 'Montserrat', sans-serif !important;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.3);
     color: var(--sidebar-text);
 }
+
+/* Force dark text for elements previously hardcoded to white */
+.sidebar .text-white { color: #1e293b !important; }
+.sidebar .text-white.opacity-75 { color: #64748b !important; opacity: 1 !important; }
+/* Keep white text white on primary/badge backgrounds */
+.sidebar .bg-primary.text-white, .sidebar .bg-primary .text-white, .sidebar .bg-danger { color: #ffffff !important; }
 .sidebar::-webkit-scrollbar { width: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 10px; }
@@ -357,7 +362,7 @@ body {
 .nav-link-custom:hover {
     background: var(--sidebar-hover);
     color: var(--sidebar-text-active) !important;
-    border-color: rgba(255, 255, 255, 0.06);
+    border-color: #e2e8f0;
     transform: translateX(4px);
 }
 
@@ -365,8 +370,8 @@ body {
     background: var(--sidebar-active) !important; 
     color: var(--sidebar-text-active) !important;
     font-weight: 700;
-    border-color: rgba(96, 165, 250, 0.3);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+    box-shadow: none;
 }
 
 .nav-link-custom.active::before {
@@ -394,7 +399,7 @@ body {
 }
 
 .sidebar hr {
-    border-color: rgba(255, 255, 255, 0.1);
+    border-color: #e2e8f0;
 }
 
 .sidebar .btn-primary-soft {
@@ -409,7 +414,7 @@ body {
 }
 
 .sidebar h4.text-secondary {
-    color: #f1f5f9 !important;
+    color: #475569 !important;
 }
 
 /* Animation Utils */
