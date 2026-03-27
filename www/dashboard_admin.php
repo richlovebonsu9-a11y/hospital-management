@@ -1712,13 +1712,6 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 }
             } catch (e) { console.error("Silent refresh failed:", e); }
         }
-
-        // Live Polling: Auto-sync every 20 seconds for the Admin dashboard
-        setInterval(() => {
-            if (document.visibilityState === 'visible' && !document.querySelector('.modal.show')) {
-                silentRefresh();
-            }
-        }, 20000);
     </script>
     <script>
         // Reports Logic
