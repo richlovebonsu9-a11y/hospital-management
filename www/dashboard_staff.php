@@ -970,6 +970,12 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // CLEANUP: Remove stray Bootstrap modal-backdrop divs
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
             const wardSelect = document.getElementById('assign_bed_ward_select');
             if (wardSelect) {
                 wardSelect.addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));

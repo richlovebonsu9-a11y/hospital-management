@@ -793,6 +793,12 @@ foreach ($appointments as $a) {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // CLEANUP: Remove any stray Bootstrap modal-backdrop divs left from previous navigations
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
             links.forEach(link => {

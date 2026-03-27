@@ -523,6 +523,12 @@ if ($pMapRes['status'] === 200) {
         }
 
         document.addEventListener('DOMContentLoaded', () => {
+            // CLEANUP: Remove stray Bootstrap modal-backdrop divs
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
             const links = document.querySelectorAll('#sidebarMenu .nav-link-custom[data-target]');
             const sections = document.querySelectorAll('.dashboard-section');
             

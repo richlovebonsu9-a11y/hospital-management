@@ -1886,6 +1886,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
 
         // Attach listeners
         document.addEventListener('DOMContentLoaded', () => {
+            // CLEANUP: Remove stray Bootstrap modal-backdrop divs
+            document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+            document.body.classList.remove('modal-open');
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+
             const adminWardSelect = document.getElementById('assign_bed_ward_select');
             if (adminWardSelect) {
                 adminWardSelect.addEventListener('change', (e) => updateBedDropdown(e.target.value, 'assign_bed_number_select'));
