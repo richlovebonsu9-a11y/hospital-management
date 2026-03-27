@@ -78,12 +78,20 @@ $responseFee = $config['fee'];
 $itemsToDeduct = $config['items'];
 
 // 2. Update Emergency Status
-$updateRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, [
+$payload = [
     'status'        => 'dispatched',
     'assigned_to'   => $staffId,
     'response_fee'  => $responseFee,
     'dispatched_at' => date('c') // Use ISO 8601 for Supabase
-], true);
+];
+
+$updateRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, $payload, true);
+
+// Fallback: If column 'dispatched_at' is missing, try updating without it
+if ($updateRes['status'] === 400 && isset($updateRes['data']['message']) && strpos($updateRes['data']['message'], 'dispatched_at') !== false) {
+    unset($payload['dispatched_at']);
+    $updateRes = $sb->request('PATCH', '/rest/v1/emergencies?id=eq.' . $emergencyId, $payload, true);
+}
 
 if ($updateRes['status'] < 200 || $updateRes['status'] >= 300) {
     echo json_encode(['success' => false, 'error' => 'Update failed: ' . json_encode($updateRes)]);

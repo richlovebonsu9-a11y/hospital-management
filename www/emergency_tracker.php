@@ -413,8 +413,12 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 return;
             }
 
-            if (currentStatus === 'dispatched' && dispatchedAt) {
-                const dispatchTime = new Date(dispatchedAt).getTime();
+            const createdAt = '<?php echo $e['created_at']; ?>';
+            
+            if (currentStatus === 'dispatched' && (dispatchedAt || createdAt)) {
+                // Use dispatched_at if available, otherwise fallback to created_at for initial countdown
+                const referenceTime = dispatchedAt || createdAt;
+                const dispatchTime = new Date(referenceTime).getTime();
                 const now = new Date().getTime();
                 const diffMs = now - dispatchTime;
                 const diffMins = Math.floor(diffMs / 60000);
