@@ -1700,6 +1700,8 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             try {
                 const activeSection = document.querySelector('.dashboard-section:not(.d-none)');
                 if (activeSection) {
+                    if (activeSection.id === 'section-reports') return;
+
                     const html = await fetch(location.href).then(r => r.text());
                     const doc = new DOMParser().parseFromString(html, 'text/html');
                     const newSection = doc.getElementById(activeSection.id);

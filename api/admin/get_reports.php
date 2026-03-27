@@ -81,17 +81,18 @@ if ($type === 'inventory') {
     $reportData['total_med_revenue'] = $totalMedRev;
 
     // 3. Prescriptions per Doctor
-    $drUrl = '/rest/v1/prescriptions?select=doctor_id,profiles!prescriptions_doctor_id_fkey(name)&' . $dateFilter;
+    $drUrl = '/rest/v1/prescriptions?select=doctor_id,profiles(name)&' . $dateFilter;
     $resDr = $sb->request('GET', $drUrl, null, true);
-    if ($resDr['status'] === 200) {
-        $drPresc = [];
+    
+    $drPresc = [];
+    if ($resDr['status'] === 200 && is_array($resDr['data'])) {
         foreach ($resDr['data'] as $p) {
-            $name = $p['profiles']['name'] ?? 'System / Other';
+            $name = $p['profiles']['name'] ?? 'System / Unknown';
             $drPresc[$name] = ($drPresc[$name] ?? 0) + 1;
         }
         arsort($drPresc);
-        $reportData['prescriptions_per_doctor'] = $drPresc;
     }
+    $reportData['prescriptions_per_doctor'] = $drPresc;
 
 } elseif ($type === 'ward') {
     // 1. Occupancy Rates
@@ -115,6 +116,9 @@ if ($type === 'inventory') {
             if (strpos($desc, ':') !== false) {
                 $parts = explode(':', $desc);
                 $wardName = trim(explode('(', $parts[1])[0]);
+            } else {
+                $wardName = trim(str_ireplace(['Admission Fee', 'Ward Admission', 'Admission'], '', $desc));
+                if (empty($wardName)) $wardName = 'General Admission';
             }
             
             $amt = (float)$item['amount'];

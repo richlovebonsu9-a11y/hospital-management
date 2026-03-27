@@ -13,11 +13,11 @@
     --theme-dark: #0f172a;        /* Midnight Slate */
     --theme-muted: #94a3b8;       /* Slate 400 */
     
-    --sidebar-bg: #0f172a;
-    --sidebar-hover: rgba(255, 255, 255, 0.06);
-    --sidebar-active: rgba(37, 99, 235, 0.15);
-    --sidebar-accent: #3b82f6;
-    --sidebar-text: #94a3b8;
+    --sidebar-bg: linear-gradient(165deg, #09152e 0%, #152b59 100%);
+    --sidebar-hover: rgba(255, 255, 255, 0.08);
+    --sidebar-active: linear-gradient(90deg, rgba(37, 99, 235, 0.25) 0%, rgba(37, 99, 235, 0.05) 100%);
+    --sidebar-accent: #60a5fa;
+    --sidebar-text: #a1b6d6;
     --sidebar-text-active: #ffffff;
     
     --bg-light: #F8FAFC;          /* Gorgeous off-white background */
@@ -245,8 +245,10 @@ body {
     left: 0; 
     top: 0; 
     background: var(--sidebar-bg) !important; 
-    border-right: 1px solid rgba(255, 255, 255, 0.08); 
+    border-right: 1px solid rgba(255, 255, 255, 0.05); 
+    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.25);
     z-index: 1000; 
+    font-family: 'Montserrat', sans-serif !important;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     overflow-y: auto;
     box-shadow: 10px 0 40px rgba(0, 0, 0, 0.3);
@@ -341,32 +343,43 @@ body {
 .nav-link-custom {
     display: flex; 
     align-items: center; 
-    padding: 12px 24px; 
+    padding: 12px 16px; 
     color: var(--sidebar-text); 
     text-decoration: none; 
-    border-radius: 0 12px 12px 0; 
-    margin-bottom: 4px; 
+    border-radius: 12px; 
+    margin: 6px 16px; 
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     font-weight: 500;
     position: relative;
-    border-left: 4px solid transparent;
+    border: 1px solid transparent;
 }
 
 .nav-link-custom:hover {
     background: var(--sidebar-hover);
     color: var(--sidebar-text-active) !important;
-    padding-left: 30px;
+    border-color: rgba(255, 255, 255, 0.06);
+    transform: translateX(4px);
 }
 
 .nav-link-custom.active {
     background: var(--sidebar-active) !important; 
     color: var(--sidebar-text-active) !important;
     font-weight: 700;
-    border-left-color: var(--sidebar-accent);
+    border-color: rgba(96, 165, 250, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .nav-link-custom.active::before {
-    display: none; /* Hide old legacy indicator */
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 24px;
+    width: 4px;
+    background: var(--sidebar-accent);
+    border-radius: 0 4px 4px 0;
+    box-shadow: 0 0 10px var(--sidebar-accent);
 }
 
 .nav-link-custom i { 
