@@ -139,18 +139,13 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             --soft-bg: #f8faff;
         }
         body { background: var(--bg-light); font-family: 'Montserrat', sans-serif; }
-        .sidebar { background: #fff; border-right: 1px solid #edf2f7; width: 280px; height: 100vh; position: fixed; z-index: 1000; transition: all 0.3s; }
         .main-content { margin-left: 280px; padding: 40px; transition: all 0.3s; }
-        .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin: 4px 15px; transition: all 0.2s; font-weight: 500; }
-        .nav-link-custom:hover, .nav-link-custom.active { background: #f0f7ff; color: #1a73e8; }
-        .nav-link-custom i { font-size: 1.25rem; margin-right: 12px; }
         .stat-card { border: none; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.02); transition: transform 0.2s; }
         .stat-card:hover { transform: translateY(-5px); }
         .bg-primary-soft { background-color: #eef2ff !important; color: #4338ca !important; }
         .bg-success-soft { background-color: #ecfdf5 !important; color: #065f46 !important; }
         .bg-warning-soft { background-color: #fffbeb !important; color: #92400e !important; }
         .bg-danger-soft { background-color: #fef2f2 !important; color: #991b1b !important; }
-        .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
         .transition-all { transition: all 0.4s ease-in-out; }
         .extra-small { font-size: 0.75rem; }
         .animate-fade-in { animation: fadeIn 0.4s ease-out; }
@@ -176,7 +171,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             <div class="bg-primary text-white rounded-circle p-2 me-3 shadow-sm">
                 <i class="bi bi-hospital-fill fs-4"></i>
             </div>
-            <h5 class="fw-bold mb-0 tracking-tight">Kobby Moore Hospital</h5>
+            <h4 class="fw-bold mb-0 text-white">Kobby Moore Hospital</h4>
         </div>
         
         <nav>

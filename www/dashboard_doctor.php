@@ -76,9 +76,6 @@ if ($pMapRes['status'] === 200) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <link rel="stylesheet" href="/assets/css/style.css">
     <style>
-        .nav-link-custom { display: flex; align-items: center; padding: 12px 20px; color: #64748b; text-decoration: none; border-radius: 12px; margin-bottom: 8px; transition: all 0.3s; }
-        .nav-link-custom:hover, .nav-link-custom.active { background: var(--primary-soft); color: var(--primary-color); }
-        .nav-link-custom i { margin-right: 12px; font-size: 1.2rem; }
         .dashboard-section { min-height: 400px; }
     </style>
 </head>
@@ -87,7 +84,7 @@ if ($pMapRes['status'] === 200) {
     <div class="sidebar p-4">
         <div class="d-flex align-items-center mb-5">
             <img src="/assets/img/logo.png" alt="KM Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
-            <h4 class="fw-bold mb-0 text-secondary">Kobby Moore Hospital</h4>
+            <h4 class="fw-bold mb-0 text-white">Kobby Moore Hospital</h4>
         </div>
 
         <nav id="sidebarMenu">
