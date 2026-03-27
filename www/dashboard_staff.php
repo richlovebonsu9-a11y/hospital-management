@@ -784,7 +784,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body p-4">
-                    <form id="inventoryForm" action="/api/admin/manage_inventory" method="POST">
+                    <form id="inventoryForm" action="/api/inventory/update" method="POST">
                         <input type="hidden" name="action" id="inv_action" value="add">
                         <input type="hidden" name="id" id="inv_drug_id">
                         <div class="mb-3">
