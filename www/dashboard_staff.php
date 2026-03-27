@@ -606,7 +606,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
 
     <!-- MODALS -->
     <div class="modal fade" id="dispatchEmergencyModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-md">
             <div class="modal-content border-0 shadow-lg rounded-5 overflow-hidden">
                 <div class="modal-header bg-danger text-white border-0 py-3">
                     <h5 class="modal-title fw-bold mb-0"><i class="bi bi-lightning-fill me-2"></i>Emergency Dispatch</h5>
@@ -615,10 +615,13 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 <div class="modal-body p-4">
                     <form id="dispatchEmergencyForm">
                         <input type="hidden" name="emergency_id" id="dispatch_emerg_id">
-                        <div id="dispatch_info_banner" class="alert alert-warning border-0 rounded-4 mb-4 small d-none">
-                            <i class="bi bi-info-circle-fill me-2"></i> Supply kits for this emergency type:
-                            <div id="suggested_items_list" class="fw-bold mt-2"></div>
-                            <div class="extra-small mt-1 opacity-75">* Items will be billed once help arrives and supplies are used.</div>
+                        <div id="dispatch_info_banner" class="mb-4 d-none">
+                            <div class="d-flex align-items-center mb-2">
+                                <i class="bi bi-bag-heart-fill text-danger me-2"></i>
+                                <span class="fw-bold small text-dark">Supply Kit for this Emergency</span>
+                            </div>
+                            <div id="suggested_items_list" class="d-flex flex-column gap-2"></div>
+                            <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle me-1"></i>Items will be billed once help arrives and supplies are used.</p>
                         </div>
                         <div class="mb-3">
                             <label class="small fw-bold text-muted mb-1">Assigned Unit</label>
@@ -1046,7 +1049,12 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             
             if (assetInfo.items.length > 0) {
                 banner.classList.remove('d-none');
-                itemsList.innerHTML = assetInfo.items.map(i => `<span class="badge bg-white text-danger border border-danger me-1 mb-1">${i}</span>`).join('');
+                itemsList.innerHTML = assetInfo.items.map((item, idx) => `
+                    <div class="d-flex align-items-center p-2 rounded-3 bg-light border" style="border-left: 3px solid #dc3545 !important;">
+                        <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width:28px;height:28px;min-width:28px;font-size:0.7rem;font-weight:700;">${idx + 1}</div>
+                        <span class="fw-semibold text-dark" style="font-size:0.875rem;">${item}</span>
+                        <i class="bi bi-capsule text-danger ms-auto"></i>
+                    </div>`).join('');
                 document.getElementById('dispatch_notes').value = "Assigned for delivery of life-saving medical supplies.";
             } else {
                 banner.classList.add('d-none');
