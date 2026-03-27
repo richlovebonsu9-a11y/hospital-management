@@ -13,12 +13,12 @@
     --theme-dark: #0f172a;        /* Midnight Slate */
     --theme-muted: #94a3b8;       /* Slate 400 */
     
-    --sidebar-bg: linear-gradient(150deg, #3B82F6 0%, #1D4ED8 100%);
-    --sidebar-hover: rgba(255, 255, 255, 0.15);
+    --sidebar-bg: linear-gradient(160deg, #ecfdf5 0%, #d1fae5 100%);
+    --sidebar-hover: rgba(255, 255, 255, 0.7);
     --sidebar-active: #ffffff;
-    --sidebar-accent: #2563eb;
-    --sidebar-text: rgba(255, 255, 255, 0.8);
-    --sidebar-text-active: #1D4ED8;
+    --sidebar-accent: #059669;
+    --sidebar-text: #475569;
+    --sidebar-text-active: #064e3b;
     
     --bg-light: #F8FAFC;          /* Gorgeous off-white background */
     --bg-white: #FFFFFF;
@@ -245,8 +245,8 @@ body {
     left: 0; 
     top: 0; 
     background: var(--sidebar-bg) !important; 
-    border-right: 1px solid rgba(255, 255, 255, 0.6); 
-    box-shadow: 4px 0 25px rgba(37, 99, 235, 0.05);
+    border-right: 1px solid rgba(5, 150, 105, 0.15);
+    box-shadow: 4px 0 25px rgba(5, 150, 105, 0.06);
     z-index: 1000; 
     font-family: 'Montserrat', sans-serif !important;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -255,6 +255,10 @@ body {
 }
 
 /* Remove light theme text overrides, allow natural inheritance */
+.sidebar .text-white { color: #064e3b !important; }
+.sidebar .bg-primary .text-white, .sidebar .bg-primary.text-white,
+.sidebar .bg-danger, .sidebar .bg-danger .text-white { color: #ffffff !important; }
+.sidebar .badge { color: #ffffff !important; }
 .sidebar::-webkit-scrollbar { width: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 10px; }
@@ -357,8 +361,8 @@ body {
 
 .nav-link-custom:hover {
     background: var(--sidebar-hover);
-    color: #ffffff !important;
-    border-color: rgba(255, 255, 255, 0.2);
+    color: var(--sidebar-text-active) !important;
+    border-color: rgba(5, 150, 105, 0.2);
     transform: translateX(4px);
 }
 
@@ -367,7 +371,7 @@ body {
     color: var(--sidebar-text-active) !important;
     font-weight: 700;
     border-color: transparent;
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.15);
 }
 
 .nav-link-custom.active::before {
@@ -380,7 +384,7 @@ body {
     width: 4px;
     background: var(--sidebar-accent);
     border-radius: 0 4px 4px 0;
-    box-shadow: 0 0 10px var(--sidebar-accent);
+    box-shadow: 0 0 8px var(--sidebar-accent);
 }
 
 .nav-link-custom i { 
@@ -395,7 +399,7 @@ body {
 }
 
 .sidebar hr {
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(5, 150, 105, 0.15);
 }
 
 .sidebar .btn-primary-soft {
@@ -410,7 +414,7 @@ body {
 }
 
 .sidebar h4.text-secondary {
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #065f46 !important;
 }
 
 /* Animation Utils */
