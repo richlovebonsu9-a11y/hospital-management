@@ -21,7 +21,7 @@ if (!$e) {
 $type = $e['emergency_type'];
 $status = $e['status'];
 $responder = $e['assigned_to_profile'] ?? null;
-$dispatchedAt = $e['dispatched_at'] ?? null;
+$dispatchedAt = $e['dispatched_at'] ?? $e['created_at'] ?? null;
 
 // First-Aid Logic
 $firstAidGuides = [
@@ -414,10 +414,9 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             }
 
             const createdAt = '<?php echo $e['created_at']; ?>';
+            const referenceTime = dispatchedAt || createdAt;
             
-            if (currentStatus === 'dispatched' && (dispatchedAt || createdAt)) {
-                // Use dispatched_at if available, otherwise fallback to created_at for initial countdown
-                const referenceTime = dispatchedAt || createdAt;
+            if ((currentStatus === 'dispatched' || currentStatus === 'assigned') && referenceTime) {
                 const dispatchTime = new Date(referenceTime).getTime();
                 const now = new Date().getTime();
                 const diffMs = now - dispatchTime;
@@ -432,8 +431,9 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 } else {
                     etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + remaining + ' mins</span>';
                 }
-            } else if (currentStatus === 'dispatched') {
-                etaDisplay.innerHTML = '<span class="text-primary">ETA: Calculating...</span>';
+            } else {
+                // Status is pending — show static range
+                etaDisplay.innerHTML = '<span class="text-primary">ETA: 7 to 10 mins</span>';
             }
         }
 
