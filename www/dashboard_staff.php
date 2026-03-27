@@ -23,11 +23,10 @@ $notifications = [];
 $wards = [];
 $activeAdmissions = [];
 $pendingAdmissions = [];
-$vitalsPatients = [];
 
 if ($role === 'nurse') {
     // Nurse: Appointments, Wards, Admissions
-    $aptRes = $sb->request('GET', '/rest/v1/appointments?department=eq.General&select=*,patient:profiles(*)', null, true);
+    $aptRes = $sb->request('GET', '/rest/v1/appointments?department=in.("General","General OPD","Emergency")&status=eq.scheduled&select=*,patient:profiles(*)', null, true);
     $tasks = ($aptRes['status'] === 200) ? $aptRes['data'] : [];
     
     $wardsRes = $sb->request('GET', '/rest/v1/wards?select=*&order=ward_name.asc', null, true);
@@ -58,8 +57,6 @@ if ($role === 'nurse') {
         }
     }
 
-    $vitalsRes = $sb->request('GET', '/rest/v1/consultations?created_at=gte.' . date('Y-m-d') . 'T00:00:00&select=patient_id', null, true);
-    if ($vitalsRes['status'] === 200) $vitalsPatients = array_column($vitalsRes['data'], 'patient_id');
 
 } elseif ($role === 'pharmacist') {
     $rxRes = $sb->request('GET', '/rest/v1/prescriptions?status=eq.pending&select=*,patient:profiles(*)', null, true);
@@ -226,11 +223,13 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     <p class="small text-muted mb-0"><?php echo date('l, M d'); ?></p>
                     <p class="small fw-bold mb-0"><?php echo date('H:i'); ?> GMT</p>
                 </div>
-                <div class="bg-white rounded-circle p-1 shadow-sm border">
-                    <img src="https://ui-avatars.com/api/?name=<?php echo urlencode($profile['name'] ?? 'Staff'); ?>&background=random" class="rounded-circle" width="45" height="45">
-                </div>
             </div>
         </header>
+
+        <!-- Daily Wellness Tips -->
+        <div class="mb-5">
+            <?php include 'components/health_tips.php'; ?>
+        </div>
 
         <div id="section-queue" class="dashboard-section animate-fade-in">
             <?php if (in_array($role, ['ambulance', 'dispatch_rider'])): ?>
@@ -463,23 +462,25 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                 </td>
                                 <td>
                                     <?php 
-                                    if ($role === 'nurse' && isset($t['appointment_date'])) {
-                                        echo "Vitals Collection: <span class='badge bg-light text-dark fw-normal'>" . htmlspecialchars($t['appointment_type'] ?? 'General') . "</span>";
+                                     if ($role === 'nurse' && isset($t['appointment_date'])) {
+                                        $isUrgent = str_contains($t['reason'] ?? '', 'URGENT') || str_contains($t['reason'] ?? '', 'Fresh vitals');
+                                        echo "<span class='badge " . ($isUrgent ? 'bg-danger' : 'bg-primary-soft text-primary') . " mb-1 rounded-pill'>Vitals Collection</span>";
+                                        echo "<div class='fw-bold text-dark'>" . htmlspecialchars($t['appointment_type'] ?? 'General Triage') . "</div>";
                                         echo "<div class='small text-muted'>" . htmlspecialchars($t['reason'] ?? 'Routine Check') . "</div>";
                                     } elseif ($role === 'pharmacist' && isset($t['medication_name'])) {
+                                        echo "<span class='badge bg-success-soft text-success mb-1 rounded-pill'>Dispensary Request</span>";
                                         $drugLabel = !empty($t['medication_name']) ? htmlspecialchars($t['medication_name']) : 'Medication';
-                                        echo "Dispense: <span class='fw-bold'>{$drugLabel}</span> &times; <span class='badge bg-primary rounded-pill'>" . ($t['quantity'] ?? 1) . "</span>";
+                                        echo "<div class='fw-bold'>{$drugLabel} &times; " . ($t['quantity'] ?? 1) . "</div>";
                                         echo "<div class='extra-small text-muted'>" . htmlspecialchars(($t['dosage'] ?? '') . " | " . ($t['frequency'] ?? '')) . "</div>";
                                     } elseif ($role === 'technician' && isset($t['test_name'])) {
-                                        echo "Record Result: <span class='fw-bold'>" . htmlspecialchars($t['test_name'] ?? 'Lab Test') . "</span>";
+                                        echo "<span class='badge bg-info-soft text-info mb-1 rounded-pill'>Lab Request</span>";
+                                        echo "<div class='fw-bold'>" . htmlspecialchars($t['test_name'] ?? 'Lab Test') . "</div>";
                                     }
                                     ?>
                                 </td>
                                 <td><span class="badge bg-danger-soft text-danger rounded-pill px-3">High Priority</span></td>
                                 <td class="text-end pe-4">
-                                    <?php if (isset($t['appointment_date']) && $role === 'nurse' && in_array($t['patient_id'], $vitalsPatients)): ?>
-                                        <span class="badge bg-success rounded-pill px-3 py-2"><i class="bi bi-check-circle-fill me-1"></i> Recorded</span>
-                                    <?php elseif (isset($t['appointment_date']) && $role === 'nurse'): ?>
+                                    <?php if (isset($t['appointment_date']) && $role === 'nurse'): ?>
                                         <button class="btn btn-sm btn-primary rounded-pill px-3" data-bs-toggle="modal" data-bs-target="#vitalsModal" onclick="setPatientId('<?php echo $t['patient_id']; ?>')">Process Vitals</button>
                                     <?php elseif (isset($t['medication_name']) && $role === 'pharmacist'): ?>
                                         <button class="btn btn-sm btn-success rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#dispenseModal" onclick="setPrescriptionId('<?php echo $t['id']; ?>')">Dispense</button>
