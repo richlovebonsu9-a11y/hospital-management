@@ -13,12 +13,12 @@
     --theme-dark: #0f172a;        /* Midnight Slate */
     --theme-muted: #94a3b8;       /* Slate 400 */
     
-    --sidebar-bg: linear-gradient(165deg, #eff6ff 0%, #ecfdf5 100%);
-    --sidebar-hover: rgba(255, 255, 255, 0.6);
+    --sidebar-bg: linear-gradient(150deg, #3B82F6 0%, #1D4ED8 100%);
+    --sidebar-hover: rgba(255, 255, 255, 0.15);
     --sidebar-active: #ffffff;
     --sidebar-accent: #2563eb;
-    --sidebar-text: #475569;
-    --sidebar-text-active: #1e293b;
+    --sidebar-text: rgba(255, 255, 255, 0.8);
+    --sidebar-text-active: #1D4ED8;
     
     --bg-light: #F8FAFC;          /* Gorgeous off-white background */
     --bg-white: #FFFFFF;
@@ -254,11 +254,7 @@ body {
     color: var(--sidebar-text);
 }
 
-/* Force dark text for elements previously hardcoded to white */
-.sidebar .text-white { color: #1e293b !important; }
-.sidebar .text-white.opacity-75 { color: #64748b !important; opacity: 1 !important; }
-/* Keep white text white on primary/badge backgrounds */
-.sidebar .bg-primary.text-white, .sidebar .bg-primary .text-white, .sidebar .bg-danger { color: #ffffff !important; }
+/* Remove light theme text overrides, allow natural inheritance */
 .sidebar::-webkit-scrollbar { width: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 10px; }
@@ -361,8 +357,8 @@ body {
 
 .nav-link-custom:hover {
     background: var(--sidebar-hover);
-    color: var(--sidebar-text-active) !important;
-    border-color: rgba(255, 255, 255, 0.8);
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.2);
     transform: translateX(4px);
 }
 
@@ -371,7 +367,7 @@ body {
     color: var(--sidebar-text-active) !important;
     font-weight: 700;
     border-color: transparent;
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.1);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
 .nav-link-custom.active::before {
@@ -399,7 +395,7 @@ body {
 }
 
 .sidebar hr {
-    border-color: rgba(37, 99, 235, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .sidebar .btn-primary-soft {
@@ -414,7 +410,7 @@ body {
 }
 
 .sidebar h4.text-secondary {
-    color: #475569 !important;
+    color: rgba(255, 255, 255, 0.9) !important;
 }
 
 /* Animation Utils */
