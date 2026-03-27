@@ -91,6 +91,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
     <title>Live Tracking | GGHMS Emergency</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --rescue-orange: #F97316;
@@ -108,7 +109,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             background-size: 30px 30px;
             background-attachment: fixed;
             color: var(--slate-800);
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            font-family: 'Montserrat', sans-serif;
             min-height: 100vh;
             padding-bottom: 50px;
         }
@@ -361,26 +362,26 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     <h5 class="fw-bold mb-4 d-flex align-items-center">
                         <span class="p-2 bg-warning bg-opacity-25 rounded-3 me-3" style="border: 2px solid var(--rescue-orange);"><i class="bi bi-book-half" style="color: var(--rescue-orange-dark);"></i></span>
                         <div class="flex-grow-1">
-                            <div class="extra-small text-secondary text-uppercase letter-spacing-2 mb-1" style="font-size: 0.65rem;">Field Manual: Protocol</div>
-                            <div class="text-dark"><?php echo $guide['title']; ?></div>
+                            <div class="text-secondary text-uppercase fw-bold mb-1" style="font-size: 0.75rem; letter-spacing: 1px;">Field Manual: Protocol</div>
+                            <div class="text-dark fs-4 fw-bold"><?php echo $guide['title']; ?></div>
                         </div>
                     </h5>
                     
                     <div class="d-flex flex-column gap-3">
                         <?php foreach($guide['steps'] as $index => $step): ?>
                             <div class="d-flex gap-3 align-items-start p-3 rounded-4" style="background: rgba(255,255,255,0.03);">
-                                <div class="bg-primary-soft text-primary fw-bold rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 0.8rem;">
+                                <div class="bg-primary-soft text-primary fw-bold rounded-circle flex-shrink-0 d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 0.9rem;">
                                     <?php echo $index + 1; ?>
                                 </div>
-                                <div class="small fw-medium opacity-90"><?php echo $step; ?></div>
+                                <div class="fw-semibold text-dark" style="font-size: 1.05rem; line-height: 1.6;"><?php echo $step; ?></div>
                             </div>
                         <?php endforeach; ?>
                     </div>
 
                     <div class="mt-4 p-3 rounded-4 bg-warning-soft border border-warning border-opacity-10 d-flex gap-3">
                         <i class="bi bi-exclamation-triangle-fill text-warning fs-4"></i>
-                        <div class="small text-warning">
-                            <strong>Note:</strong> We have received your voice note and symptoms. Do not panic—medical experts are now reviewing your details.
+                        <div class="fw-medium text-warning" style="font-size: 0.95rem; line-height: 1.5;">
+                            <strong class="fw-bold">Note:</strong> We have received your voice note and symptoms. Do not panic—medical experts are now reviewing your details.
                         </div>
                     </div>
                 </div>
