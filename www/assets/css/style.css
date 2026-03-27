@@ -13,12 +13,12 @@
     --theme-dark: #0f172a;        /* Midnight Slate */
     --theme-muted: #94a3b8;       /* Slate 400 */
     
-    --sidebar-bg: linear-gradient(160deg, #ecfdf5 0%, #d1fae5 100%);
-    --sidebar-hover: rgba(255, 255, 255, 0.7);
-    --sidebar-active: #ffffff;
-    --sidebar-accent: #059669;
-    --sidebar-text: #475569;
-    --sidebar-text-active: #064e3b;
+    --sidebar-bg: linear-gradient(160deg, #020b18 0%, #071a34 100%);
+    --sidebar-hover: rgba(255, 255, 255, 0.07);
+    --sidebar-active: rgba(255, 255, 255, 0.1);
+    --sidebar-accent: #60a5fa;
+    --sidebar-text: rgba(255, 255, 255, 0.65);
+    --sidebar-text-active: #ffffff;
     
     --bg-light: #F8FAFC;          /* Gorgeous off-white background */
     --bg-white: #FFFFFF;
@@ -245,8 +245,8 @@ body {
     left: 0; 
     top: 0; 
     background: var(--sidebar-bg) !important; 
-    border-right: 1px solid rgba(5, 150, 105, 0.15);
-    box-shadow: 4px 0 25px rgba(5, 150, 105, 0.06);
+    border-right: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
     z-index: 1000; 
     font-family: 'Montserrat', sans-serif !important;
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -254,10 +254,8 @@ body {
     color: var(--sidebar-text);
 }
 
-/* Remove light theme text overrides, allow natural inheritance */
-.sidebar .text-white { color: #064e3b !important; }
-.sidebar .bg-primary .text-white, .sidebar .bg-primary.text-white,
-.sidebar .bg-danger, .sidebar .bg-danger .text-white { color: #ffffff !important; }
+/* Deep Ocean: Restore white-on-dark text rules */
+.sidebar .text-white { color: #ffffff !important; }
 .sidebar .badge { color: #ffffff !important; }
 .sidebar::-webkit-scrollbar { width: 5px; }
 .sidebar::-webkit-scrollbar-track { background: transparent; }
@@ -361,8 +359,8 @@ body {
 
 .nav-link-custom:hover {
     background: var(--sidebar-hover);
-    color: var(--sidebar-text-active) !important;
-    border-color: rgba(5, 150, 105, 0.2);
+    color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.08);
     transform: translateX(4px);
 }
 
@@ -370,8 +368,8 @@ body {
     background: var(--sidebar-active) !important; 
     color: var(--sidebar-text-active) !important;
     font-weight: 700;
-    border-color: transparent;
-    box-shadow: 0 6px 20px rgba(5, 150, 105, 0.15);
+    border-color: rgba(96, 165, 250, 0.3);
+    box-shadow: 0 0 20px rgba(96, 165, 250, 0.15);
 }
 
 .nav-link-custom.active::before {
@@ -399,7 +397,7 @@ body {
 }
 
 .sidebar hr {
-    border-color: rgba(5, 150, 105, 0.15);
+    border-color: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar .btn-primary-soft {
@@ -414,7 +412,7 @@ body {
 }
 
 .sidebar h4.text-secondary {
-    color: #065f46 !important;
+    color: rgba(255, 255, 255, 0.85) !important;
 }
 
 /* Animation Utils */
