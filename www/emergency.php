@@ -355,7 +355,7 @@ if ($role === 'guardian' && $userId) {
 
                         <div class="d-grid mt-5 pt-4 border-top border-light">
                             <button type="submit" id="submitBtn" class="btn btn-rescue btn-lg">
-                                <span class="normal-text"><i class="bi bi-send-fill me-2"></i> TRANSMIT COORDS & DISPATCH</span>
+                                <span class="normal-text"><i class="bi bi-send-fill me-2"></i> REPORT EMERGENCY</span>
                                 <span class="loading-text d-none"><span class="spinner-border spinner-border-sm me-2"></span> MOBILIZING UNIT...</span>
                             </button>
                         </div>
