@@ -110,7 +110,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             color: var(--slate-800);
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             min-height: 100vh;
-            overflow: hidden;
+            padding-bottom: 50px;
         }
 
         .status-badge {
@@ -294,22 +294,22 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center mb-5">
             <h4 class="fw-bold mb-0 text-dark"><i class="bi bi-broadcast pulse-text me-2"></i>RESCUE MISSION CONTROL</h4>
-            <a href="/dashboard" class="btn btn-exit">EXIT MISSION</a>
+            <a href="/dashboard" class="btn btn-exit">EXIT LIVE TRACKER</a>
         </div>
 
         <!-- Mission Milestones -->
         <div class="status-timeline">
             <div class="status-step <?php echo ($status === 'pending') ? 'status-active' : 'status-complete'; ?>">
                 <div class="step-icon"><i class="bi bi-cpu"></i></div>
-                <div class="step-label">Signal Locked</div>
+                <div class="step-label">Report Received</div>
             </div>
             <div class="status-step <?php echo ($status === 'dispatched') ? 'status-active' : (($status === 'resolved') ? 'status-complete' : ''); ?>">
                 <div class="step-icon"><i class="bi bi-truck-flatbed"></i></div>
-                <div class="step-label">Unit Deployed</div>
+                <div class="step-label">Responding</div>
             </div>
             <div class="status-step <?php echo ($status === 'resolved') ? 'status-active' : ''; ?>">
                 <div class="step-icon"><i class="bi bi-check-lg"></i></div>
-                <div class="step-label">Mission Clear</div>
+                <div class="step-label">Resolved</div>
             </div>
         </div>
 
@@ -336,11 +336,11 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                         <div class="mt-2" id="responderInfo">
                             <h5 class="fw-bold mb-1 text-dark"><?php echo htmlspecialchars($responder['name']); ?></h5>
                             <p class="text-secondary extra-small mb-0" id="etaSubtext"><i class="bi bi-person-check me-1"></i>RESCUE SPECIALIST ON INTERCEPT COURSE.</p>
-                            <div class="mt-3 fs-3 fw-bold tracking-tight" id="etaDisplay">
+                            <div class="mt-3 fs-3 fw-bold tracking-tight text-dark" id="etaDisplay">
                                 <?php if($status === 'resolved'): ?>
-                                    <span class="text-success"><i class="bi bi-check-all me-2"></i>Mission Complete</span>
+                                    <span class="text-success"><i class="bi bi-check-all me-2"></i>Resolved</span>
                                 <?php else: ?>
-                                    ETA: -- mins
+                                    <span class="text-primary">ETA: -- mins</span>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -419,18 +419,16 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 const diffMs = now - dispatchTime;
                 const diffMins = Math.floor(diffMs / 60000);
                 
-                // Assume a 10-minute response window for the countdown
                 const initialETA = 10;
                 let remaining = initialETA - diffMins;
                 
                 if (remaining <= 0) {
-                    etaDisplay.innerText = "Arriving at Site";
-                    etaDisplay.classList.add('text-primary');
+                    etaDisplay.innerHTML = '<span class="text-primary">Arriving at Site</span>';
                 } else {
-                    etaDisplay.innerText = "ETA: " + remaining + " mins";
+                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + remaining + ' mins</span>';
                 }
             } else if (currentStatus === 'dispatched') {
-                etaDisplay.innerText = "ETA: Calculating...";
+                etaDisplay.innerHTML = '<span class="text-primary">ETA: Calculating...</span>';
             }
         }
 
