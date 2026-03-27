@@ -1706,11 +1706,19 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                     const doc = new DOMParser().parseFromString(html, 'text/html');
                     const newSection = doc.getElementById(activeSection.id);
                     if (newSection) activeSection.innerHTML = newSection.innerHTML;
-                } else {
-                    location.reload();
+                    
+                    // Re-bind tooltips or other dynamic elements here if needed
+                    console.log(`Live Sync complete for section: ${activeSection.id}`);
                 }
-            } catch (e) { location.reload(); }
+            } catch (e) { console.error("Silent refresh failed:", e); }
         }
+
+        // Live Polling: Auto-sync every 20 seconds for the Admin dashboard
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && !document.querySelector('.modal.show')) {
+                silentRefresh();
+            }
+        }, 20000);
     </script>
     <script>
         // Reports Logic
@@ -2337,23 +2345,13 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             const data = await res.json();
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('assignBedModal'))?.hide();
-                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true });
+                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true }).then(() => silentRefresh());
                 
-                // Dynamically remove the row and update counts
+                // Keep the dynamic row removal for immediate feedback before background refresh kicks in
                 const openBtns = document.querySelectorAll(`button[onclick*="openAssignBedModal('${ptId}'"]`);
                 openBtns.forEach(openBtn => {
-                    const row = openBtn.closest('.bg-white') || openBtn.closest('tr') || openBtn.closest('.bg-light'); // handles admin card layout
+                    const row = openBtn.closest('.bg-white') || openBtn.closest('tr') || openBtn.closest('.bg-light');
                     if(row) row.remove();
-                });
-                
-                document.querySelectorAll('.pending-adm-count').forEach(b => {
-                    let text = b.innerText;
-                    let count = parseInt(text) || 0;
-                    if(count > 0) {
-                        count--;
-                        b.innerText = count;// If there's extra text, handles pure numbers
-                        if(count === 0) b.style.display = 'none';
-                    }
                 });
             } else {
                 Swal.fire({ title: 'Error', text: data.error || 'Assignment failed.', icon: 'error', confirmButtonColor: '#dc3545' });

@@ -854,12 +854,20 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     const html = await fetch(location.href).then(r => r.text());
                     const doc = new DOMParser().parseFromString(html, 'text/html');
                     const newSection = doc.getElementById(activeSection.id);
-                    if (newSection) activeSection.innerHTML = newSection.innerHTML;
-                } else {
-                    location.reload();
+                    if (newSection) {
+                        activeSection.innerHTML = newSection.innerHTML;
+                        console.log(`Staff Live Sync complete: ${activeSection.id}`);
+                    }
                 }
-            } catch (e) { location.reload(); }
+            } catch (e) { console.error("Silent refresh failed:", e); }
         }
+
+        // Live Polling: Auto-sync every 30 seconds for the Staff dashboard
+        setInterval(() => {
+            if (document.visibilityState === 'visible' && !document.querySelector('.modal.show')) {
+                silentRefresh();
+            }
+        }, 30000);
 
         // BED ASSIGNMENT JS
         function openAssignBedModal(ptId, ptName) {
@@ -943,7 +951,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             const data = await res.json();
             if (data.success) {
                 bootstrap.Modal.getInstance(document.getElementById('assignBedModal'))?.hide();
-                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully. Notifications synced.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true });
+                Swal.fire({ title: 'Assigned!', text: 'Bed assigned successfully. Notifications synced.', icon: 'success', confirmButtonColor: '#198754', timer: 2000, timerProgressBar: true }).then(() => silentRefresh());
                 
                 // Dynamically remove the row and update counts
                 const openBtn = document.querySelector(`button[onclick*="openAssignBedModal('${ptId}'"]`);
