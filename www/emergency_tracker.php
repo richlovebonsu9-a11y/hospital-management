@@ -300,15 +300,15 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
 
         <!-- Mission Milestones -->
         <div class="status-timeline">
-            <div class="status-step <?php echo ($status === 'pending') ? 'status-active' : 'status-complete'; ?>">
+            <div id="step-received" class="status-step <?php echo ($status === 'pending') ? 'status-active' : 'status-complete'; ?>">
                 <div class="step-icon"><i class="bi bi-cpu"></i></div>
                 <div class="step-label">Report Received</div>
             </div>
-            <div class="status-step <?php echo ($status === 'dispatched') ? 'status-active' : (($status === 'resolved') ? 'status-complete' : ''); ?>">
+            <div id="step-responding" class="status-step <?php echo ($status === 'dispatched' || $status === 'assigned') ? 'status-active' : (($status === 'resolved') ? 'status-complete' : ''); ?>">
                 <div class="step-icon"><i class="bi bi-truck-flatbed"></i></div>
                 <div class="step-label">Responding</div>
             </div>
-            <div class="status-step <?php echo ($status === 'resolved') ? 'status-active' : ''; ?>">
+            <div id="step-resolved" class="status-step <?php echo ($status === 'resolved') ? 'status-active' : ''; ?>">
                 <div class="step-icon"><i class="bi bi-check-lg"></i></div>
                 <div class="step-label">Resolved</div>
             </div>
@@ -398,10 +398,54 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         const responderDot = document.getElementById('responderDot');
         const etaDisplay = document.getElementById('etaDisplay');
         const etaSubtext = document.getElementById('etaSubtext');
-        const currentStatus = '<?php echo $status; ?>';
+        let currentStatus = '<?php echo $status; ?>';
         const dispatchedAt = '<?php echo $dispatchedAt; ?>';
+        const emergencyId = '<?php echo $emergencyId; ?>';
         
         const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
+
+        function updateUI(newStatus) {
+            if (newStatus === currentStatus) return;
+            currentStatus = newStatus;
+
+            // Update Timeline
+            const sReceived = document.getElementById('step-received');
+            const sResponding = document.getElementById('step-responding');
+            const sResolved = document.getElementById('step-resolved');
+
+            if (newStatus === 'pending') {
+                sReceived.className = 'status-step status-active';
+                sResponding.className = 'status-step';
+                sResolved.className = 'status-step';
+            } else if (newStatus === 'dispatched' || newStatus === 'assigned') {
+                sReceived.className = 'status-step status-complete';
+                sResponding.className = 'status-step status-active';
+                sResolved.className = 'status-step';
+            } else if (newStatus === 'resolved') {
+                sReceived.className = 'status-step status-complete';
+                sResponding.className = 'status-step status-complete';
+                sResolved.className = 'status-step status-active';
+            }
+
+            updateETA();
+        }
+
+        async function pollStatus() {
+            try {
+                const response = await fetch(`/api/emergency/get_status.php?id=${emergencyId}`);
+                const data = await response.json();
+                if (data.status) {
+                    updateUI(data.status);
+                    
+                    // Specific logic if responder was just assigned
+                    if (data.responder && !document.getElementById('responderInfo')) {
+                        location.reload(); // Hard reload once if responder info needs to be rendered from PHP
+                    }
+                }
+            } catch (error) {
+                console.error("Poll error:", error);
+            }
+        }
 
         function updateETA() {
             if (currentStatus === 'resolved') {
@@ -439,6 +483,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         }
 
         updateETA();
+        setInterval(pollStatus, 5000); // Poll every 5 seconds
 
         if (responderDot && currentStatus !== 'resolved') {
             const moveInterval = setInterval(() => {
