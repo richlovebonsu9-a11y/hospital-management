@@ -423,7 +423,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 const diffMs = now - dispatchTime;
                 const diffMins = Math.floor(diffMs / 60000);
                 
-                const initialETA = 10;
+                // Deterministic ETA between 7 and 10 minutes based on emergency ID hex prefix
+                const initialETA = (parseInt('<?php echo substr($id, 0, 4); ?>', 16) % 4) + 7;
                 let remaining = initialETA - diffMins;
                 
                 if (remaining <= 0) {
