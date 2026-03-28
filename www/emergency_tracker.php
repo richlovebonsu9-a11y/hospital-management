@@ -462,16 +462,22 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             if (currentStatus === 'dispatched' && dispatchedAt) {
                 const dispatchTime = new Date(dispatchedAt).getTime();
                 const now = new Date().getTime();
-                const diffMs = now - dispatchTime;
-                const diffMins = Math.floor(diffMs / 60000);
+                // Fix: Ensure we don't get negative diff due to small clock drift
+                const diffMs = Math.max(0, now - dispatchTime);
+                const elapsedSeconds = Math.floor(diffMs / 1000);
                 
-                const initialETA = (parseInt('<?php echo substr($emergencyId, 0, 4); ?>', 16) % 4) + 7;
-                let remaining = initialETA - diffMins;
+                // Deterministic random selection of 7, 8, 9, or 10 minutes based on emergency ID
+                const initialMins = (parseInt('<?php echo substr($emergencyId, 0, 4); ?>', 16) % 4) + 7;
+                const totalInitialSeconds = initialMins * 60;
+                let remainingTotalSeconds = totalInitialSeconds - elapsedSeconds;
                 
-                if (remaining <= 0) {
+                if (remainingTotalSeconds <= 0) {
                     etaDisplay.innerHTML = '<span class="text-primary">Arriving at Site</span>';
                 } else {
-                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + remaining + ' mins</span>';
+                    const m = Math.floor(remainingTotalSeconds / 60);
+                    const s = remainingTotalSeconds % 60;
+                    const formatted = m + ":" + (s < 10 ? '0' : '') + s;
+                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + formatted + ' mins</span>';
                 }
             } else {
                 // Status is pending or assigned — show static range
@@ -499,8 +505,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 }
             }, 10000); 
 
-            // Update countdown every 30 seconds
-            setInterval(updateETA, 30000);
+            // Update countdown every second
+            setInterval(updateETA, 1000);
         }
 
         // Auto-refresh state every 20 seconds
