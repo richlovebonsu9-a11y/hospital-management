@@ -1506,9 +1506,12 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                             <label class="small text-muted">Select Medical Staff</label>
                             <select name="assigned_to" class="form-select rounded-pill px-3" required id="assign_emerg_staff_select">
                                 <option value="">-- Choose Staff --</option>
-                                <?php foreach($staffMembers as $s): if($s['role'] === 'doctor' || $s['role'] === 'nurse'): ?>
-                                    <option value="<?php echo $s['id']; ?>">
-                                        <?php echo htmlspecialchars($s['name']); ?> (<?php echo htmlspecialchars($s['role']); ?>)
+                                <?php foreach($staffMembers as $s): 
+                                    $r = $s['role'] ?? '';
+                                    if(in_array($r, ['doctor', 'nurse', 'ambulance', 'dispatch_rider'])): 
+                                ?>
+                                    <option value="<?php echo $s['id']; ?>" data-role="<?php echo htmlspecialchars($r); ?>">
+                                        <?php echo htmlspecialchars($s['name']); ?> (<?php echo htmlspecialchars($r === 'ambulance' ? 'Emergency Team' : ucwords(str_replace('_', ' ', $r))); ?>)
                                     </option>
                                 <?php endif; endforeach; ?>
                             </select>
@@ -1906,6 +1909,27 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
             if (reportBtn) reportBtn.addEventListener('click', () => { 
                 setTimeout(refreshReports, 200); 
             });
+
+            // AUTO-VISIBILITY FOR 'OTHER' EMERGENCIES
+            const pendingOtherEmerg = <?php echo json_encode(array_filter($emergencies, fn($e) => ($e['emergency_type'] ?? '') === 'other' && ($e['status'] ?? '') !== 'resolved' && empty($e['assigned_to']))); ?>;
+            const otherEmergList = Object.values(pendingOtherEmerg);
+            if (otherEmergList.length > 0) {
+                console.log("Found pending 'other' emergencies. Redirecting to queue.");
+                const emergLink = document.querySelector('[data-target="section-emergencies"]');
+                if (emergLink) {
+                    emergLink.click();
+                    Swal.fire({
+                        title: 'Pending Urgent Mission',
+                        text: `There are ${otherEmergList.length} "Other" type emergencies awaiting staff assignment.`,
+                        icon: 'warning',
+                        toast: true,
+                        position: 'top-end',
+                        showConfirmButton: false,
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                }
+            }
         });
 
         // Tab Navigation & Search Logic
@@ -2430,6 +2454,31 @@ $unreadCount = count(array_filter($notifications, fn($n) => empty($n['is_read'])
                 audioPlayer.src = '';
                 audioContainer.classList.add('d-none');
             }
+
+            // FILTER STAFF BASED ON EMERGENCY TYPE
+            const select = document.getElementById('assign_emerg_staff_select');
+            const options = select.options;
+            const isOther = (e.emergency_type === 'other');
+            
+            for (let i = 1; i < options.length; i++) {
+                const role = options[i].getAttribute('data-role');
+                if (isOther) {
+                    // Only dispatch_rider and ambulance for 'other'
+                    if (role === 'dispatch_rider' || role === 'ambulance') {
+                        options[i].style.display = 'block';
+                    } else {
+                        options[i].style.display = 'none';
+                    }
+                } else {
+                    // Only doctor and nurse for medical
+                    if (role === 'doctor' || role === 'nurse') {
+                        options[i].style.display = 'block';
+                    } else {
+                        options[i].style.display = 'none';
+                    }
+                }
+            }
+            select.selectedIndex = 0; // Reset selection
 
             new bootstrap.Modal(document.getElementById('assignEmergencyModal')).show();
         }

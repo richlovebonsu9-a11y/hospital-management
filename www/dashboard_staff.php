@@ -75,8 +75,8 @@ if ($role === 'nurse') {
 $eRes = $sb->request('GET', '/rest/v1/emergencies?status=neq.resolved&select=*&order=created_at.desc', null, true);
 $myEmergencies = [];
 if ($eRes['status'] === 200 && ($role === 'ambulance' || $role === 'dispatch_rider')) {
-    $dispatchTypes = ['cardiac_emergencies','diabetic_emergencies','asthmatic_attacks','snake_bite','dog_bite','scorpion_bite'];
-    $ambulanceTypes = ['car_and_motor_accident','labour','sudden_consciousness_loss','breathing_difficulty'];
+    $dispatchTypes = ['cardiac_emergencies','diabetic_emergencies','asthmatic_attacks','snake_bite','dog_bite','scorpion_bite', 'other'];
+    $ambulanceTypes = ['car_and_motor_accident','labour','sudden_consciousness_loss','breathing_difficulty', 'other'];
     
     foreach ($eRes['data'] as $e) {
         $etype = $e['emergency_type'] ?? '';
