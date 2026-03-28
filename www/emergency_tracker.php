@@ -492,23 +492,25 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         updateETA();
         setInterval(pollStatus, 5000); // Poll every 5 seconds
 
-            // Local visual movement (Radar)
-            const moveInterval = setInterval(() => {
-                const top = parseInt(responderDot.style.top || '30');
-                const left = parseInt(responderDot.style.left || '70');
-                
-                if (top < 50) responderDot.style.top = (top + 1) + '%';
-                if (left > 50) responderDot.style.left = (left - 1) + '%';
+            // Local visual movement (Radar) - only if dot exists
+            if (responderDot) {
+                const moveInterval = setInterval(() => {
+                    const top = parseInt(responderDot.style.top || '30');
+                    const left = parseInt(responderDot.style.left || '70');
+                    
+                    if (top < 50) responderDot.style.top = (top + 1) + '%';
+                    if (left > 50) responderDot.style.left = (left - 1) + '%';
 
-                if (top >= 50 && left <= 50) {
-                    clearInterval(moveInterval);
-                    if (currentStatus !== 'resolved') {
-                        etaDisplay.innerText = "Arriving at Site";
-                        etaDisplay.classList.add('text-primary');
+                    if (top >= 50 && left <= 50) {
+                        clearInterval(moveInterval);
+                        if (currentStatus !== 'resolved') {
+                            etaDisplay.innerText = "Arriving at Site";
+                            etaDisplay.classList.add('text-primary');
+                        }
                     }
-                }
-            }, 10000); 
-        }
+                }, 10000); 
+            }
+
 
         // Global interval for the ETA countdown specifically
         setInterval(updateETA, 1000);
