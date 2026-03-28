@@ -23,6 +23,10 @@ $status = $e['status'];
 $responder = $e['assigned_to_profile'] ?? null;
 $dispatchedAt = $e['dispatched_at'] ?? null;
 $createdAt = $e['created_at'] ?? null;
+$serverElapsed = 0;
+if ($status === 'dispatched' && !empty($dispatchedAt)) {
+    $serverElapsed = max(0, time() - strtotime($dispatchedAt));
+}
 
 // First-Aid Logic
 $firstAidGuides = [
@@ -402,6 +406,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         let currentStatus = '<?php echo $status; ?>';
         const dispatchedAt = '<?php echo $dispatchedAt; ?>';
         const emergencyId = '<?php echo $emergencyId; ?>';
+        const serverElapsedAtLoad = <?php echo $serverElapsed; ?>;
+        const loadTimestamp = performance.now();
         
         const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
 
@@ -459,17 +465,15 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 return;
             }
 
-            if (currentStatus === 'dispatched' && dispatchedAt) {
-                const dispatchTime = new Date(dispatchedAt).getTime();
-                const now = new Date().getTime();
-                // Fix: Ensure we don't get negative diff due to small clock drift
-                const diffMs = Math.max(0, now - dispatchTime);
-                const elapsedSeconds = Math.floor(diffMs / 1000);
+            if (currentStatus === 'dispatched' && (dispatchedAt || serverElapsedAtLoad > 0)) {
+                // Calculate total elapsed time relative to page load
+                const secondsSinceLoad = (performance.now() - loadTimestamp) / 1000;
+                const totalElapsedSeconds = Math.floor(serverElapsedAtLoad + secondsSinceLoad);
                 
                 // Deterministic random selection of 7, 8, 9, or 10 minutes based on emergency ID
                 const initialMins = (parseInt('<?php echo substr($emergencyId, 0, 4); ?>', 16) % 4) + 7;
                 const totalInitialSeconds = initialMins * 60;
-                let remainingTotalSeconds = totalInitialSeconds - elapsedSeconds;
+                let remainingTotalSeconds = totalInitialSeconds - totalElapsedSeconds;
                 
                 if (remainingTotalSeconds <= 0) {
                     etaDisplay.innerHTML = '<span class="text-primary">Arriving at Site</span>';
@@ -477,7 +481,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     const m = Math.floor(remainingTotalSeconds / 60);
                     const s = remainingTotalSeconds % 60;
                     const formatted = m + ":" + (s < 10 ? '0' : '') + s;
-                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + formatted + ' mins</span>';
+                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + formatted + '</span>';
                 }
             } else {
                 // Status is pending or assigned — show static range
@@ -488,7 +492,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         updateETA();
         setInterval(pollStatus, 5000); // Poll every 5 seconds
 
-        if (responderDot && currentStatus !== 'resolved') {
+            // Local visual movement (Radar)
             const moveInterval = setInterval(() => {
                 const top = parseInt(responderDot.style.top || '30');
                 const left = parseInt(responderDot.style.left || '70');
@@ -504,10 +508,10 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     }
                 }
             }, 10000); 
-
-            // Update countdown every second
-            setInterval(updateETA, 1000);
         }
+
+        // Global interval for the ETA countdown specifically
+        setInterval(updateETA, 1000);
 
         // Auto-refresh state every 20 seconds
         setInterval(() => {
