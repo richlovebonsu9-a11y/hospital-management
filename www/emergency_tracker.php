@@ -21,7 +21,8 @@ if (!$e) {
 $type = $e['emergency_type'];
 $status = $e['status'];
 $responder = $e['assigned_to_profile'] ?? null;
-$dispatchedAt = $e['dispatched_at'] ?? $e['created_at'] ?? null;
+$dispatchedAt = $e['dispatched_at'] ?? null;
+$createdAt = $e['created_at'] ?? null;
 
 // First-Aid Logic
 $firstAidGuides = [
@@ -458,17 +459,13 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 return;
             }
 
-            const createdAt = '<?php echo $e['created_at']; ?>';
-            const referenceTime = dispatchedAt || createdAt;
-            
-            if ((currentStatus === 'dispatched' || currentStatus === 'assigned') && referenceTime) {
-                const dispatchTime = new Date(referenceTime).getTime();
+            if (currentStatus === 'dispatched' && dispatchedAt) {
+                const dispatchTime = new Date(dispatchedAt).getTime();
                 const now = new Date().getTime();
                 const diffMs = now - dispatchTime;
                 const diffMins = Math.floor(diffMs / 60000);
                 
-                // Deterministic ETA between 7 and 10 minutes based on emergency ID hex prefix
-                const initialETA = (parseInt('<?php echo substr($id, 0, 4); ?>', 16) % 4) + 7;
+                const initialETA = (parseInt('<?php echo substr($emergencyId, 0, 4); ?>', 16) % 4) + 7;
                 let remaining = initialETA - diffMins;
                 
                 if (remaining <= 0) {
@@ -477,7 +474,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + remaining + ' mins</span>';
                 }
             } else {
-                // Status is pending — show static range
+                // Status is pending or assigned — show static range
                 etaDisplay.innerHTML = '<span class="text-primary">ETA: 7 to 10 mins</span>';
             }
         }
