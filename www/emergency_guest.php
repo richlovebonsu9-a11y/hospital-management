@@ -69,6 +69,30 @@ session_start();
             70% { box-shadow: 0 0 0 15px rgba(220, 38, 38, 0); }
             100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
         }
+
+        /* Camera Modal Minimalist SOS Style */
+        #cameraModal .modal-content {
+            background: #020617;
+            border-radius: 2rem;
+            border: 2px solid rgba(220,38,38,0.2);
+            color: white;
+            overflow: hidden;
+        }
+        #cameraStream, #snapshotPreview {
+            width: 100%;
+            border-radius: 1.5rem;
+            background: #000;
+        }
+        #cameraCanvas { display: none; }
+        .camera-btn {
+            width: 70px; height: 70px;
+            border-radius: 50%;
+            border: 5px solid rgba(255,255,255,0.3);
+            background: var(--rescue-red);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.5rem; color: white;
+            transition: 0.2s; margin: 0 auto;
+        }
     </style>
 </head>
 <body>
@@ -148,9 +172,23 @@ session_start();
 
                         <div class="mb-4">
                             <label class="form-label">Photo / Video Evidence (Optional)</label>
-                            <input type="file" id="mediaUploadInput" class="form-control" accept="image/*,video/*">
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <button type="button" id="startCameraBtn" class="btn btn-outline-danger flex-grow-1 py-3 rounded-4 fw-bold">
+                                    <i class="bi bi-camera-fill me-2"></i> TAKE PHOTO
+                                </button>
+                                <div class="position-relative flex-grow-1">
+                                    <input type="file" id="mediaUploadInput" class="form-control h-100 py-3 rounded-4" accept="image/*,video/*" style="opacity: 0; position: absolute; cursor: pointer; z-index: 2;">
+                                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-3 rounded-4 fw-bold">
+                                        <i class="bi bi-upload"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="mediaSummary" class="text-secondary small d-none p-2 bg-light rounded-3 border border-dashed">
+                                <span id="mediaSummaryText">No file attached</span>
+                                <button type="button" id="clearMediaBtn" class="btn btn-link btn-sm text-danger p-0 ms-2 text-decoration-none fw-bold">REMOVE</button>
+                            </div>
                             <input type="hidden" name="media_base64" id="mediaBase64">
-                            <small class="text-muted mt-2 d-block"><i class="bi bi-camera me-1"></i> Capture the scene to help responders prepare.</small>
+                            <small class="text-muted mt-2 d-block"><i class="bi bi-camera me-1"></i> Use your camera to help responders prepare.</small>
                         </div>
 
                         <div class="mb-4">
@@ -173,6 +211,36 @@ session_start();
                 </div>
                 <div class="text-center mt-5">
                     <a href="/" class="text-secondary text-decoration-none"><i class="bi bi-house-door me-1"></i> Return to Homepage</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0">
+                <div class="modal-body p-0">
+                    <div class="position-relative bg-black" style="min-height: 400px;">
+                        <video id="cameraStream" autoplay playsinline muted></video>
+                        <canvas id="cameraCanvas"></canvas>
+                        <img id="snapshotPreview" style="display:none;" alt="Snapshot Preview">
+                        
+                        <div class="position-absolute bottom-0 start-0 end-0 p-4 bg-dark bg-opacity-50">
+                            <div id="captureState">
+                                <button type="button" id="shutterBtn" class="camera-btn">
+                                    <i class="bi bi-camera-fill"></i>
+                                </button>
+                            </div>
+                            <div id="previewState" class="d-none text-center">
+                                <button type="button" id="retakeBtn" class="btn btn-outline-light rounded-pill px-4 me-2">RETAKE</button>
+                                <button type="button" id="usePhotoBtn" class="btn btn-success rounded-pill px-5">USE PHOTO</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-2 bg-dark text-center">
+                    <button type="button" class="btn btn-link text-white-50 text-decoration-none" data-bs-dismiss="modal">CLOSE</button>
                 </div>
             </div>
         </div>
@@ -203,9 +271,19 @@ session_start();
         // Photo/Video File Handling
         const mediaInput = document.getElementById('mediaUploadInput');
         const mediaBase64Input = document.getElementById('mediaBase64');
+        const mediaSummary = document.getElementById('mediaSummary');
+        const mediaSummaryText = document.getElementById('mediaSummaryText');
+        const clearMediaBtn = document.getElementById('clearMediaBtn');
+
+        function updateMediaPreview(source, filename = "Capture Attached") {
+            mediaBase64Input.value = source;
+            mediaSummaryText.innerText = filename;
+            mediaSummary.classList.remove('d-none');
+        }
+
         mediaInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (!file) { mediaBase64Input.value = ''; return; }
+            if (!file) return;
             if (file.size > 5 * 1024 * 1024) {
                 Swal.fire('File Too Large', 'Please keep photo/video under 5MB.', 'warning');
                 mediaInput.value = '';
@@ -213,8 +291,79 @@ session_start();
             }
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onloadend = () => { mediaBase64Input.value = reader.result; };
+            reader.onloadend = () => updateMediaPreview(reader.result, file.name);
         });
+
+        clearMediaBtn.onclick = () => {
+            mediaBase64Input.value = '';
+            mediaInput.value = '';
+            mediaSummary.classList.add('d-none');
+        };
+
+        // Live Camera Logic
+        const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+        const video = document.getElementById('cameraStream');
+        const canvas = document.getElementById('cameraCanvas');
+        const imgPreview = document.getElementById('snapshotPreview');
+        const shutterBtn = document.getElementById('shutterBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const usePhotoBtn = document.getElementById('usePhotoBtn');
+        const captureState = document.getElementById('captureState');
+        const previewState = document.getElementById('previewState');
+        let currentStream = null;
+
+        document.getElementById('startCameraBtn').onclick = async () => {
+            captureState.classList.remove('d-none');
+            previewState.classList.add('d-none');
+            video.style.display = 'block';
+            imgPreview.style.display = 'none';
+            
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' }, 
+                    audio: false 
+                });
+                video.srcObject = currentStream;
+                cameraModal.show();
+            } catch (err) {
+                Swal.fire('Camera Access Denied', 'Please enable camera access in your settings.', 'error');
+            }
+        };
+
+        shutterBtn.onclick = () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            imgPreview.src = dataUrl;
+            video.style.display = 'none';
+            imgPreview.style.display = 'block';
+            captureState.classList.add('d-none');
+            previewState.classList.remove('d-none');
+        };
+
+        retakeBtn.onclick = () => {
+            video.style.display = 'block';
+            imgPreview.style.display = 'none';
+            captureState.classList.remove('d-none');
+            previewState.classList.add('d-none');
+        };
+
+        usePhotoBtn.onclick = () => {
+            updateMediaPreview(imgPreview.src, "Live SOS Snapshot");
+            stopCamera();
+            cameraModal.hide();
+        };
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        document.getElementById('cameraModal').addEventListener('hidden.bs.modal', stopCamera);
 
         recordBtn.onclick = async () => {
             if (mediaRecorder && mediaRecorder.state === "recording") {

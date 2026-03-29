@@ -209,6 +209,57 @@ if ($role === 'guardian' && $userId) {
         }
 
         .orange-text { color: var(--rescue-orange); }
+
+        /* Camera UI Elements */
+        #cameraModal .modal-content {
+            background: #020617;
+            border-radius: 2rem;
+            border: 2px solid rgba(255,255,255,0.1);
+            color: white;
+            overflow: hidden;
+        }
+        #cameraStream {
+            width: 100%;
+            height: auto;
+            max-height: 70vh;
+            border-radius: 1.5rem;
+            background: #000;
+            object-fit: cover;
+        }
+        #cameraCanvas {
+            display: none;
+        }
+        .camera-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: 5px solid rgba(255,255,255,0.3);
+            background: #EF4444;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+            transition: all 0.2s;
+            margin: 0 auto;
+        }
+        .camera-btn:hover {
+            transform: scale(0.95);
+            background: #DC2626;
+        }
+        .camera-btn:active {
+            transform: scale(0.9);
+        }
+        .camera-controls {
+            padding: 1.5rem;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+        }
+        #snapshotPreview {
+            width: 100%;
+            border-radius: 1.5rem;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -335,11 +386,23 @@ if ($role === 'guardian' && $userId) {
 
                         <div class="mb-4">
                             <label class="form-label fw-bold text-uppercase">5. Photo / Video Evidence (Optional)</label>
-                            <div class="position-relative">
-                                <input type="file" id="mediaUploadInput" class="form-control px-4 py-3 text-secondary" accept="image/*,video/*" style="background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2);">
-                                <input type="hidden" name="media_base64" id="mediaBase64">
+                            <div class="d-flex flex-wrap gap-2 mb-2">
+                                <button type="button" id="startCameraBtn" class="btn btn-outline-danger flex-grow-1 py-3 rounded-4 shadow-sm fw-bold">
+                                    <i class="bi bi-camera-fill me-2"></i> TAKE LIVE PHOTO
+                                </button>
+                                <div class="position-relative flex-grow-1">
+                                    <input type="file" id="mediaUploadInput" class="form-control h-100 py-3 rounded-4" accept="image/*,video/*" style="opacity: 0; position: absolute; cursor: pointer; z-index: 2;">
+                                    <button type="button" class="btn btn-outline-secondary w-100 h-100 py-3 rounded-4 fw-bold">
+                                        <i class="bi bi-upload me-2"></i> UPLOAD FILE
+                                    </button>
+                                </div>
                             </div>
-                            <small class="text-secondary mt-2 d-block"><i class="bi bi-camera me-1"></i> Capture the scene to help responders prepare.</small>
+                            <div id="mediaSummary" class="text-secondary small d-none p-2 bg-white rounded-3 border border-dashed">
+                                <span id="mediaSummaryText">No file attached</span>
+                                <button type="button" id="clearMediaBtn" class="btn btn-link btn-sm text-danger p-0 ms-2 text-decoration-none fw-bold">REMOVE</button>
+                            </div>
+                            <input type="hidden" name="media_base64" id="mediaBase64">
+                            <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Use your camera to capture the scene and help responders prepare.</small>
                         </div>
 
                         <input type="hidden" name="live_location" id="liveLocation">
@@ -363,6 +426,44 @@ if ($role === 'guardian' && $userId) {
                 </div>
                 <div class="text-center mt-5 position-relative z-index-10">
                     <a href="/dashboard" class="text-secondary text-decoration-none hover-white transition-all"><i class="bi bi-arrow-left me-1"></i> Back to Safety</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-2xl">
+                <div class="modal-body p-0">
+                    <div id="cameraContainer" class="position-relative bg-black" style="min-height: 400px;">
+                        <video id="cameraStream" autoplay playsinline muted></video>
+                        <canvas id="cameraCanvas"></canvas>
+                        <img id="snapshotPreview" alt="Snapshot Preview">
+                        
+                        <div class="camera-controls position-absolute bottom-0 start-0 end-0">
+                            <div id="captureState">
+                                <button type="button" id="shutterBtn" class="camera-btn shadow-lg">
+                                    <i class="bi bi-camera-fill"></i>
+                                </button>
+                                <div class="text-center mt-3 text-white-50 small text-uppercase letter-spacing-2">TAP TO CAPTURE</div>
+                            </div>
+                            
+                            <div id="previewState" class="d-none">
+                                <div class="d-flex justify-content-center gap-3">
+                                    <button type="button" id="retakeBtn" class="btn btn-outline-light rounded-pill px-4 py-2">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i> RETAKE
+                                    </button>
+                                    <button type="button" id="usePhotoBtn" class="btn btn-success rounded-pill px-5 py-2 fw-bold shadow-lg">
+                                        <i class="bi bi-check2-circle me-1"></i> USE PHOTO
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-3 text-center bg-dark">
+                    <button type="button" id="closeCameraBtn" class="btn btn-link text-white-50 text-decoration-none small text-uppercase letter-spacing-1" data-bs-dismiss="modal">CANCEL & CLOSE</button>
                 </div>
             </div>
         </div>
@@ -394,9 +495,19 @@ if ($role === 'guardian' && $userId) {
         // Photo/Video File Handling
         const mediaInput = document.getElementById('mediaUploadInput');
         const mediaBase64Input = document.getElementById('mediaBase64');
+        const mediaSummary = document.getElementById('mediaSummary');
+        const mediaSummaryText = document.getElementById('mediaSummaryText');
+        const clearMediaBtn = document.getElementById('clearMediaBtn');
+
+        function updateMediaPreview(source, filename = "Scene Capture Attached") {
+            mediaBase64Input.value = source;
+            mediaSummaryText.innerText = filename;
+            mediaSummary.classList.remove('d-none');
+        }
+
         mediaInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
-            if (!file) { mediaBase64Input.value = ''; return; }
+            if (!file) { return; }
             if (file.size > 5 * 1024 * 1024) { // 5MB limit
                 Swal.fire('File Too Large', 'Please keep photo/video under 5MB for rapid transmission.', 'warning');
                 mediaInput.value = '';
@@ -404,8 +515,91 @@ if ($role === 'guardian' && $userId) {
             }
             const reader = new FileReader();
             reader.readAsDataURL(file);
-            reader.onloadend = () => { mediaBase64Input.value = reader.result; };
+            reader.onloadend = () => { 
+                updateMediaPreview(reader.result, file.name);
+            };
         });
+
+        clearMediaBtn.onclick = () => {
+            mediaBase64Input.value = '';
+            mediaInput.value = '';
+            mediaSummary.classList.add('d-none');
+        };
+
+        // Live Camera Logic
+        const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+        const video = document.getElementById('cameraStream');
+        const canvas = document.getElementById('cameraCanvas');
+        const imgPreview = document.getElementById('snapshotPreview');
+        const shutterBtn = document.getElementById('shutterBtn');
+        const retakeBtn = document.getElementById('retakeBtn');
+        const usePhotoBtn = document.getElementById('usePhotoBtn');
+        const captureState = document.getElementById('captureState');
+        const previewState = document.getElementById('previewState');
+        let currentStream = null;
+
+        document.getElementById('startCameraBtn').onclick = async () => {
+            captureState.classList.remove('d-none');
+            previewState.classList.add('d-none');
+            video.style.display = 'block';
+            imgPreview.style.display = 'none';
+            
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' }, 
+                    audio: false 
+                });
+                video.srcObject = currentStream;
+                cameraModal.show();
+            } catch (err) {
+                console.error("Camera access failed", err);
+                Swal.fire({
+                    title: 'Camera Access Denied',
+                    text: 'We need camera access to capture emergency evidence. Please check your browser permissions.',
+                    icon: 'error',
+                    background: '#1E293B',
+                    color: '#fff'
+                });
+            }
+        };
+
+        shutterBtn.onclick = () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            imgPreview.src = dataUrl;
+            
+            video.style.display = 'none';
+            imgPreview.style.display = 'block';
+            captureState.classList.add('d-none');
+            previewState.classList.remove('d-none');
+        };
+
+        retakeBtn.onclick = () => {
+            video.style.display = 'block';
+            imgPreview.style.display = 'none';
+            captureState.classList.remove('d-none');
+            previewState.classList.add('d-none');
+        };
+
+        usePhotoBtn.onclick = () => {
+            updateMediaPreview(imgPreview.src, "Live Camera Snapshot");
+            stopCamera();
+            cameraModal.hide();
+        };
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+        }
+
+        document.getElementById('cameraModal').addEventListener('hidden.bs.modal', stopCamera);
+        document.getElementById('closeCameraBtn').onclick = stopCamera;
 
         recordBtn.onclick = async () => {
             if (mediaRecorder && mediaRecorder.state === "recording") {
