@@ -63,6 +63,12 @@ session_start();
             50% { transform: scale(1.05); opacity: 0.8; }
             100% { transform: scale(1); opacity: 1; }
         }
+        .pulse-highlight { animation: pulse-red 1.5s infinite; }
+        @keyframes pulse-red {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+            70% { box-shadow: 0 0 0 15px rgba(220, 38, 38, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
     </style>
 </head>
 <body>
@@ -98,18 +104,53 @@ session_start();
                             <label class="form-label">Nature of Emergency</label>
                             <select name="emergency_type" class="form-select fw-bold" required>
                                 <option value="">-- Choose Situation --</option>
-                                <option value="car_and_motor_accident">Car and Motor Accident</option>
-                                <option value="labour">Labour / Maternity</option>
-                                <option value="sudden_consciousness_loss">Sudden Consciousness Loss</option>
-                                <option value="breathing_difficulty">Breathing Difficulty</option>
-                                <option value="cardiac_emergencies">Cardiac Emergency</option>
-                                <option value="other">Other / General Trauma</option>
+                                <optgroup label="Ambulance Dispatch Required">
+                                    <option value="car_and_motor_accident">Car and Motor Accident</option>
+                                    <option value="labour">Labour / Maternity</option>
+                                    <option value="sudden_consciousness_loss">Sudden Consciousness Loss</option>
+                                    <option value="breathing_difficulty">Breathing Difficulty</option>
+                                </optgroup>
+                                <optgroup label="Dispatch Rider Specialist Needed">
+                                    <option value="cardiac_emergencies">Cardiac Emergency</option>
+                                    <option value="diabetic_emergencies">Diabetic Emergency</option>
+                                    <option value="asthmatic_attacks">Asthmatic Attack</option>
+                                    <option value="snake_bite">Snake Bite</option>
+                                    <option value="dog_bite">Dog Bite</option>
+                                    <option value="scorpion_bite">Scorpion Bite</option>
+                                </optgroup>
+                                <option value="other">Other / Describe below</option>
                             </select>
                         </div>
 
                         <div class="mb-4">
                             <label class="form-label">Emergency Details</label>
                             <textarea name="symptoms" class="form-control" rows="3" placeholder="Describe what has happened..." required></textarea>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label d-flex justify-content-between align-items-center">
+                                Voice Note (Optional)
+                                <span id="recordingIndicator" class="badge bg-danger rounded-pill px-2 d-none animate-pulse" style="font-size: 0.65rem;">REC</span>
+                            </label>
+                            <div class="d-flex align-items-center gap-3 p-3 glass-card bg-opacity-10 border border-dashed border-secondary rounded-4 shadow-sm">
+                                <button type="button" id="recordBtn" class="btn btn-outline-danger rounded-circle p-0 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; min-width: 52px;">
+                                    <i class="bi bi-mic-fill fs-4"></i>
+                                </button>
+                                <div class="flex-grow-1 overflow-hidden">
+                                    <div id="recordStatus" class="text-secondary extra-small fw-semibold mb-1">Click to capture audio context</div>
+                                    <div id="playbackContainer" class="d-none">
+                                        <audio id="audioPlayback" controls style="height: 32px; width: 100%;"></audio>
+                                    </div>
+                                </div>
+                                <input type="hidden" name="voice_note_base64" id="voiceNoteBase64">
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label">Photo / Video Evidence (Optional)</label>
+                            <input type="file" id="mediaUploadInput" class="form-control" accept="image/*,video/*">
+                            <input type="hidden" name="media_base64" id="mediaBase64">
+                            <small class="text-muted mt-2 d-block"><i class="bi bi-camera me-1"></i> Capture the scene to help responders prepare.</small>
                         </div>
 
                         <div class="mb-4">
@@ -144,9 +185,83 @@ session_start();
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 pos => { locInput.value = pos.coords.latitude + ',' + pos.coords.longitude; },
-                err => { console.warn('Location access denied', err); }
+                err => { console.warn('Location access denied', err); },
+                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
             );
         }
+
+        // Media Recorder Logic
+        let mediaRecorder;
+        let audioChunks = [];
+        const recordBtn = document.getElementById('recordBtn');
+        const recordStatus = document.getElementById('recordStatus');
+        const playbackContainer = document.getElementById('playbackContainer');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const voiceInput = document.getElementById('voiceNoteBase64');
+        const recordingIndicator = document.getElementById('recordingIndicator');
+
+        // Photo/Video File Handling
+        const mediaInput = document.getElementById('mediaUploadInput');
+        const mediaBase64Input = document.getElementById('mediaBase64');
+        mediaInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) { mediaBase64Input.value = ''; return; }
+            if (file.size > 5 * 1024 * 1024) {
+                Swal.fire('File Too Large', 'Please keep photo/video under 5MB.', 'warning');
+                mediaInput.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onloadend = () => { mediaBase64Input.value = reader.result; };
+        });
+
+        recordBtn.onclick = async () => {
+            if (mediaRecorder && mediaRecorder.state === "recording") {
+                mediaRecorder.stop();
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                mediaRecorder.onstart = () => {
+                    recordBtn.classList.replace('btn-outline-danger', 'btn-danger');
+                    recordBtn.classList.add('pulse-highlight');
+                    recordBtn.innerHTML = '<i class="bi bi-stop-fill fs-4"></i>';
+                    recordStatus.innerText = "Recording... Stop when done.";
+                    recordingIndicator.classList.remove('d-none');
+                };
+                mediaRecorder.onstop = async () => {
+                    recordBtn.classList.replace('btn-danger', 'btn-outline-danger');
+                    recordBtn.classList.remove('pulse-highlight');
+                    recordBtn.innerHTML = '<i class="bi bi-mic-fill fs-4"></i>';
+                    recordingIndicator.classList.add('d-none');
+                    
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.readAsDataURL(audioBlob);
+                    reader.onloadend = () => {
+                        const base64data = reader.result;
+                        voiceInput.value = base64data;
+                        audioPlayback.src = base64data;
+                        playbackContainer.classList.remove('d-none');
+                        recordStatus.innerText = "Voice note attached successfully.";
+                    };
+                    
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                mediaRecorder.start();
+            } catch (err) {
+                console.error("Mic Error:", err);
+                recordStatus.innerText = "Permissions required.";
+                Swal.fire({ title: 'Microphone Needed', text: 'Please enable microphone access to record voice notes.', icon: 'info' });
+            }
+        };
 
         document.getElementById('emergencyForm').onsubmit = async function(e) {
             e.preventDefault();
