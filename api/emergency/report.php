@@ -13,12 +13,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $sb = new Supabase();
 if (isset($_COOKIE['sb_user'])) { $_SESSION['user'] = json_decode($_COOKIE['sb_user'], true); }
 $reporterId = $_SESSION['user']['id'] ?? null;
-$patientId = $_POST['patient_id'] ?? $reporterId; // Default to reporter if not specified
+$patientId = $_POST['patient_id'] ?? $reporterId;
 
-if (!$reporterId) {
-    echo json_encode(['success' => false, 'error' => 'User not logged in']);
-    exit;
-}
+$isGuest = !$reporterId;
+$guestName = $_POST['guest_name'] ?? 'Anonymous';
+$guestPhone = $_POST['guest_phone'] ?? 'N/A';
 
 $emergencyType = $_POST['emergency_type'] ?? 'general';
 $gps = $_POST['ghana_post_gps'] ?? 'N/A';
@@ -81,7 +80,9 @@ if (!empty($liveLocation)) {
 
 // Workaround: Embed voice note Base64 and Media into symptoms field
 $embeddedSymptoms = $symptoms;
-if ($patientName) {
+if ($isGuest) {
+    $embeddedSymptoms = "[GUEST REPORT: $guestName ($guestPhone)] " . $embeddedSymptoms;
+} elseif ($patientName) {
     $embeddedSymptoms = "[Patient: $patientName] " . $embeddedSymptoms;
 }
 if (!empty($_POST['voice_note_base64'])) {
@@ -108,9 +109,10 @@ if ($res['status'] >= 200 && $res['status'] < 300) {
     $emergencyId = $insertedEmergency['id'] ?? null;
 
     // 1. Notify Admins
+    $alertPrefix = $isGuest ? "GUEST ALERT" : "HIGH ALERT";
     $sb->request('POST', '/rest/v1/notifications', [
         'role' => 'admin',
-        'message' => "HIGH ALERT: A " . str_replace('_', ' ', $emergencyType) . " emergency has been reported at {$gps}.",
+        'message' => "{$alertPrefix}: A " . str_replace('_', ' ', $emergencyType) . " emergency has been reported at {$gps}.",
         'type' => 'emergency_alert',
         'related_id' => $emergencyId
     ], true);

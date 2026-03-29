@@ -16,6 +16,7 @@ $user_role = $_SESSION['user']['user_metadata']['role'] ?? 'patient';
         </button>
         <div class="collapse navbar-collapse" id="navMain">
             <ul class="navbar-nav ms-auto align-items-center">
+                <li class="nav-item"><a class="nav-link px-3 text-danger fw-bold" href="<?php echo $user_logged_in ? '/emergency.php' : '/emergency_guest.php'; ?>"><i class="bi bi-exclamation-triangle-fill me-1"></i>Emergency</a></li>
                 <li class="nav-item"><a class="nav-link px-3" href="/">Home</a></li>
                 <?php if ($user_logged_in): ?>
                     <li class="nav-item"><a class="nav-link px-3" href="/dashboard.php">Dashboard</a></li>

@@ -5,7 +5,8 @@ use App\Lib\Supabase;
 
 $emergencyId = $_GET['id'] ?? null;
 if (!$emergencyId) {
-    header('Location: /emergency');
+    $fallback = isset($_SESSION['user']) ? '/emergency' : '/emergency_guest';
+    header("Location: $fallback");
     exit;
 }
 

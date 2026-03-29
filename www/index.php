@@ -191,6 +191,52 @@ $title = "K.M. General Hospital - Your Health, Our Priority";
             text-transform: uppercase;
             letter-spacing: 1px;
         }
+
+        /* Floating SOS Button */
+        .floating-sos {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            background: #EF4444;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.4);
+            z-index: 1000;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 4px solid white;
+        }
+        .floating-sos:hover {
+            transform: scale(1.1) rotate(15deg);
+            background: #DC2626;
+            color: white;
+            box-shadow: 0 15px 35px rgba(239, 68, 68, 0.6);
+        }
+        .sos-label {
+            position: absolute;
+            right: 80px;
+            background: #EF4444;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 1px;
+            pointer-events: none;
+            opacity: 0;
+            transition: 0.3s;
+            white-space: nowrap;
+        }
+        .floating-sos:hover .sos-label {
+            opacity: 1;
+            right: 90px;
+        }
     </style>
 </head>
 <body>
@@ -209,7 +255,7 @@ $title = "K.M. General Hospital - Your Health, Our Priority";
                             
                             <div class="d-flex flex-wrap gap-3">
                                 <a href="/signup" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-lg">Start Journey &rarr;</a>
-                                <a href="#services" class="btn btn-outline-primary btn-lg rounded-pill px-5 py-3">Our Services</a>
+                                <a href="/emergency_guest.php" class="btn btn-danger btn-lg rounded-pill px-5 py-3 shadow-lg"><i class="bi bi-exclamation-octagon-fill me-2"></i>REPORT EMERGENCY</a>
                             </div>
                         </div>
                     </div>
@@ -440,6 +486,11 @@ $title = "K.M. General Hospital - Your Health, Our Priority";
             </div>
         </div>
     </footer>
+
+    <a href="/emergency_guest.php" class="floating-sos">
+        <span class="sos-label">EMERGENCY? REPORT NOW</span>
+        <i class="bi bi-megaphone-fill"></i>
+    </a>
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
