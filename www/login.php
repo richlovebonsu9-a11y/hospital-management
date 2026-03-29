@@ -11,7 +11,7 @@ if (isset($_SESSION['user'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Kobby Moore Hospital</title>
+    <title>Login - K.M. General Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
@@ -46,11 +46,11 @@ if (isset($_SESSION['user'])) {
                     <div class="col-lg-7 p-4 p-md-5">
                         <div class="text-center mb-5 d-lg-none">
                             <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Welcome Back</h3>
-                            <p class="text-muted small">Login to Kobby Moore Hospital</p>
+                            <p class="text-muted small">Login to K.M. General Hospital</p>
                         </div>
                         <div class="text-start mb-4 d-none d-lg-block">
                             <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Sign In</h3>
-                            <p class="text-muted small">Access your Kobby Moore Hospital account.</p>
+                            <p class="text-muted small">Access your K.M. General Hospital account.</p>
                         </div>
                         
                         <?php if (isset($_GET['error'])): ?>
@@ -85,7 +85,7 @@ if (isset($_SESSION['user'])) {
                         </form>
                         
                         <div class="text-center mt-4 pt-4 border-top border-light">
-                            <p class="text-muted mb-0 small">New to Kobby Moore Hospital? <br><a href="/signup" class="text-success fw-bold text-decoration-none fs-6 d-inline-block mt-1">Create Account</a></p>
+                            <p class="text-muted mb-0 small">New to K.M. General Hospital? <br><a href="/signup" class="text-success fw-bold text-decoration-none fs-6 d-inline-block mt-1">Create Account</a></p>
                         </div>
                     </div>
                 </div>

@@ -3,7 +3,7 @@
 session_start();
 
 $page = $_GET['page'] ?? 'home';
-$title = "Kobby Moore Hospital - Your Health, Our Priority";
+$title = "K.M. General Hospital - Your Health, Our Priority";
 
 ?>
 <!DOCTYPE html>
@@ -205,7 +205,7 @@ $title = "Kobby Moore Hospital - Your Health, Our Priority";
                         <div class="hero-card-modern shadow-xl">
                             <span class="badge-soft"><i class="bi bi-shield-check me-2"></i>Health First</span>
                             <h1 class="display-3 fw-900 text-dark mb-4" style="line-height: 1.1;">Advanced Care <br><span class="text-primary">Beautifully Delivered.</span></h1>
-                            <p class="lead text-muted mb-5" style="font-size: 1.15rem; line-height: 1.8;">Kobby Moore Hospital (KMH) merges state-of-the-art medical technology with high-touch clinical excellence. We offer automated emergency response and paperless medical records for a seamless health journey.</p>
+                            <p class="lead text-muted mb-5" style="font-size: 1.15rem; line-height: 1.8;">K.M. General Hospital (KMGH) merges state-of-the-art medical technology with high-touch clinical excellence. We offer automated emergency response and paperless medical records for a seamless health journey.</p>
                             
                             <div class="d-flex flex-wrap gap-3">
                                 <a href="/signup" class="btn btn-primary btn-lg rounded-pill px-5 py-3 shadow-lg">Start Journey &rarr;</a>
@@ -325,7 +325,7 @@ $title = "Kobby Moore Hospital - Your Health, Our Priority";
                 <div class="text-center mb-5 pb-4">
                     <span class="badge-soft">Expert Team</span>
                     <h2 class="display-5 fw-800">Our Leading Specialists</h2>
-                    <p class="text-muted mx-auto mt-3" style="max-width: 600px;">Meet the dedicated team of experts delivering world-class medical care at Kobby Moore Hospital.</p>
+                    <p class="text-muted mx-auto mt-3" style="max-width: 600px;">Meet the dedicated team of experts delivering world-class medical care at K.M. General Hospital.</p>
                 </div>
                 
                 <div class="row g-4 mt-2">
@@ -403,7 +403,7 @@ $title = "Kobby Moore Hospital - Your Health, Our Priority";
                 <div class="bg-primary rounded-5 p-5 text-center text-white position-relative overflow-hidden">
                     <div class="position-relative z-1">
                         <h2 class="display-5 fw-900 mb-4">Start Your Personalized <br>Health Journey Today</h2>
-                        <p class="mb-5 mx-auto" style="max-width: 600px; opacity: 0.9;">Join Kobby Moore Hospital and experience healthcare designed for the digital age. Secure, efficient, and deeply human.</p>
+                        <p class="mb-5 mx-auto" style="max-width: 600px; opacity: 0.9;">Join K.M. General Hospital and experience healthcare designed for the digital age. Secure, efficient, and deeply human.</p>
                         <a href="/signup" class="btn btn-light btn-lg rounded-pill px-5 py-3 fw-bold text-primary">Get Started Now &rarr;</a>
                     </div>
                 </div>
@@ -416,8 +416,8 @@ $title = "Kobby Moore Hospital - Your Health, Our Priority";
             <div class="row g-5 mb-5 align-items-center">
                 <div class="col-lg-4 text-center text-lg-start">
                     <a class="navbar-brand fw-bold d-flex align-items-center justify-content-center justify-content-lg-start mb-4" href="/">
-                        <img src="/assets/img/logo.png" alt="KM Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
-                        <span class="text-dark fs-4">Kobby Moore Hospital</span>
+                        <img src="/assets/img/logo.png" alt="KMG Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
+                        <span class="text-dark fs-4">K.M. General Hospital</span>
                     </a>
                     <p class="text-muted small">The Best Medical and Treatment Center in the heart of Ghana. Delivering excellence in care through innovation and dedication.</p>
                 </div>
@@ -436,7 +436,7 @@ $title = "Kobby Moore Hospital - Your Health, Our Priority";
                 </div>
             </div>
             <div class="border-top pt-5 text-center">
-                <p class="text-muted small mb-0">&copy; <?php echo date('Y'); ?> Kobby Moore Hospital. Registered Ghana Medical Association Affiliate.</p>
+                <p class="text-muted small mb-0">&copy; <?php echo date('Y'); ?> K.M. General Hospital. Registered Ghana Medical Association Affiliate.</p>
             </div>
         </div>
     </footer>

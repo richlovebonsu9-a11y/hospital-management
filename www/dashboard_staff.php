@@ -171,7 +171,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
             <div class="bg-primary text-white rounded-circle p-2 me-3 shadow-sm">
                 <i class="bi bi-hospital-fill fs-4"></i>
             </div>
-            <h4 class="fw-bold mb-0 text-white">Kobby Moore Hospital</h4>
+            <h4 class="fw-bold mb-0 text-white">K.M. General Hospital</h4>
         </div>
         
         <nav>

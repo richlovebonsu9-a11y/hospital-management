@@ -1,5 +1,5 @@
 <?php
-// Guardian Dashboard - Kobby Moore Hospital
+// Guardian Dashboard - K.M. General Hospital
 session_start();
 require_once __DIR__ . '/../src/lib/Supabase.php';
 use App\Lib\Supabase;
@@ -40,7 +40,7 @@ if ($pMapRes['status'] === 200) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guardian Dashboard - Kobby Moore Hospital</title>
+    <title>Guardian Dashboard - K.M. General Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
@@ -53,8 +53,8 @@ if ($pMapRes['status'] === 200) {
     <div class="sidebar-overlay" onclick="toggleSidebar()"></div>
     <div class="sidebar p-4">
         <div class="d-flex align-items-center mb-5">
-            <img src="/assets/img/logo.png" alt="KM Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
-            <h4 class="fw-bold mb-0 text-white">Kobby Moore Hospital</h4>
+            <img src="/assets/img/logo.png" alt="KMG Logo" style="width: 36px; height: 36px; object-fit: contain;" class="me-2 rounded-3 shadow-sm">
+            <h4 class="fw-bold mb-0 text-white">K.M. General Hospital</h4>
         </div>
 
         <nav id="sidebarMenu">
@@ -74,7 +74,7 @@ if ($pMapRes['status'] === 200) {
             <button class="btn btn-light bg-white border-0 rounded-circle shadow-sm p-2 me-3" onclick="toggleSidebar()">
                 <i class="bi bi-list fs-4 text-primary"></i>
             </button>
-            <h4 class="fw-bold mb-0 text-primary">Kobby Moore Hospital</h4>
+            <h4 class="fw-bold mb-0 text-primary">K.M. General Hospital</h4>
         </div>
 
         <header class="mb-5">

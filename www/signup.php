@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - Kobby Moore Hospital</title>
+    <title>Sign Up - K.M. General Hospital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/style.css">
@@ -40,12 +40,12 @@
                     <!-- Right Side: Signup Form -->
                     <div class="col-lg-7 p-4 p-md-5">
                         <div class="text-center mb-5 d-lg-none">
-                            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Join Kobby Moore Hospital</h3>
+                            <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Join K.M. General Hospital</h3>
                             <p class="text-muted small">Register to experience modern healthcare.</p>
                         </div>
                         <div class="text-start mb-4 d-none d-lg-block">
                             <h3 class="fw-bold text-dark mb-1" style="letter-spacing: -0.5px;">Create an Account</h3>
-                            <p class="text-muted small">Join Kobby Moore Hospital today.</p>
+                            <p class="text-muted small">Join K.M. General Hospital today.</p>
                         </div>
                         
                         <form action="/api/auth/signup" method="POST" autocomplete="off">
