@@ -326,7 +326,7 @@ if ($role === 'guardian' && $userId) {
                 </div>
 
                 <div class="glass-card p-4 p-md-5 mt-4">
-                    <form action="/api/emergency/report" method="POST">
+                    <form id="emergencyForm" action="/api/emergency/report.php" method="POST">
                         <?php if ($role === 'guardian' && !empty($guardianLinks)): ?>
                         <div class="mb-5 info-card-industrial p-4 shadow-sm">
                             <label class="form-label mb-3"><i class="bi bi-person-check-fill orange-text me-2"></i> TARGET PATIENT IDENTIFICATION</label>
@@ -510,308 +510,326 @@ if ($role === 'guardian' && $userId) {
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Media Recorder Logic
-        let mediaRecorder;
-        let audioChunks = [];
-        const recordBtn = document.getElementById('recordBtn');
-        const recordStatus = document.getElementById('recordStatus');
-        const playbackContainer = document.getElementById('playbackContainer');
-        const audioPlayback = document.getElementById('audioPlayback');
-        const voiceInput = document.getElementById('voiceNoteBase64');
-        const recordingIndicator = document.getElementById('recordingIndicator');
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("SOS Environment Initialized...");
 
-        // Continuous Live Location Tracking
-        const locInput = document.getElementById('liveLocation');
-        const gpsInput = document.getElementById('gpsInput');
-        const gpsLabel = document.getElementById('gpsLabel');
-        const locStatus = document.getElementById('locationStatus');
-        const locStatusText = document.getElementById('locationStatusText');
-        const pulseDot = locStatus.querySelector('.pulse-dot');
-        let watchId = null;
+            // Media Recorder Logic
+            let mediaRecorder;
+            let audioChunks = [];
+            const recordBtn = document.getElementById('recordBtn');
+            const recordStatus = document.getElementById('recordStatus');
+            const playbackContainer = document.getElementById('playbackContainer');
+            const audioPlayback = document.getElementById('audioPlayback');
+            const voiceInput = document.getElementById('voiceNoteBase64');
+            const recordingIndicator = document.getElementById('recordingIndicator');
 
-        function updateLocationStatus(state, msg) {
-            locStatus.className = 'location-indicator ' + state;
-            locStatusText.innerText = msg;
-            pulseDot.className = 'pulse-dot ' + (state === 'status-secured' ? 'pulse-secured' : (state === 'status-searching' ? 'pulse-searching' : ''));
-            
-            if (state === 'status-secured') {
-                gpsInput.required = false;
-                gpsInput.placeholder = "Optional (Live Location Active)";
-                gpsLabel.innerHTML = '<i class="bi bi-geo-alt-fill text-success me-2"></i> 4. EMERGENCY LOCATION <span class="badge bg-success ms-2">SECURED</span>';
-            } else if (state === 'status-denied') {
-                gpsInput.required = true;
-                gpsInput.placeholder = "REQUIRED (AK-485-9323)";
-                gpsLabel.innerHTML = '<i class="bi bi-geo-alt-fill text-danger me-2"></i> 4. EMERGENCY LOCATION <span class="badge bg-danger ms-2">MANDATORY</span>';
-            }
-        }
+            // Continuous Live Location Tracking
+            const locInput = document.getElementById('liveLocation');
+            const gpsInput = document.getElementById('gpsInput');
+            const gpsLabel = document.getElementById('gpsLabel');
+            const locStatus = document.getElementById('locationStatus');
+            const locStatusText = document.getElementById('locationStatusText');
+            const pulseDot = locStatus.querySelector('.pulse-dot');
+            let watchId = null;
 
-        if (navigator.geolocation) {
-            watchId = navigator.geolocation.watchPosition(
-                pos => {
-                    const coords = pos.coords.latitude + ',' + pos.coords.longitude;
-                    locInput.value = coords;
-                    updateLocationStatus('status-secured', 'POSITION SECURED');
-                    console.log('Location Updated:', coords);
-                },
-                err => {
-                    console.warn('Location tracking failed', err);
-                    if (err.code === 1) { // Permission Denied
-                        updateLocationStatus('status-denied', 'GPS ACCESS DENIED');
-                    } else {
-                        updateLocationStatus('status-searching', 'GPS SEARCHING...');
-                    }
-                },
-                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-            );
-        } else {
-            updateLocationStatus('status-denied', 'GPS NOT SUPPORTED');
-        }
-
-        // Photo/Video File Handling
-        const mediaInput = document.getElementById('mediaUploadInput');
-        const mediaBase64Input = document.getElementById('mediaBase64');
-        const mediaSummary = document.getElementById('mediaSummary');
-        const mediaSummaryText = document.getElementById('mediaSummaryText');
-        const clearMediaBtn = document.getElementById('clearMediaBtn');
-
-        function updateMediaPreview(source, filename = "Scene Capture Attached") {
-            mediaBase64Input.value = source;
-            mediaSummaryText.innerText = filename;
-            mediaSummary.classList.remove('d-none');
-        }
-
-        mediaInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) { return; }
-            if (file.size > 5 * 1024 * 1024) { // 5MB limit
-                Swal.fire('File Too Large', 'Please keep photo/video under 5MB for rapid transmission.', 'warning');
-                mediaInput.value = '';
-                return;
-            }
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onloadend = () => { 
-                updateMediaPreview(reader.result, file.name);
-            };
-        });
-
-        clearMediaBtn.onclick = () => {
-            mediaBase64Input.value = '';
-            mediaInput.value = '';
-            mediaSummary.classList.add('d-none');
-        };
-
-        // Live Camera Logic
-        const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
-        const video = document.getElementById('cameraStream');
-        const canvas = document.getElementById('cameraCanvas');
-        const imgPreview = document.getElementById('snapshotPreview');
-        const shutterBtn = document.getElementById('shutterBtn');
-        const retakeBtn = document.getElementById('retakeBtn');
-        const usePhotoBtn = document.getElementById('usePhotoBtn');
-        const captureState = document.getElementById('captureState');
-        const previewState = document.getElementById('previewState');
-        let currentStream = null;
-
-        document.getElementById('startCameraBtn').onclick = async () => {
-            captureState.classList.remove('d-none');
-            previewState.classList.add('d-none');
-            video.style.display = 'block';
-            imgPreview.style.display = 'none';
-            
-            try {
-                currentStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'environment' }, 
-                    audio: false 
-                });
-                video.srcObject = currentStream;
-                cameraModal.show();
-            } catch (err) {
-                console.error("Camera access failed", err);
-                Swal.fire({
-                    title: 'Camera Access Denied',
-                    text: 'We need camera access to capture emergency evidence. Please check your browser permissions.',
-                    icon: 'error',
-                    background: '#1E293B',
-                    color: '#fff'
-                });
-            }
-        };
-
-        shutterBtn.onclick = () => {
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-            imgPreview.src = dataUrl;
-            
-            video.style.display = 'none';
-            imgPreview.style.display = 'block';
-            captureState.classList.add('d-none');
-            previewState.classList.remove('d-none');
-        };
-
-        retakeBtn.onclick = () => {
-            video.style.display = 'block';
-            imgPreview.style.display = 'none';
-            captureState.classList.remove('d-none');
-            previewState.classList.add('d-none');
-        };
-
-        usePhotoBtn.onclick = () => {
-            updateMediaPreview(imgPreview.src, "Live Camera Snapshot");
-            stopCamera();
-            cameraModal.hide();
-        };
-
-        function stopCamera() {
-            if (currentStream) {
-                currentStream.getTracks().forEach(track => track.stop());
-                currentStream = null;
-            }
-        }
-
-        document.getElementById('cameraModal').addEventListener('hidden.bs.modal', stopCamera);
-        document.getElementById('closeCameraBtn').onclick = stopCamera;
-
-        recordBtn.onclick = async () => {
-            if (mediaRecorder && mediaRecorder.state === "recording") {
-                mediaRecorder.stop();
-                return;
-            }
-
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-
-                mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
-                mediaRecorder.onstart = () => {
-                    recordBtn.classList.replace('btn-outline-danger', 'btn-danger');
-                    recordBtn.classList.add('pulse-highlight');
-                    recordBtn.innerHTML = '<i class="bi bi-stop-fill fs-4"></i>';
-                    recordStatus.innerText = "Recording... Stop when done.";
-                    recordingIndicator.classList.remove('d-none');
-                };
-                mediaRecorder.onstop = async () => {
-                    recordBtn.classList.replace('btn-danger', 'btn-outline-danger');
-                    recordBtn.classList.remove('pulse-highlight');
-                    recordBtn.innerHTML = '<i class="bi bi-mic-fill fs-4"></i>';
-                    recordingIndicator.classList.add('d-none');
-                    
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const reader = new FileReader();
-                    reader.readAsDataURL(audioBlob);
-                    reader.onloadend = () => {
-                        const base64data = reader.result;
-                        voiceInput.value = base64data;
-                        audioPlayback.src = base64data;
-                        playbackContainer.classList.remove('d-none');
-                        recordStatus.innerText = "Voice note attached successfully.";
-                    };
-                    
-                    stream.getTracks().forEach(track => track.stop());
-                };
-
-                mediaRecorder.start();
-            } catch (err) {
-                console.error("Mic Error:", err);
-                recordStatus.innerText = "Permissions required.";
-                Swal.fire({ title: 'Microphone Needed', text: 'Help us hear you. Please enable mic access.', icon: 'info', background: '#1E293B', color: '#fff' });
-            }
-        };
-
-        // Other Type Handler
-        const typeSelect = document.querySelector('select[name="emergency_type"]');
-        const patientSelect = document.querySelector('select[name="patient_id"]');
-        const gpsInput = document.querySelector('input[name="ghana_post_gps"]');
-        const symptomsLabel = document.getElementById('symptomsLabel');
-        const symptomsTextarea = document.getElementById('symptomsTextarea');
-
-        if (patientSelect) {
-            patientSelect.onchange = function() {
-                const selectedOption = this.options[this.selectedIndex];
-                const gps = selectedOption.getAttribute('data-gps');
-                if (gps) {
-                    gpsInput.value = gps;
-                    // Visual feedback
-                    gpsInput.classList.add('border-info');
-                    setTimeout(() => gpsInput.classList.remove('border-info'), 1000);
-                }
-            };
-        }
-
-        typeSelect.onchange = function() {
-            if (this.value === 'other') {
-                symptomsLabel.innerHTML = '3. Describe Emergency <span class="badge bg-danger ms-2">REQUIRED</span>';
-                symptomsTextarea.placeholder = "REQUIRED: Please describe the situation in detail. This request will be reviewed by our clinical administrator immediately.";
-                symptomsTextarea.required = true;
-                symptomsTextarea.focus();
-            } else {
-                symptomsLabel.innerText = '3. Primary Symptoms / Details';
-                symptomsTextarea.placeholder = "Briefly describe what is happening... Stay calm, type clearly. (Optional for this type)";
-                symptomsTextarea.required = false;
-            }
-        };
-
-        document.querySelector('form').onsubmit = async function(e) {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.disabled = true;
-            btn.querySelector('.normal-text').classList.add('d-none');
-            btn.querySelector('.loading-text').classList.remove('d-none');
-
-            try {
-                const formData = new FormData(this);
-                const res = await fetch('/api/emergency/report', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
+            function updateLocationStatus(state, msg) {
+                if (!locStatus || !locStatusText || !pulseDot) return;
+                locStatus.className = 'location-indicator ' + state;
+                locStatusText.innerText = msg;
+                pulseDot.className = 'pulse-dot ' + (state === 'status-secured' ? 'pulse-secured' : (state === 'status-searching' ? 'pulse-searching' : ''));
                 
-                if (data.success) {
-                    Swal.fire({
-                        title: 'Response Team Triggered!',
-                        html: '<p class="lead text-white-50">Please remain calm.</p><p>Specialized help has been dispatched. You are now being redirected to the <b>Live Emergency Tracker</b> for first-aid guidance and responder location.</p>',
-                        icon: 'success',
-                        background: '#1E293B',
-                        color: '#fff',
-                        iconColor: '#10B981',
-                        confirmButtonColor: '#10B981',
-                        confirmButtonText: 'Open Live Tracker',
-                        allowOutsideClick: false
-                    }).then(() => {
-                        window.location.href = '/emergency_tracker?id=' + (data.emergency_id || '');
-                    });
-                } else {
-                    Swal.fire({
-                        title: 'Dispatch Issue',
-                        text: data.error || 'There was an issue transmitting the emergency pulse. Please try again immediately.',
-                        icon: 'error',
-                        background: '#1E293B',
-                        color: '#fff',
-                        confirmButtonColor: '#EF4444'
-                    });
-                    btn.disabled = false;
-                    btn.querySelector('.normal-text').classList.remove('d-none');
-                    btn.querySelector('.loading-text').classList.add('d-none');
+                if (state === 'status-secured') {
+                    gpsInput.required = false;
+                    gpsInput.placeholder = "Optional (Live Location Active)";
+                    gpsLabel.innerHTML = '<i class="bi bi-geo-alt-fill text-success me-2"></i> 4. EMERGENCY LOCATION <span class="badge bg-success ms-2">SECURED</span>';
+                } else if (state === 'status-denied') {
+                    gpsInput.required = true;
+                    gpsInput.placeholder = "REQUIRED (AK-485-9323)";
+                    gpsLabel.innerHTML = '<i class="bi bi-geo-alt-fill text-danger me-2"></i> 4. EMERGENCY LOCATION <span class="badge bg-danger ms-2">MANDATORY</span>';
                 }
-            } catch (err) {
-                Swal.fire({
-                    title: 'Connection Dropped',
-                    text: 'We could not reach the server. Please check your signal and hit dispatch again.',
-                    icon: 'warning',
-                    background: '#1E293B',
-                    color: '#fff',
-                    confirmButtonColor: '#EF4444'
-                });
-                btn.disabled = false;
-                btn.querySelector('.normal-text').classList.remove('d-none');
-                btn.querySelector('.loading-text').classList.add('d-none');
             }
-        };
+
+            if (navigator.geolocation) {
+                watchId = navigator.geolocation.watchPosition(
+                    pos => {
+                        const coords = pos.coords.latitude + ',' + pos.coords.longitude;
+                        locInput.value = coords;
+                        updateLocationStatus('status-secured', 'POSITION SECURED');
+                    },
+                    err => {
+                        console.warn('Location tracking failed', err);
+                        if (err.code === 1) { // Permission Denied
+                            updateLocationStatus('status-denied', 'GPS ACCESS DENIED');
+                        } else {
+                            updateLocationStatus('status-searching', 'GPS SEARCHING...');
+                        }
+                    },
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
+            } else {
+                updateLocationStatus('status-denied', 'GPS NOT SUPPORTED');
+            }
+
+            // Photo/Video File Handling
+            const mediaInput = document.getElementById('mediaUploadInput');
+            const mediaBase64Input = document.getElementById('mediaBase64');
+            const mediaSummary = document.getElementById('mediaSummary');
+            const mediaSummaryText = document.getElementById('mediaSummaryText');
+            const clearMediaBtn = document.getElementById('clearMediaBtn');
+
+            function updateMediaPreview(source, filename = "Scene Capture Attached") {
+                mediaBase64Input.value = source;
+                mediaSummaryText.innerText = filename;
+                mediaSummary.classList.remove('d-none');
+            }
+
+            if (mediaInput) {
+                mediaInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (!file) { return; }
+                    if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                        Swal.fire('File Too Large', 'Please keep photo/video under 5MB for rapid transmission.', 'warning');
+                        mediaInput.value = '';
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.readAsDataURL(file);
+                    reader.onloadend = () => { 
+                        updateMediaPreview(reader.result, file.name);
+                    };
+                });
+            }
+
+            if (clearMediaBtn) {
+                clearMediaBtn.onclick = () => {
+                    mediaBase64Input.value = '';
+                    mediaInput.value = '';
+                    mediaSummary.classList.add('d-none');
+                };
+            }
+
+            // Live Camera Logic
+            const cameraModalEl = document.getElementById('cameraModal');
+            const cameraModal = cameraModalEl ? new bootstrap.Modal(cameraModalEl) : null;
+            const video = document.getElementById('cameraStream');
+            const canvas = document.getElementById('cameraCanvas');
+            const imgPreview = document.getElementById('snapshotPreview');
+            const shutterBtn = document.getElementById('shutterBtn');
+            const retakeBtn = document.getElementById('retakeBtn');
+            const usePhotoBtn = document.getElementById('usePhotoBtn');
+            const captureState = document.getElementById('captureState');
+            const previewState = document.getElementById('previewState');
+            let currentStream = null;
+
+            if (document.getElementById('startCameraBtn')) {
+                document.getElementById('startCameraBtn').onclick = async () => {
+                    if (!cameraModal) return;
+                    captureState.classList.remove('d-none');
+                    previewState.classList.add('d-none');
+                    video.style.display = 'block';
+                    imgPreview.style.display = 'none';
+                    
+                    try {
+                        currentStream = await navigator.mediaDevices.getUserMedia({ 
+                            video: { facingMode: 'environment' }, 
+                            audio: false 
+                        });
+                        video.srcObject = currentStream;
+                        cameraModal.show();
+                    } catch (err) {
+                        console.error("Camera access failed", err);
+                        Swal.fire({
+                            title: 'Camera Access Denied',
+                            text: 'We need camera access to capture emergency evidence. Please check your browser permissions.',
+                            icon: 'error',
+                            background: '#1E293B',
+                            color: '#fff'
+                        });
+                    }
+                };
+            }
+
+            if (shutterBtn) {
+                shutterBtn.onclick = () => {
+                    const context = canvas.getContext('2d');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    imgPreview.src = dataUrl;
+                    
+                    video.style.display = 'none';
+                    imgPreview.style.display = 'block';
+                    captureState.classList.add('d-none');
+                    previewState.classList.remove('d-none');
+                };
+            }
+
+            if (retakeBtn) {
+                retakeBtn.onclick = () => {
+                    video.style.display = 'block';
+                    imgPreview.style.display = 'none';
+                    captureState.classList.remove('d-none');
+                    previewState.classList.add('d-none');
+                };
+            }
+
+            if (usePhotoBtn) {
+                usePhotoBtn.onclick = () => {
+                    updateMediaPreview(imgPreview.src, "Live Camera Snapshot");
+                    stopCamera();
+                    cameraModal.hide();
+                };
+            }
+
+            function stopCamera() {
+                if (currentStream) {
+                    currentStream.getTracks().forEach(track => track.stop());
+                    currentStream = null;
+                }
+            }
+
+            if (cameraModalEl) {
+                cameraModalEl.addEventListener('hidden.bs.modal', stopCamera);
+            }
+            if (document.getElementById('closeCameraBtn')) {
+                document.getElementById('closeCameraBtn').onclick = stopCamera;
+            }
+
+            if (recordBtn) {
+                recordBtn.onclick = async () => {
+                    if (mediaRecorder && mediaRecorder.state === "recording") {
+                        mediaRecorder.stop();
+                        return;
+                    }
+
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        mediaRecorder = new MediaRecorder(stream);
+                        audioChunks = [];
+
+                        mediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
+                        mediaRecorder.onstart = () => {
+                            recordBtn.classList.replace('btn-outline-danger', 'btn-danger');
+                            recordBtn.classList.add('pulse-highlight');
+                            recordBtn.innerHTML = '<i class="bi bi-stop-fill fs-4"></i>';
+                            recordStatus.innerText = "Recording... Stop when done.";
+                            recordingIndicator.classList.remove('d-none');
+                        };
+                        mediaRecorder.onstop = async () => {
+                            recordBtn.classList.replace('btn-danger', 'btn-outline-danger');
+                            recordBtn.classList.remove('pulse-highlight');
+                            recordBtn.innerHTML = '<i class="bi bi-mic-fill fs-4"></i>';
+                            recordingIndicator.classList.add('d-none');
+                            
+                            const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                            const reader = new FileReader();
+                            reader.readAsDataURL(audioBlob);
+                            reader.onloadend = () => {
+                                const base64data = reader.result;
+                                voiceInput.value = base64data;
+                                audioPlayback.src = base64data;
+                                playbackContainer.classList.remove('d-none');
+                                recordStatus.innerText = "Voice note attached successfully.";
+                            };
+                            
+                            stream.getTracks().forEach(track => track.stop());
+                        };
+
+                        mediaRecorder.start();
+                    } catch (err) {
+                        console.error("Mic Error:", err);
+                        recordStatus.innerText = "Permissions required.";
+                        Swal.fire({ title: 'Microphone Needed', text: 'Help us hear you. Please enable mic access.', icon: 'info', background: '#1E293B', color: '#fff' });
+                    }
+                };
+            }
+
+            // Other Type Handler
+            const typeSelect = document.querySelector('select[name="emergency_type"]');
+            const patientSelect = document.querySelector('select[name="patient_id"]');
+            const gpsInputTarget = document.querySelector('input[name="ghana_post_gps"]');
+            const symptomsLabel = document.getElementById('symptomsLabel');
+            const symptomsTextarea = document.getElementById('symptomsTextarea');
+
+            if (patientSelect) {
+                patientSelect.onchange = function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const gps = selectedOption.getAttribute('data-gps');
+                    if (gps && gpsInputTarget) {
+                        gpsInputTarget.value = gps;
+                        gpsInputTarget.classList.add('border-info');
+                        setTimeout(() => gpsInputTarget.classList.remove('border-info'), 1000);
+                    }
+                };
+            }
+
+            if (typeSelect) {
+                typeSelect.onchange = function() {
+                    if (this.value === 'other') {
+                        symptomsLabel.innerHTML = '3. Describe Emergency <span class="badge bg-danger ms-2">REQUIRED</span>';
+                        symptomsTextarea.placeholder = "REQUIRED: Please describe the situation in detail.";
+                        symptomsTextarea.required = true;
+                        symptomsTextarea.focus();
+                    } else {
+                        symptomsLabel.innerText = '3. Primary Symptoms / Details';
+                        symptomsTextarea.placeholder = "Briefly describe what is happening... (Optional for this type)";
+                        symptomsTextarea.required = false;
+                    }
+                };
+            }
+
+            const mainForm = document.getElementById('emergencyForm');
+            if (mainForm) {
+                mainForm.onsubmit = async function(e) {
+                    e.preventDefault();
+                    const btn = document.getElementById('submitBtn');
+                    btn.disabled = true;
+                    btn.querySelector('.normal-text').classList.add('d-none');
+                    btn.querySelector('.loading-text').classList.remove('d-none');
+
+                    try {
+                        const formData = new FormData(this);
+                        const res = await fetch('/api/emergency/report.php', {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await res.json();
+                        
+                        if (data.success) {
+                            Swal.fire({
+                                title: 'Response Team Triggered!',
+                                html: '<p class="lead text-white-50">Please remain calm.</p><p>Specialized help has been dispatched. You are now being redirected to the <b>Live Emergency Tracker</b>.</p>',
+                                icon: 'success',
+                                background: '#1E293B',
+                                color: '#fff',
+                                confirmButtonColor: '#10B981',
+                                confirmButtonText: 'Open Live Tracker',
+                                allowOutsideClick: false
+                            }).then(() => {
+                                window.location.href = '/emergency_tracker?id=' + (data.emergency_id || '');
+                            });
+                        } else {
+                            throw new Error(data.error || 'Failed to transmit message.');
+                        }
+                    } catch (err) {
+                        Swal.fire({
+                            title: 'Dispatch Issue',
+                            text: err.message || 'We could not reach the server. Please check your signal.',
+                            icon: 'error',
+                            background: '#1E293B',
+                            color: '#fff',
+                            confirmButtonColor: '#EF4444'
+                        });
+                        btn.disabled = false;
+                        btn.querySelector('.normal-text').classList.remove('d-none');
+                        btn.querySelector('.loading-text').classList.add('d-none');
+                    }
+                };
+            }
+        });
+    </script>
     </script>
     <script src="/assets/js/auto_dismiss.js"></script>
 </body>

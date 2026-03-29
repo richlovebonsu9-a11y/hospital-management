@@ -143,7 +143,7 @@ session_start();
         <div class="row justify-content-center">
             <div class="col-md-7">
                 <div class="glass-card p-4 p-md-5">
-                    <form id="emergencyForm">
+                    <form id="emergencyForm" action="/api/emergency/report.php" method="POST">
                         <!-- Guest Identity -->
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
@@ -286,15 +286,8 @@ session_start();
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Location capturing
-        const locInput = document.getElementById('liveLocation');
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => { locInput.value = pos.coords.latitude + ',' + pos.coords.longitude; },
-                err => { console.warn('Location access denied', err); },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-            );
-        }
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log("Guest SOS Initialized...");
 
         // Media Recorder Logic
         let mediaRecorder;
@@ -554,6 +547,7 @@ session_start();
                 btn.querySelector('.loading-text').classList.add('d-none');
             }
         };
+    });
     </script>
 </body>
 </html>
