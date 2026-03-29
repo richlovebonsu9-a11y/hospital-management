@@ -93,6 +93,38 @@ session_start();
             font-size: 1.5rem; color: white;
             transition: 0.2s; margin: 0 auto;
         }
+
+        /* Location Status Styles */
+        .location-indicator {
+            font-size: 0.75rem;
+            padding: 2px 10px;
+            border-radius: 12px;
+            display: inline-flex;
+            align-items: center;
+            font-weight: 600;
+        }
+        .status-searching { background: #f1f5f9; color: #64748b; }
+        .status-secured { background: #f0fdf4; color: #16a34a; border: 1px solid #dcfce7; }
+        .status-denied { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+        
+        .pulse-dot {
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .pulse-searching { background: #64748b; animation: pulse-gray 1.5s infinite; }
+        .pulse-secured { background: #16a34a; animation: pulse-green 1.5s infinite; }
+        
+        @keyframes pulse-gray {
+            0% { box-shadow: 0 0 0 0 rgba(100, 116, 139, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(100, 116, 139, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(100, 116, 139, 0); }
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.4); }
+            70% { box-shadow: 0 0 0 8px rgba(22, 163, 74, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0); }
+        }
     </style>
 </head>
 <body>
@@ -147,8 +179,8 @@ session_start();
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">Emergency Details</label>
-                            <textarea name="symptoms" class="form-control" rows="3" placeholder="Describe what has happened..." required></textarea>
+                            <label id="symptomsLabel" class="form-label">Emergency Details</label>
+                            <textarea name="symptoms" id="symptomsTextarea" class="form-control" rows="3" placeholder="Describe what has happened..."></textarea>
                         </div>
 
                         <div class="mb-4">
@@ -192,13 +224,19 @@ session_start();
                         </div>
 
                         <div class="mb-4">
-                            <label class="form-label">GhanaPostGPS / Location Note</label>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <label id="gpsLabel" class="form-label mb-0">GhanaPostGPS / Location Note</label>
+                                <div id="locationStatus" class="location-indicator status-searching">
+                                    <div class="pulse-dot pulse-searching"></div>
+                                    <span id="locationStatusText">SEARCHING GPS...</span>
+                                </div>
+                            </div>
                             <div class="input-group">
                                 <span class="input-group-text bg-white border-end-0"><i class="bi bi-geo-alt-fill text-danger"></i></span>
-                                <input type="text" name="ghana_post_gps" class="form-control border-start-0" placeholder="e.g. GA-123-4567 or Area Name" required>
+                                <input type="text" name="ghana_post_gps" id="gpsInput" class="form-control border-start-0" placeholder="e.g. GA-123-4567 or Area Name" required>
                             </div>
                             <input type="hidden" name="live_location" id="liveLocation">
-                            <small class="text-muted mt-2 d-block"><i class="bi bi-pin-map me-1"></i> We will also capture your GPS location automatically.</small>
+                            <small class="text-muted mt-2 d-block"><i class="bi bi-pin-map me-1"></i> Don't know your GPS? Our system is auto-detecting your live coordinates.</small>
                         </div>
 
                         <div class="d-grid mt-5">
@@ -411,6 +449,70 @@ session_start();
                 Swal.fire({ title: 'Microphone Needed', text: 'Please enable microphone access to record voice notes.', icon: 'info' });
             }
         };
+
+        // Emergency Type Dynamic Validation Logic
+        const typeSelect = document.querySelector('select[name="emergency_type"]');
+        const symptomsLabel = document.getElementById('symptomsLabel');
+        const symptomsTextarea = document.getElementById('symptomsTextarea');
+
+        typeSelect.onchange = function() {
+            if (this.value === 'other') {
+                symptomsLabel.innerHTML = 'Emergency Details <span class="badge bg-danger ms-2">REQUIRED</span>';
+                symptomsTextarea.placeholder = "REQUIRED: Please describe the situation in detail.";
+                symptomsTextarea.required = true;
+                symptomsTextarea.focus();
+            } else {
+                symptomsLabel.innerHTML = 'Emergency Details <span class="badge bg-info-subtle text-info-emphasis ms-2 fs-xs">OPTIONAL</span>';
+                symptomsTextarea.placeholder = "Describe what has happened... (Optional for this type)";
+                symptomsTextarea.required = false;
+            }
+        };
+
+        // Trigger on load in case of browser auto-fill/refresh
+        if (typeSelect.value) typeSelect.dispatchEvent(new Event('change'));
+
+        // Continuous Live Location Tracking Logic
+        const locInput = document.getElementById('liveLocation');
+        const gpsInput = document.getElementById('gpsInput');
+        const gpsLabel = document.getElementById('gpsLabel');
+        const locStatus = document.getElementById('locationStatus');
+        const locStatusText = document.getElementById('locationStatusText');
+        const pulseDot = locStatus.querySelector('.pulse-dot');
+
+        function updateLocationStatus(state, msg) {
+            locStatus.className = 'location-indicator ' + state;
+            locStatusText.innerText = msg;
+            pulseDot.className = 'pulse-dot ' + (state === 'status-secured' ? 'pulse-secured' : (state === 'status-searching' ? 'pulse-searching' : ''));
+            
+            if (state === 'status-secured') {
+                gpsInput.required = false;
+                gpsInput.placeholder = "Optional (Live Location Active)";
+                gpsLabel.innerHTML = 'Location Address <span class="badge bg-success-subtle text-success ms-2">SECURED</span>';
+            } else if (state === 'status-denied') {
+                gpsInput.required = true;
+                gpsInput.placeholder = "REQUIRED (e.g. GA-123-4567)";
+                gpsLabel.innerHTML = 'Location Address <span class="badge bg-danger-subtle text-danger ms-2">MANDATORY</span>';
+            }
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                pos => {
+                    const coords = pos.coords.latitude + ',' + pos.coords.longitude;
+                    locInput.value = coords;
+                    updateLocationStatus('status-secured', 'POSITION SECURED');
+                    console.log('Guest Location Updated:', coords);
+                },
+                err => {
+                    console.warn('Guest tracking failed', err);
+                    if (err.code === 1) updateLocationStatus('status-denied', 'GPS DENIED');
+                    else updateLocationStatus('status-searching', 'GPS SEARCHING...');
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        } else {
+            updateLocationStatus('status-denied', 'GPS NOT SUPPORTED');
+        }
 
         document.getElementById('emergencyForm').onsubmit = async function(e) {
             e.preventDefault();

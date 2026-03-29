@@ -20,9 +20,24 @@ $guestName = $_POST['guest_name'] ?? 'Anonymous';
 $guestPhone = $_POST['guest_phone'] ?? 'N/A';
 
 $emergencyType = $_POST['emergency_type'] ?? 'general';
-$gps = $_POST['ghana_post_gps'] ?? 'N/A';
-$symptoms = $_POST['symptoms'] ?? 'No symptoms reported';
+$gps = trim($_POST['ghana_post_gps'] ?? '');
+$liveLocation = trim($_POST['live_location'] ?? '');
+$symptomsRaw = $_POST['symptoms'] ?? '';
+$symptoms = empty(trim($symptomsRaw)) ? 'No symptoms reported' : $symptomsRaw;
 $severity = $_POST['severity'] ?? 'medium';
+
+if (empty($gps) && empty($liveLocation)) {
+    echo json_encode(['success' => false, 'error' => 'Location data is required. Please provide a GPS address or enable your device location.']);
+    exit;
+}
+
+if (!empty($liveLocation)) {
+    if (empty($gps)) {
+        $gps = "[GPS COORDINATES: " . $liveLocation . "]";
+    } else {
+        $gps .= " ||LOC|| " . $liveLocation;
+    }
+}
 
 // Fetch patient name if reporter is a guardian and reporting for someone else
 $patientName = null;
@@ -73,10 +88,7 @@ if ($emergencyType !== 'other') {
     }
 }
 
-$liveLocation = $_POST['live_location'] ?? '';
-if (!empty($liveLocation)) {
-    $gps .= " ||LOC|| " . $liveLocation;
-}
+// (Location handling moved to top for early validation)
 
 // Workaround: Embed voice note Base64 and Media into symptoms field
 $embeddedSymptoms = $symptoms;

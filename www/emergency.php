@@ -210,6 +210,39 @@ if ($role === 'guardian' && $userId) {
 
         .orange-text { color: var(--rescue-orange); }
 
+        /* Location Status Styles */
+        .location-indicator {
+            font-size: 0.8rem;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.3s;
+        }
+        .status-searching { background: rgba(255,255,255,0.1); color: #94A3B8; }
+        .status-secured { background: rgba(34,197,94,0.1); color: #22C55E; border: 1px solid rgba(34,197,94,0.2); }
+        .status-denied { background: rgba(239,68,68,0.1); color: #EF4444; border: 1px solid rgba(239,68,68,0.2); }
+        
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .pulse-searching { background: #94A3B8; animation: pulse-gray 1.5s infinite; }
+        .pulse-secured { background: #22C55E; animation: pulse-green 1.5s infinite; }
+        
+        @keyframes pulse-gray {
+            0% { box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(148, 163, 184, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(148, 163, 184, 0); }
+        }
+        @keyframes pulse-green {
+            0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(34, 197, 94, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
         /* Camera UI Elements */
         #cameraModal .modal-content {
             background: #020617;
@@ -360,7 +393,7 @@ if ($role === 'guardian' && $userId) {
 
                         <div class="mb-4">
                             <label id="symptomsLabel" class="form-label fw-bold text-uppercase">3. Primary Symptoms / Details</label>
-                            <textarea name="symptoms" id="symptomsTextarea" class="form-control p-4" rows="3" placeholder="Briefly describe what is happening... Stay calm, type clearly." required></textarea>
+                            <textarea name="symptoms" id="symptomsTextarea" class="form-control p-4" rows="3" placeholder="Briefly describe what is happening... Stay calm, type clearly."></textarea>
                         </div>
 
                         <div class="mb-4">
@@ -405,15 +438,20 @@ if ($role === 'guardian' && $userId) {
                             <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Use your camera to capture the scene and help responders prepare.</small>
                         </div>
 
-                        <input type="hidden" name="live_location" id="liveLocation">
-
-                        <div class="mb-4">
-                            <label class="form-label fw-bold text-uppercase">6. GhanaPostGPS Address</label>
-                            <div class="position-relative">
-                                <i class="bi bi-geo-alt-fill position-absolute top-50 start-0 translate-middle-y ms-3 text-danger"></i>
-                                <input type="text" name="ghana_post_gps" class="form-control px-4 py-3 ps-5 fw-bold" required placeholder="AK-485-9323" value="<?php echo $_SESSION['user']['user_metadata']['ghana_post_gps'] ?? ''; ?>">
+                        <div class="mb-4 info-card-industrial p-4 shadow-sm border-0" style="background: rgba(255,255,255,0.03);">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <label id="gpsLabel" class="form-label mb-0 fw-bold text-uppercase">6. Location Address</label>
+                                <div id="locationStatus" class="location-indicator status-searching">
+                                    <div class="pulse-dot pulse-searching"></div>
+                                    <span id="locationStatusText">SEARCHING GPS...</span>
+                                </div>
                             </div>
-                            <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Mandatory for pinpoint rapid response accuracy.</small>
+                            <div class="position-relative">
+                                <i class="bi bi-geo-alt-fill position-absolute top-50 start-0 translate-middle-y ms-3 text-danger" style="z-index: 5;"></i>
+                                <input type="text" name="ghana_post_gps" id="gpsInput" class="form-control px-4 py-3 ps-5 fw-bold" required placeholder="AK-485-9323" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white;" value="<?php echo $_SESSION['user']['user_metadata']['ghana_post_gps'] ?? ''; ?>">
+                            </div>
+                            <input type="hidden" name="live_location" id="liveLocation">
+                            <small class="text-secondary mt-2 d-block"><i class="bi bi-info-circle me-1"></i> Don't know your GPS? Our system is auto-detecting your live coordinates.</small>
                         </div>
 
                         <div class="d-grid mt-5 pt-4 border-top border-light">
@@ -482,14 +520,51 @@ if ($role === 'guardian' && $userId) {
         const voiceInput = document.getElementById('voiceNoteBase64');
         const recordingIndicator = document.getElementById('recordingIndicator');
 
-        // Location capturing
+        // Continuous Live Location Tracking
         const locInput = document.getElementById('liveLocation');
+        const gpsInput = document.getElementById('gpsInput');
+        const gpsLabel = document.getElementById('gpsLabel');
+        const locStatus = document.getElementById('locationStatus');
+        const locStatusText = document.getElementById('locationStatusText');
+        const pulseDot = locStatus.querySelector('.pulse-dot');
+        let watchId = null;
+
+        function updateLocationStatus(state, msg) {
+            locStatus.className = 'location-indicator ' + state;
+            locStatusText.innerText = msg;
+            pulseDot.className = 'pulse-dot ' + (state === 'status-secured' ? 'pulse-secured' : (state === 'status-searching' ? 'pulse-searching' : ''));
+            
+            if (state === 'status-secured') {
+                gpsInput.required = false;
+                gpsInput.placeholder = "Optional (Live Location Active)";
+                gpsLabel.innerHTML = '<i class="bi bi-geo-alt-fill text-success me-2"></i> 4. EMERGENCY LOCATION <span class="badge bg-success ms-2">SECURED</span>';
+            } else if (state === 'status-denied') {
+                gpsInput.required = true;
+                gpsInput.placeholder = "REQUIRED (AK-485-9323)";
+                gpsLabel.innerHTML = '<i class="bi bi-geo-alt-fill text-danger me-2"></i> 4. EMERGENCY LOCATION <span class="badge bg-danger ms-2">MANDATORY</span>';
+            }
+        }
+
         if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                pos => { locInput.value = pos.coords.latitude + ',' + pos.coords.longitude; },
-                err => { console.warn('Location access denied or unavailable', err); },
-                { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+            watchId = navigator.geolocation.watchPosition(
+                pos => {
+                    const coords = pos.coords.latitude + ',' + pos.coords.longitude;
+                    locInput.value = coords;
+                    updateLocationStatus('status-secured', 'POSITION SECURED');
+                    console.log('Location Updated:', coords);
+                },
+                err => {
+                    console.warn('Location tracking failed', err);
+                    if (err.code === 1) { // Permission Denied
+                        updateLocationStatus('status-denied', 'GPS ACCESS DENIED');
+                    } else {
+                        updateLocationStatus('status-searching', 'GPS SEARCHING...');
+                    }
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
             );
+        } else {
+            updateLocationStatus('status-denied', 'GPS NOT SUPPORTED');
         }
 
         // Photo/Video File Handling
@@ -672,10 +747,12 @@ if ($role === 'guardian' && $userId) {
             if (this.value === 'other') {
                 symptomsLabel.innerHTML = '3. Describe Emergency <span class="badge bg-danger ms-2">REQUIRED</span>';
                 symptomsTextarea.placeholder = "REQUIRED: Please describe the situation in detail. This request will be reviewed by our clinical administrator immediately.";
+                symptomsTextarea.required = true;
                 symptomsTextarea.focus();
             } else {
                 symptomsLabel.innerText = '3. Primary Symptoms / Details';
-                symptomsTextarea.placeholder = "Briefly describe what is happening... Stay calm, type clearly.";
+                symptomsTextarea.placeholder = "Briefly describe what is happening... Stay calm, type clearly. (Optional for this type)";
+                symptomsTextarea.required = false;
             }
         };
 
