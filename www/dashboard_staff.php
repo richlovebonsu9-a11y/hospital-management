@@ -260,15 +260,30 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                 <?php else: ?>
                                     <?php foreach($myEmergencies as $e): 
                                         $readableType = str_replace(['_', 'bites', 'attacks', 'emergencies'], [' ', 'bite', 'attack', 'emergency'], $e['emergency_type'] ?? 'General');
+                                        $symptomsRaw = $e['symptoms'] ?? '';
+                                        $reporterName = $e['reporter']['name'] ?? ($profilesMap[$e['reporter_id']] ?? 'Patient');
+                                        $isGuestReport = false;
+                                        
+                                        // Detect Guest Information in symptoms
+                                        if (str_starts_with($symptomsRaw, '[GUEST REPORT:')) {
+                                            $isGuestReport = true;
+                                            $endPos = strpos($symptomsRaw, ']');
+                                            if ($endPos !== false) {
+                                                // Extract "Name (Phone)" from "[GUEST REPORT: Name (Phone)]"
+                                                $guestInfo = substr($symptomsRaw, 15, $endPos - 15);
+                                                $reporterName = $guestInfo;
+                                            }
+                                        }
                                     ?>
                                         <tr class="table-danger-soft">
                                             <td class="fw-bold text-danger"><?php echo date('H:i', strtotime($e['created_at'])); ?></td>
                                             <td>
-                                                <div class="fw-bold"><?php 
-                                                    $reporterName = $e['reporter']['name'] ?? ($profilesMap[$e['reporter_id']] ?? 'Patient');
-                                                    echo htmlspecialchars($reporterName); 
-                                                ?></div>
-                                                <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
+                                                <div class="fw-bold text-dark"><?php echo htmlspecialchars($reporterName); ?></div>
+                                                <?php if (!$isGuestReport && !empty($e['reporter_id'])): ?>
+                                                    <small class="text-muted extra-small">ID: <?php echo substr($e['reporter_id'], 0, 8); ?></small>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary-subtle text-secondary extra-small rounded-pill px-2">GUEST SOS</span>
+                                                <?php endif; ?>
                                             </td>
                                             <td>
                                                 <span class="badge bg-danger text-uppercase p-2 rounded-3 small"><?php echo htmlspecialchars($readableType); ?></span>
@@ -277,6 +292,11 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                     $voiceNoteBase64 = null;
                                                     $mediaBase64 = null;
                                                     
+                                                    // Clean up guest prefix for display
+                                                    if ($isGuestReport && !empty($guestInfo)) {
+                                                        $symptomsText = str_replace("[GUEST REPORT: $guestInfo] ", "", $symptomsText);
+                                                    }
+
                                                     if (strpos($symptomsText, '||MEDIA||') !== false) {
                                                         $parts = explode(' ||MEDIA|| ', $symptomsText);
                                                         $symptomsText = $parts[0];
