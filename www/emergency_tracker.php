@@ -418,7 +418,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
 
         if (supabaseUrl && supabaseKey) {
-            const supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
             // Subscribe to real-time updates for this specific emergency mission
             const channel = supabase.channel(`emergency-${emergencyId}`)
@@ -432,7 +432,6 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     console.log("Mission Update Received:", data);
                     
                     // Update global state
-                    const oldStatus = currentStatus;
                     currentStatus = data.status;
                     dispatchedAt = data.dispatched_at;
 
@@ -481,12 +480,21 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             }
 
             if ((currentStatus === 'dispatched' || currentStatus === 'assigned') && (dispatchedAt || serverElapsedAtLoad > 0)) {
-                const secondsSinceLoad = (performance.now() - loadTimestamp) / 1000;
-                const totalElapsedSeconds = Math.floor(serverElapsedAtLoad + secondsSinceLoad);
+                let elapsedSeconds = 0;
+                
+                if (dispatchedAt) {
+                    // Calculate elapsed from the timestamp (robust for real-time updates)
+                    const startTime = new Date(dispatchedAt).getTime();
+                    elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+                } else {
+                    // Fallback to load-time relative calculation
+                    const secondsSinceLoad = (performance.now() - loadTimestamp) / 1000;
+                    elapsedSeconds = Math.floor(serverElapsedAtLoad + secondsSinceLoad);
+                }
                 
                 const initialMins = (parseInt(emergencyId.substring(0, 4), 16) % 4) + 7;
                 const totalInitialSeconds = initialMins * 60;
-                let remainingTotalSeconds = totalInitialSeconds - totalElapsedSeconds;
+                let remainingTotalSeconds = totalInitialSeconds - elapsedSeconds;
                 
                 if (remainingTotalSeconds <= 0) {
                     etaDisplay.innerHTML = '<span class="text-primary">Arriving at Site</span>';
@@ -500,12 +508,16 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             }
         }
 
-        // Radar Radar Logic (Local Animation)
+        // Initialize UI values immediately
+        updateTimeline(currentStatus);
+        updateETA();
+
+        // Radar Logic (Local Animation)
         if (responderDot) {
             setInterval(() => {
                 if (currentStatus === 'dispatched' || currentStatus === 'assigned') {
-                    const top = parseInt(responderDot.style.top || '30');
-                    const left = parseInt(responderDot.style.left || '70');
+                    const top = parseFloat(responderDot.style.top || '30');
+                    const left = parseFloat(responderDot.style.left || '70');
                     if (top < 50) responderDot.style.top = (top + 0.1) + '%';
                     if (left > 50) responderDot.style.left = (left - 0.1) + '%';
                 }
