@@ -487,7 +487,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 return;
             }
 
-            if (currentStatus === 'dispatched' || currentStatus === 'assigned') {
+            if (currentStatus === 'dispatched') {
                 // Calculate elapsed based on monotonic timer to avoid clock drift
                 const secondsSinceLastSync = (performance.now() - lastSyncPerformanceNow) / 1000;
                 const totalElapsedSeconds = Math.floor(liveElapsedSeconds + secondsSinceLastSync);
@@ -504,6 +504,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     const s = remainingTotalSeconds % 60;
                     etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + m + ":" + (s < 10 ? '0' : '') + s + '</span>';
                 }
+            } else if (currentStatus === 'assigned') {
+                etaDisplay.innerHTML = '<span class="text-primary">ETA: ~10 mins (Awaiting Dispatch)</span>';
             } else {
                 etaDisplay.innerHTML = '<span class="text-primary">ETA: ~10 mins</span>';
             }
@@ -516,7 +518,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         // Radar Logic (Local Animation)
         if (responderDot) {
             setInterval(() => {
-                if (currentStatus === 'dispatched' || currentStatus === 'assigned') {
+                if (currentStatus === 'dispatched') {
                     const top = parseFloat(responderDot.style.top || '30');
                     const left = parseFloat(responderDot.style.left || '70');
                     if (top < 50) responderDot.style.top = (top + 0.1) + '%';
