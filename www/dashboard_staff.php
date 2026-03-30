@@ -1269,6 +1269,8 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 btn.innerText = originalText;
             }
         };
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
         // Supabase Real-time Integration
@@ -1277,7 +1279,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         const currentStaffId = '<?php echo $_SESSION['user']['id'] ?? ''; ?>';
         
         if (supabaseUrl && supabaseKey) {
-            const supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
             // Listen for new assignments or updates to emergencies
             const emergencyChannel = supabase.channel('emergency-staff-view')
