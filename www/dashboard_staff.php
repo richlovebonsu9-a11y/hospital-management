@@ -1279,10 +1279,10 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         const currentStaffId = '<?php echo $_SESSION['user']['id'] ?? ''; ?>';
         
         if (supabaseUrl && supabaseKey) {
-            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+            const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
             // Listen for new assignments or updates to emergencies
-            const emergencyChannel = supabase.channel('emergency-staff-view')
+            const emergencyChannel = supabaseClient.channel('emergency-staff-view')
                 .on('postgres_changes', { 
                     event: '*', 
                     schema: 'public', 

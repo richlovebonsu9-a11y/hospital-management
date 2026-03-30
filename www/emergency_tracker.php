@@ -418,10 +418,10 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
 
         if (supabaseUrl && supabaseKey) {
-            const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+            const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
             // Subscribe to real-time updates for this specific emergency mission
-            const channel = supabase.channel(`emergency-${emergencyId}`)
+            const channel = supabaseClient.channel(`emergency-${emergencyId}`)
                 .on('postgres_changes', { 
                     event: 'UPDATE', 
                     schema: 'public', 
