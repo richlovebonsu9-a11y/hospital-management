@@ -1269,6 +1269,58 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                 btn.innerText = originalText;
             }
         };
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // Supabase Real-time Integration
+        const supabaseUrl = '<?php echo getenv('SUPABASE_URL'); ?>';
+        const supabaseKey = '<?php echo getenv('SUPABASE_ANON_KEY'); ?>';
+        const currentStaffId = '<?php echo $_SESSION['user']['id'] ?? ''; ?>';
+        
+        if (supabaseUrl && supabaseKey) {
+            const supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
+
+            // Listen for new assignments or updates to emergencies
+            const emergencyChannel = supabase.channel('emergency-staff-view')
+                .on('postgres_changes', { 
+                    event: '*', 
+                    schema: 'public', 
+                    table: 'emergencies' 
+                }, (payload) => {
+                    const emergency = payload.new;
+                    const oldEmergency = payload.old;
+                    
+                    // Case 1: Directly assigned to me (on Insert or Update)
+                    if (emergency && emergency.assigned_to === currentStaffId) {
+                        // Only alert if it's a new assignment or a critical change
+                        if (!oldEmergency || oldEmergency.assigned_to !== currentStaffId || oldEmergency.status !== emergency.status) {
+                            Swal.fire({
+                                icon: 'warning',
+                                title: 'New Emergency Assigned!',
+                                text: 'A new emergency mission has been routed to you. Please check your task queue.',
+                                confirmButtonText: 'View Now',
+                                timer: 10000
+                            }).then(() => location.reload());
+                        }
+                    } 
+                    // Case 2: Broad update (e.g. unassigned emergency) - just reload to keep queue fresh
+                    else if (payload.table === 'emergencies') {
+                        // Debounce reload to avoid spamming if multiple updates occur
+                        clearTimeout(window.reloadTimeout);
+                        window.reloadTimeout = setTimeout(() => {
+                            // Only reload if the user is looking at the emergency section
+                            // or if we want to ensure total live-ness
+                            console.log("Syncing emergency task queue...");
+                            // We don't hard reload for every single change to avoid UX disruption, 
+                            // but for emergencies, it's safer to stay in sync.
+                            // If it's a new unassigned emergency, we should show it.
+                            if (!emergency || !emergency.assigned_to) {
+                                // location.reload(); 
+                            }
+                        }, 2000);
+                    }
+                })
+                .subscribe();
+        }
     </script>
 </body>
 </html>

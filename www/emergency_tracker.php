@@ -399,24 +399,57 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script>
-        // Dynamic ETA and Status Logic
+        // Supabase Real-time Configuration
+        const supabaseUrl = '<?php echo getenv('SUPABASE_URL'); ?>';
+        const supabaseKey = '<?php echo getenv('SUPABASE_ANON_KEY'); ?>';
+        const emergencyId = '<?php echo $emergencyId; ?>';
+
+        let currentStatus = '<?php echo $status; ?>';
+        let dispatchedAt = '<?php echo $dispatchedAt; ?>';
+        let serverElapsedAtLoad = <?php echo $serverElapsed; ?>;
+        const loadTimestamp = performance.now();
+        
         const responderDot = document.getElementById('responderDot');
         const etaDisplay = document.getElementById('etaDisplay');
         const etaSubtext = document.getElementById('etaSubtext');
-        let currentStatus = '<?php echo $status; ?>';
-        const dispatchedAt = '<?php echo $dispatchedAt; ?>';
-        const emergencyId = '<?php echo $emergencyId; ?>';
-        const serverElapsedAtLoad = <?php echo $serverElapsed; ?>;
-        const loadTimestamp = performance.now();
         
         const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
 
-        function updateUI(newStatus) {
-            if (newStatus === currentStatus) return;
-            currentStatus = newStatus;
+        if (supabaseUrl && supabaseKey) {
+            const supabase = supabasejs.createClient(supabaseUrl, supabaseKey);
 
-            // Update Timeline
+            // Subscribe to real-time updates for this specific emergency mission
+            const channel = supabase.channel(`emergency-${emergencyId}`)
+                .on('postgres_changes', { 
+                    event: 'UPDATE', 
+                    schema: 'public', 
+                    table: 'emergencies',
+                    filter: `id=eq.${emergencyId}` 
+                }, (payload) => {
+                    const data = payload.new;
+                    console.log("Mission Update Received:", data);
+                    
+                    // Update global state
+                    const oldStatus = currentStatus;
+                    currentStatus = data.status;
+                    dispatchedAt = data.dispatched_at;
+
+                    // Update UI elements
+                    updateTimeline(data.status);
+                    
+                    // If responder is newly assigned or dispatched, we might need to reload to show responder info
+                    if (data.assigned_to && !document.getElementById('responderInfo')) {
+                        location.reload(); 
+                    } else {
+                        updateETA();
+                    }
+                })
+                .subscribe();
+        }
+
+        function updateTimeline(newStatus) {
             const sReceived = document.getElementById('step-received');
             const sResponding = document.getElementById('step-responding');
             const sResolved = document.getElementById('step-resolved');
@@ -434,25 +467,6 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 sResponding.className = 'status-step status-complete';
                 sResolved.className = 'status-step status-active';
             }
-
-            updateETA();
-        }
-
-        async function pollStatus() {
-            try {
-                const response = await fetch(`/api/emergency/get_status.php?id=${emergencyId}`);
-                const data = await response.json();
-                if (data.status) {
-                    updateUI(data.status);
-                    
-                    // Specific logic if responder was just assigned
-                    if (data.responder && !document.getElementById('responderInfo')) {
-                        location.reload(); // Hard reload once if responder info needs to be rendered from PHP
-                    }
-                }
-            } catch (error) {
-                console.error("Poll error:", error);
-            }
         }
 
         function updateETA() {
@@ -466,13 +480,11 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 return;
             }
 
-            if (currentStatus === 'dispatched' && (dispatchedAt || serverElapsedAtLoad > 0)) {
-                // Calculate total elapsed time relative to page load
+            if ((currentStatus === 'dispatched' || currentStatus === 'assigned') && (dispatchedAt || serverElapsedAtLoad > 0)) {
                 const secondsSinceLoad = (performance.now() - loadTimestamp) / 1000;
                 const totalElapsedSeconds = Math.floor(serverElapsedAtLoad + secondsSinceLoad);
                 
-                // Deterministic random selection of 7, 8, 9, or 10 minutes based on emergency ID
-                const initialMins = (parseInt('<?php echo substr($emergencyId, 0, 4); ?>', 16) % 4) + 7;
+                const initialMins = (parseInt(emergencyId.substring(0, 4), 16) % 4) + 7;
                 const totalInitialSeconds = initialMins * 60;
                 let remainingTotalSeconds = totalInitialSeconds - totalElapsedSeconds;
                 
@@ -481,62 +493,27 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 } else {
                     const m = Math.floor(remainingTotalSeconds / 60);
                     const s = remainingTotalSeconds % 60;
-                    const formatted = m + ":" + (s < 10 ? '0' : '') + s;
-                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + formatted + '</span>';
+                    etaDisplay.innerHTML = '<span class="text-primary">ETA: ' + m + ":" + (s < 10 ? '0' : '') + s + '</span>';
                 }
             } else {
-                // Status is pending or assigned — show static range
-                etaDisplay.innerHTML = '<span class="text-primary">ETA: 7 to 10 mins</span>';
+                etaDisplay.innerHTML = '<span class="text-primary">ETA: ~10 mins</span>';
             }
         }
 
-        updateETA();
-        setInterval(pollStatus, 5000); // Poll every 5 seconds
-
-            // Local visual movement (Radar) - only if dot exists
-            if (responderDot) {
-                const moveInterval = setInterval(() => {
+        // Radar Radar Logic (Local Animation)
+        if (responderDot) {
+            setInterval(() => {
+                if (currentStatus === 'dispatched' || currentStatus === 'assigned') {
                     const top = parseInt(responderDot.style.top || '30');
                     const left = parseInt(responderDot.style.left || '70');
-                    
-                    if (top < 50) responderDot.style.top = (top + 1) + '%';
-                    if (left > 50) responderDot.style.left = (left - 1) + '%';
+                    if (top < 50) responderDot.style.top = (top + 0.1) + '%';
+                    if (left > 50) responderDot.style.left = (left - 0.1) + '%';
+                }
+            }, 1000);
+        }
 
-                    if (top >= 50 && left <= 50) {
-                        clearInterval(moveInterval);
-                        if (currentStatus !== 'resolved') {
-                            etaDisplay.innerText = "Arriving at Site";
-                            etaDisplay.classList.add('text-primary');
-                        }
-                    }
-                }, 10000); 
-            }
-
-
-        // Global interval for the ETA countdown specifically
+        // Run ETA countdown independently
         setInterval(updateETA, 1000);
-
-        // Auto-refresh state every 20 seconds
-        setInterval(() => {
-            fetch(window.location.href)
-                .then(res => res.text())
-                .then(html => {
-                    const doc = new DOMParser().parseFromString(html, 'text/html');
-                    const newStatus = doc.querySelector('script').textContent.match(/currentStatus = '(.*?)'/)[1];
-                    
-                    if (newStatus !== currentStatus) {
-                        location.reload(); // Hard reload on status change to reset JS state
-                        return;
-                    }
-
-                    const newTimeline = doc.querySelector('.status-timeline');
-                    if(newTimeline) document.querySelector('.status-timeline').innerHTML = newTimeline.innerHTML;
-                    
-                    // Also update guide if needed (though usually static)
-                    const newGuide = doc.querySelector('.col-lg-6:last-child .guide-card');
-                    if(newGuide) document.querySelector('.col-lg-6:last-child').innerHTML = newGuide.parentElement.innerHTML;
-                });
-        }, 20000);
     </script>
 </body>
 </html>
