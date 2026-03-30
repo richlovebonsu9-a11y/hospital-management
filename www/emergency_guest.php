@@ -144,6 +144,18 @@ session_start();
             <div class="col-md-7">
                 <div class="glass-card p-4 p-md-5">
                     <form id="emergencyForm" action="/api/emergency/report.php" method="POST">
+                        <div class="alert alert-danger border-0 rounded-4 shadow-sm mb-4 p-3 animate-fade-in">
+                            <div class="d-flex align-items-center">
+                                <div class="bg-danger text-white rounded-circle p-2 me-3 shadow-sm d-flex align-items-center justify-content-center" style="width: 40px; height: 40px; min-width: 40px;">
+                                    <i class="bi bi-exclamation-octagon-fill fs-5"></i>
+                                </div>
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-danger">LEGAL WARNING: REAL EMERGENCIES ONLY</h6>
+                                    <p class="extra-small mb-0 opacity-75">Prank reporting is a **serious offense**. Your IP address and location are being logged. Abuse of this platform endangers lives by wasting emergency resources and is punishable by law.</p>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Guest Identity -->
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
