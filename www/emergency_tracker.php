@@ -411,6 +411,10 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         let serverElapsedAtLoad = <?php echo $serverElapsed; ?>;
         const loadTimestamp = performance.now();
         
+        // This will store the effective elapsed seconds including real-time updates
+        let liveElapsedSeconds = serverElapsedAtLoad;
+        let lastSyncPerformanceNow = loadTimestamp;
+
         const responderDot = document.getElementById('responderDot');
         const etaDisplay = document.getElementById('etaDisplay');
         const etaSubtext = document.getElementById('etaSubtext');
@@ -420,7 +424,6 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         if (supabaseUrl && supabaseKey) {
             const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-            // Subscribe to real-time updates for this specific emergency mission
             const channel = supabaseClient.channel(`emergency-${emergencyId}`)
                 .on('postgres_changes', { 
                     event: 'UPDATE', 
@@ -431,14 +434,19 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     const data = payload.new;
                     console.log("Mission Update Received:", data);
                     
-                    // Update global state
+                    const oldStatus = currentStatus;
                     currentStatus = data.status;
                     dispatchedAt = data.dispatched_at;
 
-                    // Update UI elements
+                    // When dispatched in real-time, reset the reference point
+                    if (data.status === 'dispatched' && data.dispatched_at) {
+                        // Reset elapsed to 0 for a brand new dispatch
+                        liveElapsedSeconds = 0; 
+                        lastSyncPerformanceNow = performance.now();
+                    }
+
                     updateTimeline(data.status);
                     
-                    // If responder is newly assigned or dispatched, we might need to reload to show responder info
                     if (data.assigned_to && !document.getElementById('responderInfo')) {
                         location.reload(); 
                     } else {
@@ -479,22 +487,15 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                 return;
             }
 
-            if ((currentStatus === 'dispatched' || currentStatus === 'assigned') && (dispatchedAt || serverElapsedAtLoad > 0)) {
-                let elapsedSeconds = 0;
+            if (currentStatus === 'dispatched' || currentStatus === 'assigned') {
+                // Calculate elapsed based on monotonic timer to avoid clock drift
+                const secondsSinceLastSync = (performance.now() - lastSyncPerformanceNow) / 1000;
+                const totalElapsedSeconds = Math.floor(liveElapsedSeconds + secondsSinceLastSync);
                 
-                if (dispatchedAt) {
-                    // Calculate elapsed from the timestamp (robust for real-time updates)
-                    const startTime = new Date(dispatchedAt).getTime();
-                    elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-                } else {
-                    // Fallback to load-time relative calculation
-                    const secondsSinceLoad = (performance.now() - loadTimestamp) / 1000;
-                    elapsedSeconds = Math.floor(serverElapsedAtLoad + secondsSinceLoad);
-                }
-                
+                // Deterministic 7-10 minute logic
                 const initialMins = (parseInt(emergencyId.substring(0, 4), 16) % 4) + 7;
                 const totalInitialSeconds = initialMins * 60;
-                let remainingTotalSeconds = totalInitialSeconds - elapsedSeconds;
+                let remainingTotalSeconds = totalInitialSeconds - totalElapsedSeconds;
                 
                 if (remainingTotalSeconds <= 0) {
                     etaDisplay.innerHTML = '<span class="text-primary">Arriving at Site</span>';
