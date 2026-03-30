@@ -247,7 +247,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     </div>
                 <?php endif; ?>
 
-                <div class="card p-4 border-0 shadow-sm mb-5 border-start border-danger border-4">
+                <div class="card p-4 border-0 shadow-sm mb-5 border-start border-danger border-4" id="emergencyTaskContainer">
                     <h5 class="fw-bold mb-4 text-danger"><i class="bi bi-activity me-2"></i>Urgent Emergency Tasks</h5>
                     <div class="table-responsive">
                         <table class="table table-hover align-middle">
@@ -391,12 +391,12 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                                 </div>
                                             </td>
                                         </tr>
-                                    <?php endforeach; ?>
+                    <?php endforeach; ?>
                                 <?php endif; ?>
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </div> <!-- End emergencyTaskContainer -->
             <?php endif; ?>
 
             <?php if (!in_array($role, ['ambulance', 'dispatch_rider'])): ?>
@@ -1281,7 +1281,22 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
         if (supabaseUrl && supabaseKey) {
             const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-            // Listen for new assignments or updates to emergencies
+            async function refreshEmergencyTable() {
+                try {
+                    const res = await fetch(window.location.href);
+                    const html = await res.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const newContainer = doc.getElementById('emergencyTaskContainer');
+                    if (newContainer) {
+                        document.getElementById('emergencyTaskContainer').innerHTML = newContainer.innerHTML;
+                        console.log("Emergency Task Queue updated seamlessly.");
+                    }
+                } catch (e) {
+                    console.error("Failed to sync task queue:", e);
+                }
+            }
+
             const emergencyChannel = supabaseClient.channel('emergency-staff-view')
                 .on('postgres_changes', { 
                     event: '*', 
@@ -1291,9 +1306,7 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                     const emergency = payload.new;
                     const oldEmergency = payload.old;
                     
-                    // Case 1: Directly assigned to me (on Insert or Update)
                     if (emergency && emergency.assigned_to === currentStaffId) {
-                        // Only alert if it's a new assignment or a critical change
                         if (!oldEmergency || oldEmergency.assigned_to !== currentStaffId || oldEmergency.status !== emergency.status) {
                             Swal.fire({
                                 icon: 'warning',
@@ -1301,24 +1314,11 @@ if (in_array($role, ['nurse', 'ambulance', 'dispatch_rider'])) {
                                 text: 'A new emergency mission has been routed to you. Please check your task queue.',
                                 confirmButtonText: 'View Now',
                                 timer: 10000
-                            }).then(() => location.reload());
+                            });
+                            refreshEmergencyTable();
                         }
-                    } 
-                    // Case 2: Broad update (e.g. unassigned emergency) - just reload to keep queue fresh
-                    else if (payload.table === 'emergencies') {
-                        // Debounce reload to avoid spamming if multiple updates occur
-                        clearTimeout(window.reloadTimeout);
-                        window.reloadTimeout = setTimeout(() => {
-                            // Only reload if the user is looking at the emergency section
-                            // or if we want to ensure total live-ness
-                            console.log("Syncing emergency task queue...");
-                            // We don't hard reload for every single change to avoid UX disruption, 
-                            // but for emergencies, it's safer to stay in sync.
-                            // If it's a new unassigned emergency, we should show it.
-                            if (!emergency || !emergency.assigned_to) {
-                                // location.reload(); 
-                            }
-                        }, 2000);
+                    } else {
+                        refreshEmergencyTable();
                     }
                 })
                 .subscribe();

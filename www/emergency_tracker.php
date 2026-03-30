@@ -305,7 +305,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         </div>
 
         <!-- Mission Milestones -->
-        <div class="status-timeline">
+        <div id="trackerStage">
+            <div class="status-timeline">
             <div id="step-received" class="status-step <?php echo ($status === 'pending') ? 'status-active' : 'status-complete'; ?>">
                 <div class="step-icon"><i class="bi bi-cpu"></i></div>
                 <div class="step-label">Report Received</div>
@@ -392,6 +393,7 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     </div>
                 </div>
             </div>
+        </div> <!-- End trackerStage -->
         </div>
 
         <div class="text-center mt-5">
@@ -411,18 +413,53 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         let serverElapsedAtLoad = <?php echo $serverElapsed; ?>;
         const loadTimestamp = performance.now();
         
-        // This will store the effective elapsed seconds including real-time updates
         let liveElapsedSeconds = serverElapsedAtLoad;
         let lastSyncPerformanceNow = loadTimestamp;
-
-        const responderDot = document.getElementById('responderDot');
-        const etaDisplay = document.getElementById('etaDisplay');
-        const etaSubtext = document.getElementById('etaSubtext');
         
         const MEDICAL_COMPLETION_MSG = "Medical intervention successfully established. Our specialists have secured the site and are administering advanced clinical care. Patient status is being monitored under professional supervision.";
 
         if (supabaseUrl && supabaseKey) {
             const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+
+            async function syncTrackerUI() {
+                try {
+                    const res = await fetch(window.location.href);
+                    const html = await res.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // Extract new state from script tags in the fetched doc
+                    const scripts = doc.querySelectorAll('script');
+                    for (const s of scripts) {
+                        const content = s.textContent;
+                        if (content.includes('currentStatus =')) {
+                            const statusMatch = content.match(/currentStatus = '(.*?)'/);
+                            const dispatchMatch = content.match(/dispatchedAt = '(.*?)'/);
+                            const elapsedMatch = content.match(/serverElapsedAtLoad = (\d+)/);
+                            
+                            if (statusMatch) currentStatus = statusMatch[1];
+                            if (dispatchMatch) dispatchedAt = dispatchMatch[1];
+                            if (elapsedMatch) {
+                                liveElapsedSeconds = parseInt(elapsedMatch[1]);
+                                lastSyncPerformanceNow = performance.now();
+                            }
+                            break;
+                        }
+                    }
+
+                    // Swap the HTML stage
+                    const newStage = doc.getElementById('trackerStage');
+                    if (newStage) {
+                        document.getElementById('trackerStage').innerHTML = newStage.innerHTML;
+                        console.log("Tracker UI synced seamlessly. Status:", currentStatus);
+                    }
+
+                    updateTimeline(currentStatus);
+                    updateETA();
+                } catch (e) {
+                    console.error("Failed to sync tracker UI:", e);
+                }
+            }
 
             const channel = supabaseClient.channel(`emergency-${emergencyId}`)
                 .on('postgres_changes', { 
@@ -434,24 +471,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
                     const data = payload.new;
                     console.log("Mission Update Received:", data);
                     
-                    const oldStatus = currentStatus;
-                    currentStatus = data.status;
-                    dispatchedAt = data.dispatched_at;
-
-                    // When dispatched in real-time, reset the reference point
-                    if (data.status === 'dispatched' && data.dispatched_at) {
-                        // Reset elapsed to 0 for a brand new dispatch
-                        liveElapsedSeconds = 0; 
-                        lastSyncPerformanceNow = performance.now();
-                    }
-
-                    updateTimeline(data.status);
-                    
-                    if (data.assigned_to && !document.getElementById('responderInfo')) {
-                        location.reload(); 
-                    } else {
-                        updateETA();
-                    }
+                    // Trigger seamless sync instead of reload
+                    syncTrackerUI();
                 })
                 .subscribe();
         }
@@ -460,6 +481,8 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             const sReceived = document.getElementById('step-received');
             const sResponding = document.getElementById('step-responding');
             const sResolved = document.getElementById('step-resolved');
+
+            if (!sReceived || !sResponding || !sResolved) return;
 
             if (newStatus === 'pending') {
                 sReceived.className = 'status-step status-active';
@@ -477,22 +500,27 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
         }
 
         function updateETA() {
+            const etaDisplay = document.getElementById('etaDisplay');
+            const etaSubtext = document.getElementById('etaSubtext');
+            if (!etaDisplay) return;
+
             if (currentStatus === 'resolved') {
                 etaDisplay.innerHTML = '<span class="text-success"><i class="bi bi-cloud-check-fill me-2"></i>Response Finalized</span>';
-                etaSubtext.innerHTML = `<div class="mt-2 p-3 rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 text-success small fw-medium" style="line-height:1.6;">${MEDICAL_COMPLETION_MSG}</div>`;
-                if(responderDot) {
-                    responderDot.style.top = '50%';
-                    responderDot.style.left = '50%';
+                if (etaSubtext) {
+                    etaSubtext.innerHTML = `<div class="mt-2 p-3 rounded-4 bg-success bg-opacity-10 border border-success border-opacity-25 text-success small fw-medium" style="line-height:1.6;">${MEDICAL_COMPLETION_MSG}</div>`;
+                }
+                const dot = document.getElementById('responderDot');
+                if(dot) {
+                    dot.style.top = '50%';
+                    dot.style.left = '50%';
                 }
                 return;
             }
 
             if (currentStatus === 'dispatched') {
-                // Calculate elapsed based on monotonic timer to avoid clock drift
                 const secondsSinceLastSync = (performance.now() - lastSyncPerformanceNow) / 1000;
                 const totalElapsedSeconds = Math.floor(liveElapsedSeconds + secondsSinceLastSync);
                 
-                // Deterministic 7-10 minute logic
                 const initialMins = (parseInt(emergencyId.substring(0, 4), 16) % 4) + 7;
                 const totalInitialSeconds = initialMins * 60;
                 let remainingTotalSeconds = totalInitialSeconds - totalElapsedSeconds;
@@ -511,24 +539,21 @@ $guide = $firstAidGuides[$type] ?? $firstAidGuides['default'];
             }
         }
 
-        // Initialize UI values immediately
         updateTimeline(currentStatus);
         updateETA();
 
-        // Radar Logic (Local Animation)
-        if (responderDot) {
-            setInterval(() => {
-                if (currentStatus === 'dispatched') {
-                    const top = parseFloat(responderDot.style.top || '30');
-                    const left = parseFloat(responderDot.style.left || '70');
-                    if (top < 50) responderDot.style.top = (top + 0.1) + '%';
-                    if (left > 50) responderDot.style.left = (left - 0.1) + '%';
-                }
-            }, 1000);
-        }
+        setInterval(() => {
+            const dot = document.getElementById('responderDot');
+            if (dot && currentStatus === 'dispatched') {
+                const top = parseFloat(dot.style.top || '30');
+                const left = parseFloat(dot.style.left || '70');
+                if (top < 50) dot.style.top = (top + 0.1) + '%';
+                if (left > 50) dot.style.left = (left - 0.1) + '%';
+            }
+        }, 1000);
 
-        // Run ETA countdown independently
         setInterval(updateETA, 1000);
+    </script>
     </script>
 </body>
 </html>
