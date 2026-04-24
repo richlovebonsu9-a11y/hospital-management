@@ -48,8 +48,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($signInResult['status'] === 200) {
             $tokenData = $signInResult['data'];
             
-            setcookie('sb_user', json_encode($tokenData['user']), time() + 86400, '/', '', true, true);
-            setcookie('sb_token', $tokenData['access_token'], time() + 86400, '/', '', true, true);
+            // Protocol aware secure flag
+            $isSecure = isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on';
+            
+            setcookie('sb_user', json_encode($tokenData['user']), time() + 86400, '/', '', $isSecure, true);
+            setcookie('sb_token', $tokenData['access_token'], time() + 86400, '/', '', $isSecure, true);
             
             $userRole = $tokenData['user']['user_metadata']['role'] ?? 'patient';
             header('Location: /dashboard?role=' . $userRole);
@@ -59,7 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
     } else {
-        $error = $result['data']['msg'] ?? 'Signup failed';
+        $error = $result['data']['msg'] ?? $result['data']['message'] ?? $result['data']['error'] ?? 'Signup failed';
+        error_log("Signup failure: " . json_encode($result));
         header('Location: /signup?error=' . urlencode($error));
         exit;
     }
